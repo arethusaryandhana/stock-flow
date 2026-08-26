@@ -5,7 +5,9 @@ using StockFlow.Core;
 
 namespace StockFlow.Application.UseCases;
 
-public sealed class ProductUseCase(IProductRepository products) : IProductUseCase
+public sealed class ProductUseCase(
+    IProductRepository products,
+    ICategoryRepository categories) : IProductUseCase
 {
     public Task<IReadOnlyList<ProductResponse>> GetAllAsync(
         CancellationToken cancellationToken = default) =>
@@ -15,20 +17,44 @@ public sealed class ProductUseCase(IProductRepository products) : IProductUseCas
         ProductRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(request.Sku) || string.IsNullOrWhiteSpace(request.Name))
+        var sku = request.Sku?.Trim() ?? string.Empty;
+        var name = request.Name?.Trim() ?? string.Empty;
+        var unit = request.Unit?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(sku) || string.IsNullOrWhiteSpace(name))
         {
             return UseCaseResult<ProductResponse>.BadRequest("SKU dan nama wajib diisi.");
         }
 
+        if (string.IsNullOrWhiteSpace(unit))
+        {
+            return UseCaseResult<ProductResponse>.BadRequest("Satuan produk wajib diisi.");
+        }
+
+        if (request.PurchasePrice < 0 || request.SellingPrice < 0 || request.ReorderLevel < 0)
+        {
+            return UseCaseResult<ProductResponse>.BadRequest("Harga dan level pemesanan ulang tidak boleh negatif.");
+        }
+
+        if (!await categories.ExistsActiveAsync(request.CategoryId, cancellationToken))
+        {
+            return UseCaseResult<ProductResponse>.BadRequest("Kategori produk tidak tersedia.");
+        }
+
+        if (await products.ExistsBySkuAsync(sku, cancellationToken))
+        {
+            return UseCaseResult<ProductResponse>.BadRequest("SKU tersebut sudah digunakan.");
+        }
+
         var product = new Product
         {
-            Sku = request.Sku.Trim(),
-            Name = request.Name.Trim(),
+            Sku = sku,
+            Name = name,
             CategoryId = request.CategoryId,
             PurchasePrice = request.PurchasePrice,
             SellingPrice = request.SellingPrice,
             ReorderLevel = request.ReorderLevel,
-            Unit = request.Unit
+            Unit = unit
         };
 
         await products.AddAsync(product, cancellationToken);

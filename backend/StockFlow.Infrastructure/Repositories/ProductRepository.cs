@@ -53,6 +53,11 @@ public sealed class ProductRepository(StockFlowDbContext db) : IProductRepositor
     public Task<Product?> FindAsync(Guid id, CancellationToken cancellationToken = default) =>
         db.ProductsSet.FindAsync([id], cancellationToken).AsTask();
 
+    public Task<bool> ExistsBySkuAsync(
+        string sku,
+        CancellationToken cancellationToken = default) =>
+        db.ProductsSet.AnyAsync(product => product.Sku == sku, cancellationToken);
+
     public Task AddAsync(Product product, CancellationToken cancellationToken = default) =>
         db.ProductsSet.AddAsync(product, cancellationToken).AsTask();
 

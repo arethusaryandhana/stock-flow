@@ -21,6 +21,8 @@ public interface IProductRepository
 
     Task<Product?> FindAsync(Guid id, CancellationToken cancellationToken = default);
 
+    Task<bool> ExistsBySkuAsync(string sku, CancellationToken cancellationToken = default);
+
     Task AddAsync(Product product, CancellationToken cancellationToken = default);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
@@ -31,6 +33,27 @@ public interface ICategoryRepository
     Task<IReadOnlyList<CategoryResponse>> GetAllAsync(CancellationToken cancellationToken = default);
 
     Task AddAsync(Category category, CancellationToken cancellationToken = default);
+
+    Task<bool> ExistsActiveAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IInventoryRepository
+{
+    Task<IReadOnlyList<StockMovementResponse>> GetMovementsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<StockAdjustmentResponse>> GetAdjustmentsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task AddAdjustmentAsync(
+        StockAdjustment adjustment,
+        CancellationToken cancellationToken = default);
+
+    Task AddMovementAsync(
+        StockMovement movement,
+        CancellationToken cancellationToken = default);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

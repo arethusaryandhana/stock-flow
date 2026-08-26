@@ -1,2 +1,19 @@
-<script setup lang="ts">import{useRoute}from'vue-router';import{useAuthStore}from'./stores/auth';const route=useRoute(),auth=useAuthStore();const groups:[string,[string,string][]][]=[['Overview',[['Dashboard','/']]],['Inventory',[['Products','/products'],['Stock Movement','#'],['Stock Adjustment','#']]],['Purchasing',[['Purchase Orders','#'],['Goods Receipt','#'],['Suppliers','#']]],['Sales',[['Sales Orders','#'],['Customers','#']]],['Management',[['Reports','#'],['Settings','#']]]];</script>
+<script setup lang="ts">
+import { useRoute } from 'vue-router'
+import { useAuthStore } from './stores/auth'
+
+const route = useRoute()
+const auth = useAuthStore()
+const groups: [string, [string, string][]][] = [
+  ['Overview', [['Dashboard', '/']]],
+  ['Inventory', [
+    ['Products', '/products'],
+    ['Stock Movement', '/inventory/movements'],
+    ['Stock Adjustment', '/inventory/adjustments'],
+  ]],
+  ['Purchasing', [['Purchase Orders', '#'], ['Goods Receipt', '#'], ['Suppliers', '#']]],
+  ['Sales', [['Sales Orders', '#'], ['Customers', '#']]],
+  ['Management', [['Reports', '#'], ['Settings', '#']]],
+]
+</script>
 <template><router-view v-if="route.path==='/login'"/><div v-else class="min-h-screen bg-slate-50 lg:flex"><aside class="bg-slate-950 text-slate-200 lg:w-72 p-5"><div class="flex items-center gap-3 mb-8"><div class="logo">SF</div><div><strong class="text-white text-xl">StockFlow</strong><p class="text-xs text-slate-400">Inventory made clear</p></div></div><nav><section v-for="g in groups" :key="g[0]" class="mb-5"><p class="nav-title">{{g[0]}}</p><router-link v-for="item in g[1]" :key="item[0]" :to="item[1]" class="nav-link" :class="{active:route.path===item[1]}">{{item[0]}}</router-link></section></nav></aside><main class="flex-1"><header class="h-20 bg-white border-b border-slate-200 px-6 lg:px-10 flex items-center justify-between"><div><p class="text-sm text-slate-500">Workspace</p><strong>StockFlow Demo</strong></div><div class="text-right"><p class="font-semibold">{{auth.name}}</p><button class="text-sm text-teal-700" @click="auth.logout">Sign out</button></div></header><router-view/></main></div></template>

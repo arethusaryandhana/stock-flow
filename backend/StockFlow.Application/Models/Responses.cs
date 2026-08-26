@@ -61,6 +61,30 @@ public sealed record CustomerResponse(
     DateTime CreatedAt,
     DateTime? UpdatedAt);
 
+public sealed record StockMovementResponse(
+    Guid Id,
+    Guid ProductId,
+    string ProductSku,
+    string ProductName,
+    string Unit,
+    string Type,
+    decimal Quantity,
+    decimal BalanceAfter,
+    string ReferenceNumber,
+    string? Reason,
+    DateTime CreatedAt);
+
+public sealed record StockAdjustmentResponse(
+    Guid Id,
+    string Number,
+    Guid ProductId,
+    string ProductSku,
+    string ProductName,
+    string Unit,
+    decimal QuantityDelta,
+    string Reason,
+    DateTime CreatedAt);
+
 public sealed record ReportProductRow(
     string Sku,
     string Name,

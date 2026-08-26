@@ -4,7 +4,9 @@ Production-oriented inventory, purchasing, sales, and reporting portfolio applic
 
 ## Run the demo
 
-Requirements: Docker Desktop with Compose.
+Requirements: Docker Desktop with Compose and a local PostgreSQL 18.1 instance running on
+`localhost:5432` with the `stockflow` database and `postgres` user/password. The API and worker
+containers connect to that local PostgreSQL instance through `host.docker.internal`.
 
 ```bash
 docker compose up --build

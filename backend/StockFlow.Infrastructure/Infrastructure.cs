@@ -111,6 +111,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IInventoryRepository, InventoryRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
@@ -119,6 +120,7 @@ public static class DependencyInjection
         services.AddScoped<IAuthUseCase, AuthUseCase>();
         services.AddScoped<IDashboardUseCase, DashboardUseCase>();
         services.AddScoped<IProductUseCase, ProductUseCase>();
+        services.AddScoped<IInventoryUseCase, InventoryUseCase>();
         services.AddScoped<ICategoryUseCase, CategoryUseCase>();
         services.AddScoped<ISupplierUseCase, SupplierUseCase>();
         services.AddScoped<ICustomerUseCase, CustomerUseCase>();

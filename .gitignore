@@ -47,6 +47,7 @@ coverage/
 *.db
 *.sqlite
 *.sqlite3
+.local-backups/
 *.pfx
 *.pem
 *.key

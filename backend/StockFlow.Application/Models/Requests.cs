@@ -19,3 +19,8 @@ public sealed record MasterDataRequest(
     string? Address);
 
 public sealed record CategoryRequest(string Name, string? Description);
+
+public sealed record StockAdjustmentRequest(
+    Guid ProductId,
+    decimal QuantityDelta,
+    string Reason);

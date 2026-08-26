@@ -37,6 +37,20 @@ public interface ICategoryUseCase
         CancellationToken cancellationToken = default);
 }
 
+public interface IInventoryUseCase
+{
+    Task<IReadOnlyList<StockMovementResponse>> GetMovementsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<StockAdjustmentResponse>> GetAdjustmentsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<StockAdjustmentResponse>> CreateAdjustmentAsync(
+        StockAdjustmentRequest request,
+        Guid createdById,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ISupplierUseCase
 {
     Task<IReadOnlyList<SupplierResponse>> GetAllAsync(CancellationToken cancellationToken = default);
