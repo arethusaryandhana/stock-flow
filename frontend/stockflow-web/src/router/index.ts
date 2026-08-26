@@ -1,0 +1,2 @@
+import{createRouter,createWebHistory}from'vue-router';import Login from '../presentation/Login.vue';import Dashboard from '../presentation/Dashboard.vue';import Products from '../presentation/Products.vue';
+const router=createRouter({history:createWebHistory(),routes:[{path:'/login',component:Login},{path:'/',component:Dashboard,meta:{auth:true}},{path:'/products',component:Products,meta:{auth:true}}]});router.beforeEach(to=>to.meta.auth&&!localStorage.getItem('stockflow_token')?'/login':true);export default router;

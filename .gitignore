@@ -1,0 +1,56 @@
+# .NET build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Tt]est[Rr]esult*/
+.fake/
+*.nupkg
+*.snupkg
+
+# Visual Studio and editor settings
+.vs/
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# Node.js build output and package caches
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/build/
+**/.vite/
+**/.cache/
+**/.parcel-cache/
+
+# Logs, reports, and test coverage
+logs/
+reports/
+coverage/
+*.log
+*.coverage
+*.coveragexml
+
+# Local environment and development-only configuration
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.sample
+!**/.env.template
+**/appsettings.Development.json
+
+# Local databases and certificates
+*.db
+*.sqlite
+*.sqlite3
+*.pfx
+*.pem
+*.key
+
+# OS files
+.DS_Store
+Thumbs.db

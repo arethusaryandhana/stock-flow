@@ -1,0 +1,22 @@
+services:
+  stockflow-postgres:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: stockflow, POSTGRES_USER: stockflow, POSTGRES_PASSWORD: stockflow_dev }
+    volumes: [stockflow_data:/var/lib/postgresql/data]
+    ports: ["5432:5432"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U stockflow"], interval: 5s, timeout: 5s, retries: 10 }
+  stockflow-api:
+    build: { context: ./backend, dockerfile: ../docker/api.Dockerfile }
+    environment: { ASPNETCORE_URLS: http://+:8080, ConnectionStrings__Database: "Host=stockflow-postgres;Database=stockflow;Username=stockflow;Password=stockflow_dev", WebOrigin: "http://localhost:5173" }
+    ports: ["8080:8080"]
+    depends_on: { stockflow-postgres: { condition: service_healthy } }
+  stockflow-worker:
+    build: { context: ./backend, dockerfile: ../docker/worker.Dockerfile }
+    environment: { ConnectionStrings__Database: "Host=stockflow-postgres;Database=stockflow;Username=stockflow;Password=stockflow_dev", ReportStorage: /app/reports }
+    volumes: [stockflow_reports:/app/reports]
+    depends_on: { stockflow-postgres: { condition: service_healthy } }
+  stockflow-web:
+    build: { context: ./frontend/stockflow-web, dockerfile: ../../docker/web.Dockerfile }
+    ports: ["5173:80"]
+    depends_on: [stockflow-api]
+volumes: { stockflow_data: {}, stockflow_reports: {} }
