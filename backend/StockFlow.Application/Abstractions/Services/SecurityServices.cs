@@ -2,6 +2,11 @@ using StockFlow.Core;
 
 namespace StockFlow.Application.Abstractions.Services;
 
+public interface ICurrentUserService
+{
+    Guid? UserId { get; }
+}
+
 public interface ITokenService
 {
     string Create(User user);

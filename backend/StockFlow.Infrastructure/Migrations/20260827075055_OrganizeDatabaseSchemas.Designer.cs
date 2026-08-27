@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using StockFlow.Infrastructure;
@@ -11,9 +12,11 @@ using StockFlow.Infrastructure;
 namespace StockFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(StockFlowDbContext))]
-    partial class StockFlowDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260827075055_OrganizeDatabaseSchemas")]
+    partial class OrganizeDatabaseSchemas
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -33,10 +36,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
                     b.Property<string>("Description")
                         .HasColumnType("text")
                         .HasColumnName("description");
@@ -53,10 +52,6 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
 
                     b.HasKey("Id");
 
@@ -86,10 +81,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
                     b.Property<string>("Email")
                         .HasColumnType("text")
                         .HasColumnName("email");
@@ -111,10 +102,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
@@ -133,10 +120,6 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
 
                     b.Property<string>("Number")
                         .IsRequired()
@@ -159,10 +142,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
                     b.HasKey("Id");
 
                     b.HasIndex("PurchaseOrderId");
@@ -183,10 +162,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
                     b.Property<Guid>("GoodsReceiptId")
                         .HasColumnType("uuid")
                         .HasColumnName("goods_receipt_id");
@@ -202,10 +177,6 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
 
                     b.HasKey("Id");
 
@@ -226,10 +197,6 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
 
                     b.Property<bool>("IsRead")
                         .HasColumnType("boolean")
@@ -253,10 +220,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
@@ -279,10 +242,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
@@ -295,10 +254,6 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
 
                     b.Property<DateTime?>("UsedAt")
                         .HasColumnType("timestamp with time zone")
@@ -332,10 +287,6 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
@@ -380,10 +331,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Sku")
@@ -404,10 +351,6 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
 
                     b.Property<DateTime?>("ExpectedDate")
                         .HasColumnType("timestamp with time zone")
@@ -438,10 +381,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
                     b.HasKey("Id");
 
                     b.HasIndex("SupplierId");
@@ -461,10 +400,6 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
 
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uuid")
@@ -487,10 +422,6 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
 
                     b.HasKey("Id");
 
@@ -515,10 +446,6 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
 
                     b.Property<string>("ErrorMessage")
                         .HasColumnType("text")
@@ -576,10 +503,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
                     b.HasKey("Id");
 
                     b.HasIndex("JobNumber")
@@ -603,10 +526,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")
@@ -615,10 +534,6 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
 
                     b.HasKey("Id");
 
@@ -635,10 +550,6 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
 
                     b.Property<Guid>("CustomerId")
                         .HasColumnType("uuid")
@@ -665,10 +576,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
                     b.HasKey("Id");
 
                     b.HasIndex("CustomerId");
@@ -688,10 +595,6 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
 
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uuid")
@@ -715,10 +618,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
                     b.HasKey("Id");
 
                     b.HasIndex("ProductId");
@@ -739,9 +638,9 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<Guid?>("CreatedById")
+                    b.Property<Guid>("CreatedById")
                         .HasColumnType("uuid")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by_id");
 
                     b.Property<string>("Number")
                         .IsRequired()
@@ -765,10 +664,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
                     b.HasKey("Id");
 
                     b.HasIndex("ProductId");
@@ -791,9 +686,9 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<Guid?>("CreatedById")
+                    b.Property<Guid>("CreatedById")
                         .HasColumnType("uuid")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by_id");
 
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uuid")
@@ -819,10 +714,6 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
 
                     b.HasKey("Id");
 
@@ -851,10 +742,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
                     b.Property<string>("Email")
                         .HasColumnType("text")
                         .HasColumnName("email");
@@ -876,10 +763,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
@@ -898,10 +781,6 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -930,10 +809,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
@@ -941,7 +816,7 @@ namespace StockFlow.Infrastructure.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("users", "identity");
+                    b.ToTable("users_set", "identity");
                 });
 
             modelBuilder.Entity("StockFlow.Core.GoodsReceipt", b =>

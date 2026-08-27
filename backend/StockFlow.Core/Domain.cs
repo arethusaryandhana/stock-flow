@@ -2,10 +2,11 @@ namespace StockFlow.Core;
 
 public abstract class Entity
 {
-    public Guid Id { get; set; } = Guid.NewGuid(); public DateTime CreatedAt { get; set; } = DateTime.UtcNow; public DateTime? UpdatedAt
-    {
-        get; set;
-    }
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
+    public Guid? CreatedById { get; set; }
+    public Guid? UpdatedById { get; set; }
 }
 public abstract class ActivatableEntity : Entity
 {
@@ -219,10 +220,6 @@ public sealed class StockMovement : Entity
     {
         get; set;
     }
-    public Guid CreatedById
-    {
-        get; set;
-    }
 }
 public sealed class StockAdjustment : Entity
 {
@@ -234,10 +231,7 @@ public sealed class StockAdjustment : Entity
     {
         get; set;
     }
-    public string Reason { get; set; } = ""; public Guid CreatedById
-    {
-        get; set;
-    }
+    public string Reason { get; set; } = "";
 }
 public sealed class Role : Entity
 {

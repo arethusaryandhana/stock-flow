@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 using StockFlow.Application.Abstractions.Repositories;
 using StockFlow.Application.Abstractions.Services;
@@ -14,8 +15,20 @@ using StockFlow.Infrastructure.Repositories;
 
 namespace StockFlow.Infrastructure;
 
-public sealed class StockFlowDbContext(DbContextOptions<StockFlowDbContext> options) : DbContext(options)
+public sealed class StockFlowDbContext(
+    DbContextOptions<StockFlowDbContext> options,
+    ICurrentUserService? currentUser = null) : DbContext(options)
 {
+    public static class Schemas
+    {
+        public const string Identity = "identity";
+        public const string Master = "master";
+        public const string Purchasing = "purchasing";
+        public const string Sales = "sales";
+        public const string Inventory = "inventory";
+        public const string Reporting = "reporting";
+    }
+
     public DbSet<Product> ProductsSet => Set<Product>();
 
     public DbSet<Category> CategoriesSet => Set<Category>();
@@ -51,12 +64,39 @@ public sealed class StockFlowDbContext(DbContextOptions<StockFlowDbContext> opti
     public DbSet<ReportExportJob> ReportExportJobs => Set<ReportExportJob>();
     protected override void OnModelCreating(ModelBuilder b)
     {
-        b.HasDefaultSchema("stockflow");
+        b.Entity<Role>().ToTable("roles", Schemas.Identity);
+        b.Entity<User>().ToTable("users", Schemas.Identity);
+        b.Entity<PasswordResetToken>().ToTable("password_reset_tokens", Schemas.Identity);
+        b.Entity<Notification>().ToTable("notifications", Schemas.Identity);
+
+        b.Entity<Category>().ToTable("categories_set", Schemas.Master);
+        b.Entity<Product>().ToTable("products_set", Schemas.Master);
+        b.Entity<Supplier>().ToTable("suppliers_set", Schemas.Master);
+        b.Entity<Customer>().ToTable("customers_set", Schemas.Master);
+
+        b.Entity<PurchaseOrder>().ToTable("purchase_orders", Schemas.Purchasing);
+        b.Entity<PurchaseOrderItem>().ToTable("purchase_order_items", Schemas.Purchasing);
+        b.Entity<GoodsReceipt>().ToTable("goods_receipts", Schemas.Purchasing);
+        b.Entity<GoodsReceiptItem>().ToTable("goods_receipt_items", Schemas.Purchasing);
+
+        b.Entity<SalesOrder>().ToTable("sales_orders", Schemas.Sales);
+        b.Entity<SalesOrderItem>().ToTable("sales_order_items", Schemas.Sales);
+
+        b.Entity<StockMovement>().ToTable("stock_movements", Schemas.Inventory);
+        b.Entity<StockAdjustment>().ToTable("stock_adjustments", Schemas.Inventory);
+
+        b.Entity<ReportExportJob>().ToTable("report_export_jobs", Schemas.Reporting);
+
         foreach (var t in b.Model.GetEntityTypes())
         {
             t.SetTableName(ToSnake(t.GetTableName()!));
             foreach (var p in t.GetProperties())
-                p.SetColumnName(ToSnake(p.Name));
+                p.SetColumnName(p.Name switch
+                {
+                    nameof(Entity.CreatedById) => "created_by",
+                    nameof(Entity.UpdatedById) => "updated_by",
+                    _ => ToSnake(p.Name)
+                });
         }
         b.Entity<Category>().HasIndex(x => x.Name).IsUnique();
         b.Entity<Product>().HasIndex(x => x.Sku).IsUnique();
@@ -88,8 +128,50 @@ public sealed class StockFlowDbContext(DbContextOptions<StockFlowDbContext> opti
                 p.SetScale(2);
             }
     }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ApplyAuditFields();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default)
+    {
+        ApplyAuditFields();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private void ApplyAuditFields()
+    {
+        var userId = currentUser?.UserId;
+
+        foreach (var entry in ChangeTracker.Entries<Entity>())
+        {
+            if (entry.State == EntityState.Added)
+            {
+                entry.Entity.CreatedById ??= userId;
+                entry.Entity.UpdatedById = null;
+            }
+            else if (entry.State == EntityState.Modified)
+            {
+                entry.Property(entity => entity.CreatedAt).IsModified = false;
+                entry.Property(entity => entity.CreatedById).IsModified = false;
+                entry.Entity.UpdatedAt = DateTime.UtcNow;
+                entry.Entity.UpdatedById = userId;
+            }
+        }
+    }
+
     private static string ToSnake(string s) => string.Concat(s.Select((c, i) => char.IsUpper(c) && i > 0 ? "_" + char.ToLowerInvariant(c) : char.ToLowerInvariant(c).ToString()));
 }
+
+public sealed class SystemCurrentUserService : ICurrentUserService
+{
+    public Guid? UserId => null;
+}
+
 public sealed class PasswordService : IPasswordService
 {
     public string Hash(string password) => BCrypt.Net.BCrypt.HashPassword(password); public bool Verify(string password, string hash) => BCrypt.Net.BCrypt.Verify(password, hash);
@@ -116,8 +198,14 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.TryAddScoped<ICurrentUserService, SystemCurrentUserService>();
+
         services.AddDbContext<StockFlowDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("Database")));
+            options.UseNpgsql(
+                configuration.GetConnectionString("Database"),
+                npgsql => npgsql.MigrationsHistoryTable(
+                    "__EFMigrationsHistory",
+                    StockFlowDbContext.Schemas.Identity)));
 
         services.AddScoped<IPasswordService, PasswordService>();
         services.AddScoped<IPasswordResetTokenService, PasswordResetTokenService>();

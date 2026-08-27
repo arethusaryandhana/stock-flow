@@ -1,3 +1,5 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +14,9 @@ Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateLogger();
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddScoped<ICurrentUserService, HttpCurrentUserService>();
 builder.Services.AddStockFlowEndpoints();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -62,6 +66,11 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<StockFlowDbContext>();
     var passwords = scope.ServiceProvider.GetRequiredService<IPasswordService>();
 
+    // Existing installations keep EF's history table in public. Move it before
+    // MigrateAsync so changing the history schema does not make EF re-run old migrations.
+    await db.Database.ExecuteSqlRawAsync(
+        "CREATE SCHEMA IF NOT EXISTS \"identity\"; " +
+        "ALTER TABLE IF EXISTS \"public\".\"__EFMigrationsHistory\" SET SCHEMA \"identity\";");
     await db.Database.MigrateAsync();
     await SeedData.Run(db, passwords);
 }
@@ -101,6 +110,21 @@ public sealed class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionM
                 message = "Terjadi kesalahan. Silakan coba kembali.",
                 correlationId = context.Response.Headers["X-Correlation-ID"].ToString()
             });
+        }
+    }
+}
+
+public sealed class HttpCurrentUserService(IHttpContextAccessor httpContextAccessor) : ICurrentUserService
+{
+    public Guid? UserId
+    {
+        get
+        {
+            var principal = httpContextAccessor.HttpContext?.User;
+            var rawUserId = principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? principal?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+            return Guid.TryParse(rawUserId, out var userId) ? userId : null;
         }
     }
 }

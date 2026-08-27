@@ -13,7 +13,7 @@ public sealed class ReportExportRepository(StockFlowDbContext db) : IReportExpor
 
         var job = await db.ReportExportJobs
             .FromSqlRaw(
-                "SELECT * FROM stockflow.report_export_jobs " +
+                "SELECT * FROM reporting.report_export_jobs " +
                 "WHERE status = 0 ORDER BY requested_at FOR UPDATE SKIP LOCKED LIMIT 1")
             .SingleOrDefaultAsync(cancellationToken);
 
