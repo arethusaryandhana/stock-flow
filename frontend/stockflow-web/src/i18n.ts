@@ -11,6 +11,8 @@ const messages: Record<Language, Record<string, string>> = {
   id: {
     'app.brandAria': 'Buka Dashboard StockFlow',
     'app.mainNav': 'Navigasi utama',
+    'app.openSidebar': 'Buka sidebar',
+    'app.closeSidebar': 'Tutup sidebar',
     'app.workspace': 'Workspace',
     'app.administration': 'Administrasi',
     'app.masterData': 'Master data',
@@ -306,6 +308,8 @@ const messages: Record<Language, Record<string, string>> = {
   en: {
     'app.brandAria': 'Open StockFlow Dashboard',
     'app.mainNav': 'Main navigation',
+    'app.openSidebar': 'Open sidebar',
+    'app.closeSidebar': 'Close sidebar',
     'app.workspace': 'Workspace',
     'app.administration': 'Administration',
     'app.masterData': 'Master data',

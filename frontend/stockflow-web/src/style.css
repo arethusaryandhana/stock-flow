@@ -25,15 +25,19 @@ h2 { color: var(--ink); font-size: 1.04rem; font-weight: 800; letter-spacing: -.
 h3 { font-size: .9rem; font-weight: 800; }
 
 .app-shell { display: flex; min-height: 100vh; background: var(--canvas); }
-.sidebar { position: sticky; top: 0; z-index: 30; display: flex; width: 254px; min-height: 100vh; flex: 0 0 254px; flex-direction: column; padding: 24px 15px 17px; color: #d8e0ed; background: var(--navy); }
+.sidebar { position: sticky; top: 0; z-index: 30; display: flex; width: 254px; min-height: 100vh; flex: 0 0 254px; flex-direction: column; padding: 24px 15px 17px; color: #d8e0ed; background: var(--navy); transition: width .22s ease, flex-basis .22s ease, padding .22s ease, transform .22s ease; }
+.sidebar-head { display: flex; min-height: 34px; align-items: center; }
 .brand-lockup { display: flex; align-items: center; gap: 11px; padding: 0 10px; border-radius: 10px; }
+.sidebar-head .brand-lockup { min-width: 0; flex: 1; }
 .brand-lockup strong { display: block; color: #fff; font-size: 1.05rem; font-weight: 800; letter-spacing: -.03em; }
 .brand-lockup span:not(.brand-logo) { display: block; margin-top: 2px; color: #8291a9; font-size: .65rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .brand-logo { display: block; width: 34px; height: 34px; flex: 0 0 34px; border-radius: 10px; box-shadow: 0 6px 16px #07132940; }
+.sidebar-toggle { position: absolute; top: 72px; right: -12px; z-index: 2; display: grid; width: 25px; height: 25px; place-items: center; border: 1px solid #dfe5ed; border-radius: 50%; color: #6f7d91; background: #fff; box-shadow: 0 5px 13px #0713292b; transition: color .18s, background .18s, border-color .18s, transform .18s; }
+.sidebar-toggle:hover { border-color: #c9d7f5; color: var(--blue); background: var(--blue-soft); transform: translateX(1px); }
+.sidebar-toggle-icon { display: block; color: currentColor; font-size: 1.05rem; font-weight: 700; line-height: 1; }
 .workspace-switcher { display: flex; width: 100%; align-items: center; gap: 9px; margin: 33px 0 27px; padding: 9px 10px; border: 1px solid #ffffff12; border-radius: 12px; color: #eef4ff; background: #ffffff09; text-align: left; transition: background .2s, border-color .2s; }
 .workspace-switcher:hover { border-color: #ffffff26; background: #ffffff12; }
-.workspace-avatar { display: block; width: 29px; height: 29px; flex: 0 0 29px; border-radius: 8px; }
-.workspace-avatar img { display: block; width: 100%; height: 100%; border-radius: inherit; }
+.workspace-symbol { display: none; width: 29px; height: 29px; flex: 0 0 29px; place-items: center; border-radius: 8px; color: #9ce7de; background: #234950; font-size: .95rem; font-weight: 700; }
 .workspace-copy { min-width: 0; flex: 1; }
 .workspace-copy small { display: block; color: #8291a9; font-size: .56rem; font-weight: 800; letter-spacing: .1em; }
 .workspace-copy strong { display: block; margin-top: 3px; overflow: hidden; color: #f4f7fc; font-size: .76rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
@@ -59,6 +63,7 @@ h3 { font-size: .9rem; font-weight: 800; }
 .sidebar-help strong { font-size: .67rem; }
 .sidebar-help small { margin-top: 2px; color: #7d8da5; font-size: .58rem; }
 .sidebar-help .arrow { margin-left: auto; color: #8393aa; font-size: .95rem; }
+.sidebar-help .help-copy { min-width: 0; }
 .app-main { min-width: 0; flex: 1; }
 .topbar { display: flex; min-height: 77px; align-items: center; justify-content: space-between; gap: 20px; padding: 0 34px; border-bottom: 1px solid var(--line); background: rgba(255, 255, 255, .92); }
 .topbar-left, .topbar-actions, .breadcrumbs, .profile-menu { display: flex; align-items: center; }
@@ -334,6 +339,25 @@ td small { display: block; margin-top: 3px; color: #9aa6b5; font-family: 'DM Mon
 .demo-note { margin-top: 20px; padding: 11px 12px; border: 1px solid #e5edff; border-radius: 8px; color: #647798; background: #f6f9ff; font-size: .62rem; line-height: 1.5; }
 .demo-note strong { display: block; margin-bottom: 3px; color: #3f5d9c; }
 
+@media (min-width: 931px) {
+  .sidebar.sidebar-collapsed { width: 78px; flex-basis: 78px; padding-right: 10px; padding-left: 10px; }
+  .sidebar.sidebar-collapsed .sidebar-head .brand-lockup { justify-content: center; padding-right: 0; padding-left: 0; }
+  .sidebar.sidebar-collapsed .sidebar-head .brand-lockup > div,
+  .sidebar.sidebar-collapsed .workspace-copy,
+  .sidebar.sidebar-collapsed .workspace-chevron,
+  .sidebar.sidebar-collapsed .nav-group-label,
+  .sidebar.sidebar-collapsed .nav-link > span:not(.nav-icon),
+  .sidebar.sidebar-collapsed .nav-link em,
+  .sidebar.sidebar-collapsed .sync-copy,
+  .sidebar.sidebar-collapsed .help-copy,
+  .sidebar.sidebar-collapsed .sidebar-help .arrow { display: none; }
+  .sidebar.sidebar-collapsed .workspace-switcher { justify-content: center; padding-right: 9px; padding-left: 9px; }
+  .sidebar.sidebar-collapsed .workspace-symbol { display: grid; }
+  .sidebar.sidebar-collapsed .nav-link { justify-content: center; gap: 0; padding-right: 10px; padding-left: 10px; }
+  .sidebar.sidebar-collapsed .sync-pill { justify-content: center; }
+  .sidebar.sidebar-collapsed .sidebar-help { justify-content: center; padding-right: 9px; padding-left: 9px; }
+}
+
 @media (max-width: 1180px) {
   .topbar { padding: 0 23px; }
   .page { padding-right: 23px; padding-left: 23px; }
@@ -345,9 +369,10 @@ td small { display: block; margin-top: 3px; color: #9aa6b5; font-family: 'DM Mon
   .health-ring::before { width: 84px; height: 84px; }
 }
 @media (max-width: 930px) {
-  .sidebar { position: fixed; left: 0; width: 254px; min-height: 100vh; transform: translateX(-100%); transition: transform .22s ease; }
+  .sidebar { position: fixed; left: 0; width: 254px; flex-basis: 254px; min-height: 100vh; transform: translateX(-100%); transition: transform .22s ease; }
   .sidebar.sidebar-open { transform: translateX(0); box-shadow: 20px 0 40px #10213a33; }
   .mobile-backdrop { position: fixed; z-index: 20; inset: 0; display: block; background: #12203866; }
+  .sidebar-toggle { display: none; }
   .mobile-menu { display: block; }
   .mobile-brand { display: flex; }
   .topbar { padding: 0 18px; }

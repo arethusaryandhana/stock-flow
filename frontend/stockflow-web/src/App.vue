@@ -8,6 +8,7 @@ const route = useRoute()
 const auth = useAuthStore()
 const { language, t, toggleLanguage } = useI18n()
 const mobileOpen = ref(false)
+const sidebarCollapsed = ref(localStorage.getItem('stockflow_sidebar_collapsed') === 'true')
 const search = ref('')
 const toast = ref('')
 const profileOpen = ref(false)
@@ -77,6 +78,11 @@ function closeMobileNav() {
   mobileOpen.value = false
 }
 
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+  localStorage.setItem('stockflow_sidebar_collapsed', String(sidebarCollapsed.value))
+}
+
 function handleSearch() {
   if (search.value.trim()) notify(t('app.searchToast', { term: search.value.trim() }))
 }
@@ -110,17 +116,29 @@ onBeforeUnmount(() => {
 
   <div v-else class="app-shell">
     <div v-if="mobileOpen" class="mobile-backdrop" @click="closeMobileNav" />
-    <aside class="sidebar" :class="{ 'sidebar-open': mobileOpen }">
-      <router-link class="brand-lockup" to="/" :aria-label="t('app.brandAria')" @click="closeMobileNav">
-        <img class="brand-logo" src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
-        <div>
-          <strong>StockFlow</strong>
-          <span>Inventory OS</span>
-        </div>
-      </router-link>
+    <aside class="sidebar" :class="{ 'sidebar-open': mobileOpen, 'sidebar-collapsed': sidebarCollapsed }">
+      <div class="sidebar-head">
+        <router-link class="brand-lockup" to="/" :aria-label="t('app.brandAria')" @click="closeMobileNav">
+          <img class="brand-logo" src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
+          <div>
+            <strong>StockFlow</strong>
+            <span>Inventory OS</span>
+          </div>
+        </router-link>
+      </div>
+      <button
+        class="sidebar-toggle"
+        type="button"
+        :aria-label="sidebarCollapsed ? t('app.openSidebar') : t('app.closeSidebar')"
+        :aria-expanded="!sidebarCollapsed"
+        :title="sidebarCollapsed ? t('app.openSidebar') : t('app.closeSidebar')"
+        @click="toggleSidebar"
+      >
+        <span class="sidebar-toggle-icon" aria-hidden="true">{{ sidebarCollapsed ? '>' : '<' }}</span>
+      </button>
 
-      <button class="workspace-switcher" type="button" @click="notify(t('app.workspaceToast'))">
-        <span class="workspace-avatar"><img src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true"></span>
+      <button class="workspace-switcher" type="button" :aria-label="t('app.workspaceName')" @click="notify(t('app.workspaceToast'))">
+        <span class="workspace-symbol" aria-hidden="true">▦</span>
         <span class="workspace-copy"><small>{{ t('app.workspaceLabel') }}</small><strong>{{ t('app.workspaceName') }}</strong></span>
         <span class="workspace-chevron chevron-icon" aria-hidden="true" />
       </button>
@@ -135,12 +153,13 @@ onBeforeUnmount(() => {
               :to="item.path"
               class="nav-link"
               :class="{ active: route.path === item.path }"
+              :title="sidebarCollapsed ? t(item.labelKey) : undefined"
               @click="closeMobileNav"
             >
               <span class="nav-icon">{{ item.icon }}</span>
               <span>{{ t(item.labelKey) }}</span>
             </router-link>
-            <button v-else class="nav-link nav-placeholder" type="button" @click="notify(t('app.comingSoonToast', { label: t(item.labelKey) }))">
+            <button v-else class="nav-link nav-placeholder" type="button" :title="sidebarCollapsed ? t(item.labelKey) : undefined" @click="notify(t('app.comingSoonToast', { label: t(item.labelKey) }))">
               <span class="nav-icon">{{ item.icon }}</span>
               <span>{{ t(item.labelKey) }}</span>
               <em>{{ t(item.badge) }}</em>
@@ -151,10 +170,10 @@ onBeforeUnmount(() => {
       </nav>
 
       <div class="sidebar-bottom">
-        <div class="sync-pill"><span class="status-dot" /> {{ t('app.synced') }}</div>
-        <button class="sidebar-help" type="button" @click="notify(t('app.supportToast'))">
+        <div class="sync-pill"><span class="status-dot" /><span class="sync-copy">{{ t('app.synced') }}</span></div>
+        <button class="sidebar-help" type="button" :title="sidebarCollapsed ? t('app.help') : undefined" @click="notify(t('app.supportToast'))">
           <span class="help-icon">?</span>
-          <span><strong>{{ t('app.help') }}</strong><small>{{ t('app.learnStockflow') }}</small></span>
+          <span class="help-copy"><strong>{{ t('app.help') }}</strong><small>{{ t('app.learnStockflow') }}</small></span>
           <span class="arrow">↗</span>
         </button>
       </div>
