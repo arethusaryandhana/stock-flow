@@ -37,7 +37,8 @@ h3 { font-size: .9rem; font-weight: 800; }
 .workspace-copy { min-width: 0; flex: 1; }
 .workspace-copy small { display: block; color: #8291a9; font-size: .56rem; font-weight: 800; letter-spacing: .1em; }
 .workspace-copy strong { display: block; margin-top: 3px; overflow: hidden; color: #f4f7fc; font-size: .76rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.workspace-chevron { color: #8493ab; font-size: 1.1rem; }
+.workspace-chevron { margin-left: auto; color: #8493ab; }
+.chevron-icon { display: inline-block; width: 7px; height: 7px; flex: 0 0 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translate(-1px, -1px); }
 .sidebar-nav { flex: 1; }
 .nav-group { margin-bottom: 22px; }
 .nav-group-label { margin: 0 10px 8px; color: #71819a; font-size: .62rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
@@ -105,7 +106,8 @@ kbd { padding: 3px 5px; border: 1px solid #e0e5ed; border-radius: 4px; color: #9
 .page-heading h1 + .subtitle { max-width: 650px; }
 .header-actions, .button-row { display: flex; align-items: center; gap: 9px; }
 .date-control, .filter-select { display: inline-flex; height: 38px; align-items: center; gap: 9px; padding: 0 12px; border: 1px solid var(--line); border-radius: 9px; color: #536279; background: #fff; font-size: .7rem; font-weight: 700; }
-.date-control span { color: #9aa6b7; font-size: .9rem; }
+.date-control .date-icon { color: #9aa6b7; font-size: .9rem; line-height: 1; }
+.date-control .chevron-icon { margin-left: 1px; color: #9aa6b7; }
 .primary, .secondary, .ghost-button { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 7px; border-radius: 9px; padding: 0 14px; font-size: .7rem; font-weight: 800; transition: transform .15s, box-shadow .15s, background .15s; }
 .primary { color: #fff; background: var(--blue); box-shadow: 0 6px 14px #3567d629; }
 .primary:hover:not(:disabled) { background: #2d5bc5; box-shadow: 0 8px 18px #3567d638; transform: translateY(-1px); }
@@ -120,9 +122,18 @@ kbd { padding: 3px 5px; border: 1px solid #e0e5ed; border-radius: 4px; color: #9
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; }
 .metric-card, .surface-card { border: 1px solid var(--line); border-radius: 13px; background: var(--surface); box-shadow: var(--shadow-sm); }
 .metric-card { min-height: 137px; padding: 17px 18px; }
+.dashboard-link { display: block; color: inherit; cursor: pointer; transition: border-color .18s, box-shadow .18s, transform .18s; }
+.dashboard-link:hover { border-color: #c4d2f0; box-shadow: 0 12px 28px rgba(31, 65, 135, .09); transform: translateY(-2px); }
+.dashboard-link:focus-visible { outline: 3px solid #3567d633; outline-offset: 3px; }
+.metric-card.dashboard-link { position: relative; }
+.metric-card.dashboard-link::after { position: absolute; right: 17px; bottom: 14px; color: var(--blue); content: '↗'; font-size: .72rem; font-weight: 800; opacity: .52; transition: opacity .18s, transform .18s; }
+.metric-card.dashboard-link:hover::after { opacity: 1; transform: translate(0, 0); }
+.dashboard-link-arrow { flex: 0 0 auto; color: var(--blue); font-size: .72rem; font-weight: 800; opacity: .52; transition: opacity .18s, transform .18s; }
+.dashboard-link:hover .dashboard-link-arrow { opacity: 1; transform: translate(0, 0); }
 .metric-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .metric-label { color: var(--muted); font-size: .69rem; font-weight: 700; }
 .metric-icon { display: grid; width: 29px; height: 29px; place-items: center; border-radius: 8px; font-size: 1rem; }
+.metric-icon svg { display: block; width: 16px; height: 16px; }
 .metric-icon.blue { color: var(--blue); background: var(--blue-soft); }
 .metric-icon.teal { color: var(--teal); background: var(--teal-soft); }
 .metric-icon.amber { color: var(--amber); background: var(--amber-soft); }
@@ -205,7 +216,7 @@ td small { display: block; margin-top: 3px; color: #9aa6b5; font-family: 'DM Mon
 .search-input span { color: #8190a4; font-size: 1.15rem; }
 .search-input input { min-width: 0; flex: 1; padding: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: .68rem; }
 .toolbar-actions { display: flex; align-items: center; gap: 8px; }
-.filter-select { height: 36px; padding: 0 10px; color: #627188; font-size: .67rem; outline: 0; }
+.filter-select { height: 36px; padding: 0 32px 0 10px; color: #627188; font-size: .67rem; outline: 0; }
 .filter-select.wide { min-width: 132px; }
 .tab-row { display: flex; gap: 19px; padding: 0 17px; border-bottom: 1px solid var(--line); }
 .tab-button { position: relative; padding: 13px 0 12px; color: #8d9aac; background: transparent; font-size: .67rem; font-weight: 700; }
@@ -235,7 +246,9 @@ td small { display: block; margin-top: 3px; color: #9aa6b5; font-family: 'DM Mon
 .form-panel { padding-bottom: 19px; }
 .adjustment-grid { display: grid; grid-template-columns: 1.3fr .55fr 1.15fr; gap: 11px; padding: 0 19px; }
 .field-label { display: block; color: #637187; font-size: .62rem; font-weight: 800; }
-.field-label input, .field-label select { display: block; width: 100%; height: 38px; margin-top: 7px; padding: 0 11px; border: 1px solid #dfe5ed; border-radius: 8px; outline: 0; color: var(--ink); background: #fff; font-size: .68rem; }
+.field-label input, .field-label select { display: block; width: 100%; height: 38px; margin-top: 7px; padding: 0 11px; border: 1px solid #dfe5ed; border-radius: 8px; outline: 0; color: var(--ink); background-color: #fff; font-size: .68rem; }
+.filter-select, .field-label select { appearance: none; -webkit-appearance: none; background-image: linear-gradient(45deg, transparent 50%, #8f9bad 50%), linear-gradient(135deg, #8f9bad 50%, transparent 50%); background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%; background-repeat: no-repeat; background-size: 5px 5px, 5px 5px; }
+.filter-select::-ms-expand, .field-label select::-ms-expand { display: none; }
 .field-label input:focus, .field-label select:focus { border-color: #9db4ed; box-shadow: 0 0 0 3px #3567d614; }
 .quantity-control { display: flex; height: 38px; margin-top: 7px; padding: 3px; border: 1px solid #dfe5ed; border-radius: 8px; background: #fff; }
 .quantity-control button { flex: 0 0 31px; border-radius: 5px; color: #758399; background: #f7f9fc; font-size: 1rem; }

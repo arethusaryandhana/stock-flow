@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { api } from '../infrastructure/api'
 
 type DashboardData = {
@@ -14,7 +13,6 @@ type LowStockProduct = { id: string; sku: string; name: string; category: string
 type Product = { id: string; sku: string; name: string; category: string; stockOnHand: number; reorderLevel: number; unit: string; isActive: boolean }
 type Movement = { id: string; productName: string; productSku: string; unit: string; type: string; quantity: number; reason: string | null; createdAt: string }
 
-const router = useRouter()
 const data = ref<DashboardData>({ products: 0, lowStock: 0, purchases: 0, salesToday: 0, attention: [] })
 const products = ref<Product[]>([])
 const movements = ref<Movement[]>([])
@@ -61,13 +59,12 @@ async function load() {
     api.get<Movement[]>('/stock-movements'),
   ])
   if (dashboardResult.status === 'fulfilled') data.value = dashboardResult.value.data
-  else error.value = (dashboardResult.reason as Error)?.message || 'Ringkasan belum dapat dimuat.'
+  else error.value = (dashboardResult.reason as Error)?.message || 'Dashboard belum dapat dimuat.'
   if (productsResult.status === 'fulfilled') products.value = productsResult.value.data
   if (movementsResult.status === 'fulfilled') movements.value = movementsResult.value.data
   loading.value = false
 }
 
-function go(path: string) { router.push(path) }
 onMounted(load)
 </script>
 
@@ -80,8 +77,7 @@ onMounted(load)
         <p class="subtitle">Pantau kondisi inventori dan ambil tindakan sebelum operasional terhambat.</p>
       </div>
       <div class="header-actions">
-        <button class="date-control" type="button"><span>◷</span> 01 – 27 Agu 2026 <span>⌄</span></button>
-        <button class="primary" type="button" @click="go('/inventory/adjustments')"><span class="button-plus">+</span> Sesuaikan stok</button>
+        <div class="date-control" aria-label="Periode data 01 sampai 27 Agustus 2026"><span class="date-icon" aria-hidden="true">◷</span> 01 – 27 Agu 2026 <span class="chevron-icon" aria-hidden="true" /></div>
       </div>
     </div>
 
@@ -89,33 +85,33 @@ onMounted(load)
     <p v-if="error" class="alert error-banner">{{ error }}</p>
 
     <section class="metric-grid" aria-label="Ringkasan metrik">
-      <article class="metric-card">
+      <router-link class="metric-card dashboard-link" to="/products" aria-label="Buka menu Produk dan stok">
         <div class="metric-top"><span class="metric-label">Total produk aktif</span><span class="metric-icon blue">▦</span></div>
         <strong class="metric-value">{{ loading ? '—' : data.products }}</strong>
         <div class="metric-meta"><span class="metric-trend up">Aktif</span> terdaftar di workspace</div>
-      </article>
-      <article class="metric-card">
+      </router-link>
+      <router-link class="metric-card dashboard-link" to="/products" aria-label="Buka menu Produk dan stok untuk melihat stok menipis">
         <div class="metric-top"><span class="metric-label">Stok menipis</span><span class="metric-icon amber">△</span></div>
         <strong class="metric-value">{{ loading ? '—' : data.lowStock }}</strong>
         <div class="metric-meta"><span class="metric-trend warn">Perlu tindakan</span> di bawah minimum</div>
-      </article>
+      </router-link>
       <article class="metric-card">
         <div class="metric-top"><span class="metric-label">Purchase order</span><span class="metric-icon teal">▤</span></div>
         <strong class="metric-value">{{ loading ? '—' : data.purchases }}</strong>
         <div class="metric-meta"><span class="metric-trend up">Aktif</span> menunggu diproses</div>
       </article>
-      <article class="metric-card">
-        <div class="metric-top"><span class="metric-label">Penjualan hari ini</span><span class="metric-icon red">↗</span></div>
+      <router-link class="metric-card dashboard-link" to="/inventory/movements" aria-label="Buka menu Pergerakan stok untuk melihat penjualan hari ini">
+        <div class="metric-top"><span class="metric-label">Penjualan hari ini</span><span class="metric-icon red" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.75h11v16.5l-2.75-1.75L12 20.25l-2.75-1.75L6.5 20.25V3.75Z" /><path d="M9.5 8h5M9.5 11.5h5M9.5 15h2.5" /></svg></span></div>
         <strong class="metric-value currency">{{ loading ? '—' : money(data.salesToday) }}</strong>
         <div class="metric-meta"><span class="metric-trend up">Hari ini</span> nilai transaksi tercatat</div>
-      </article>
+      </router-link>
     </section>
 
     <div class="dashboard-grid">
-      <section class="surface-card">
+      <router-link class="surface-card dashboard-link" to="/inventory/movements" aria-label="Buka menu Pergerakan stok">
         <div class="surface-card-head">
           <div><h2>Aktivitas inventori</h2><p>Ringkasan barang masuk dan keluar dalam 30 hari terakhir</p></div>
-          <button class="ghost-button" type="button" @click="go('/inventory/movements')">Lihat detail ↗</button>
+          <span class="dashboard-link-arrow" aria-hidden="true">↗</span>
         </div>
         <div class="chart-area">
           <div class="chart-y"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span></div>
@@ -125,10 +121,10 @@ onMounted(load)
           </div>
         </div>
         <div class="chart-legend"><span class="legend-item"><i class="legend-dot strong" /> Barang masuk</span><span class="legend-item"><i class="legend-dot" /> Barang keluar</span></div>
-      </section>
+      </router-link>
 
-      <section class="surface-card">
-        <div class="surface-card-head"><div><h2>Kesehatan stok</h2><p>Distribusi kondisi produk aktif</p></div><button class="ghost-button" type="button" @click="go('/products')">Semua produk ↗</button></div>
+      <router-link class="surface-card dashboard-link" to="/products" aria-label="Buka menu Produk dan stok">
+        <div class="surface-card-head"><div><h2>Kesehatan stok</h2><p>Distribusi kondisi produk aktif</p></div><span class="dashboard-link-arrow" aria-hidden="true">↗</span></div>
         <div class="health-body">
           <div class="health-ring" :style="{ background: healthGradient }"><div class="health-ring-copy"><strong>{{ healthPercent }}%</strong><span>aman</span></div></div>
           <div class="health-legend">
@@ -138,23 +134,23 @@ onMounted(load)
             <div class="health-note">Total <strong>{{ totalUnits }} unit</strong> tercatat di seluruh produk aktif.</div>
           </div>
         </div>
-      </section>
+      </router-link>
     </div>
 
     <div class="two-column">
-      <section class="surface-card">
-        <div class="surface-card-head"><div><h2>Perlu perhatian</h2><p>Produk yang sudah menyentuh batas minimum stok</p></div><button class="ghost-button" type="button" @click="go('/products')">Kelola stok ↗</button></div>
+      <router-link class="surface-card dashboard-link" to="/products" aria-label="Buka menu Produk dan stok untuk melihat produk yang perlu perhatian">
+        <div class="surface-card-head"><div><h2>Perlu perhatian</h2><p>Produk yang sudah menyentuh batas minimum stok</p></div><span class="dashboard-link-arrow" aria-hidden="true">↗</span></div>
         <div v-if="loading" class="empty">Memuat data produk…</div>
         <div v-else-if="!data.attention.length" class="empty"><strong>Semua stok terlihat aman</strong>Tidak ada produk yang perlu direstock saat ini.</div>
         <div v-else class="table-wrap"><table><thead><tr><th>Produk</th><th>Stok tersisa</th><th>Status</th></tr></thead><tbody><tr v-for="product in data.attention.slice(0, 5)" :key="product.id"><td><div class="product-cell"><span class="product-avatar amber">{{ shortName(product.name) }}</span><span><strong>{{ product.name }}</strong><small>{{ product.sku }} · {{ product.category }}</small></span></div></td><td><span class="stock-value" :class="product.stockOnHand <= 0 ? 'out' : 'low'">{{ product.stockOnHand }} {{ product.unit }}</span><small>Min. {{ product.reorderLevel }}</small></td><td><span class="badge" :class="product.stockOnHand <= 0 ? 'danger' : 'warn'">{{ product.stockOnHand <= 0 ? 'Habis' : 'Menipis' }}</span></td></tr></tbody></table></div>
-      </section>
+      </router-link>
 
-      <section class="surface-card">
-        <div class="surface-card-head"><div><h2>Aktivitas terbaru</h2><p>Perubahan stok paling baru di workspace</p></div><button class="ghost-button" type="button" @click="go('/inventory/movements')">Lihat semua ↗</button></div>
+      <router-link class="surface-card dashboard-link" to="/inventory/movements" aria-label="Buka menu Pergerakan stok untuk melihat aktivitas terbaru">
+        <div class="surface-card-head"><div><h2>Aktivitas terbaru</h2><p>Perubahan stok paling baru di workspace</p></div><span class="dashboard-link-arrow" aria-hidden="true">↗</span></div>
         <div v-if="loading" class="empty">Memuat aktivitas…</div>
         <div v-else-if="!latestMovements.length" class="empty"><strong>Belum ada aktivitas</strong>Aktivitas stok akan muncul di sini.</div>
         <div v-else class="activity-list"><div v-for="movement in latestMovements" :key="movement.id" class="activity-item"><span class="activity-icon" :class="{ out: movement.type === 'Sale' || movement.type === 'AdjustmentOut' }">{{ movement.type === 'Sale' || movement.type === 'AdjustmentOut' ? '↑' : '↓' }}</span><div class="activity-copy"><strong>{{ movement.productName }}</strong><p>{{ movement.type === 'Sale' ? 'Penjualan' : movement.type === 'GoodsReceipt' ? 'Barang masuk' : 'Penyesuaian' }} · {{ movement.quantity }} {{ movement.unit }}</p></div><span class="activity-time">{{ date(movement.createdAt) }}</span></div></div>
-      </section>
+      </router-link>
     </div>
   </div>
 </template>

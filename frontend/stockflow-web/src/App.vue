@@ -14,7 +14,7 @@ const profileWrap = ref<HTMLElement | null>(null)
 const groups = [
   {
     label: 'Workspace',
-    items: [{ label: 'Ringkasan', path: '/', icon: '⌂', badge: '' }],
+    items: [{ label: 'Dashboard', path: '/', icon: '⌂', badge: '' }],
   },
   {
     label: 'Inventory',
@@ -95,7 +95,7 @@ onBeforeUnmount(() => {
   <div v-else class="app-shell">
     <div v-if="mobileOpen" class="mobile-backdrop" @click="closeMobileNav" />
     <aside class="sidebar" :class="{ 'sidebar-open': mobileOpen }">
-      <router-link class="brand-lockup" to="/" aria-label="Buka Ringkasan StockFlow" @click="closeMobileNav">
+      <router-link class="brand-lockup" to="/" aria-label="Buka Dashboard StockFlow" @click="closeMobileNav">
         <img class="brand-logo" src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
         <div>
           <strong>StockFlow</strong>
@@ -106,7 +106,7 @@ onBeforeUnmount(() => {
       <button class="workspace-switcher" type="button" @click="notify('Workspace switcher siap digunakan saat multi-cabang diaktifkan.')">
         <span class="workspace-avatar"><img src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true"></span>
         <span class="workspace-copy"><small>WORKSPACE</small><strong>StockFlow Demo</strong></span>
-        <span class="workspace-chevron">⌄</span>
+        <span class="workspace-chevron chevron-icon" aria-hidden="true" />
       </button>
 
       <nav class="sidebar-nav" aria-label="Navigasi utama">
@@ -146,11 +146,11 @@ onBeforeUnmount(() => {
       <header class="topbar">
         <div class="topbar-left">
           <button class="mobile-menu" type="button" aria-label="Buka navigasi" @click="mobileOpen = true">☰</button>
-          <router-link class="mobile-brand" to="/" aria-label="Buka Ringkasan StockFlow">
+          <router-link class="mobile-brand" to="/" aria-label="Buka Dashboard StockFlow">
             <img src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
             <strong>StockFlow</strong>
           </router-link>
-          <div class="breadcrumbs"><span>StockFlow Demo</span><b>/</b><strong>{{ route.path === '/' ? 'Ringkasan' : 'Inventory' }}</strong></div>
+          <div class="breadcrumbs"><span>StockFlow Demo</span><b>/</b><strong>{{ route.path === '/' ? 'Dashboard' : 'Inventory' }}</strong></div>
         </div>
         <div class="topbar-actions">
           <form class="global-search" @submit.prevent="handleSearch">
@@ -164,7 +164,7 @@ onBeforeUnmount(() => {
             <button class="profile-menu profile-trigger" type="button" :aria-expanded="profileOpen" aria-label="Buka menu profil" @click="profileOpen = !profileOpen">
               <div class="profile-avatar">{{ initials }}</div>
               <div class="profile-copy"><strong>{{ auth.name || 'Demo Administrator' }}</strong><small>{{ auth.role || 'Administrator' }}</small></div>
-              <span class="profile-chevron">⌄</span>
+              <span class="profile-chevron chevron-icon" aria-hidden="true" />
             </button>
             <div v-if="profileOpen" class="profile-dropdown">
               <div class="profile-dropdown-meta"><span class="profile-dropdown-label">SIGNED IN AS</span><strong>{{ auth.name || 'Demo Administrator' }}</strong><small>{{ auth.role || 'Administrator' }}</small></div>
