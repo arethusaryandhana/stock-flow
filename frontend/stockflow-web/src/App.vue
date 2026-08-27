@@ -16,10 +16,22 @@ const profileWrap = ref<HTMLElement | null>(null)
 const groups = [
   {
     labelKey: 'app.workspace',
+    adminOnly: false,
     items: [{ labelKey: 'app.dashboard', path: '/', icon: '⌂', badge: '' }],
   },
   {
+    labelKey: 'app.administration',
+    adminOnly: true,
+    items: [
+      { labelKey: 'app.masterCategories', path: '/master-data/categories', icon: '◫', badge: '' },
+      { labelKey: 'app.masterProducts', path: '/master-data/products', icon: '▦', badge: '' },
+      { labelKey: 'app.masterSuppliers', path: '/master-data/suppliers', icon: '◎', badge: '' },
+      { labelKey: 'app.masterCustomers', path: '/master-data/customers', icon: '◌', badge: '' },
+    ],
+  },
+  {
     labelKey: 'app.inventory',
+    adminOnly: false,
     items: [
       { labelKey: 'app.products', path: '/products', icon: '▦', badge: '' },
       { labelKey: 'app.movements', path: '/inventory/movements', icon: '↕', badge: '' },
@@ -28,6 +40,7 @@ const groups = [
   },
   {
     labelKey: 'app.operations',
+    adminOnly: false,
     items: [
       { labelKey: 'app.purchaseOrders', path: null, icon: '▤', badge: 'app.soon' },
       { labelKey: 'app.receiving', path: null, icon: '↓', badge: 'app.soon' },
@@ -36,6 +49,7 @@ const groups = [
   },
   {
     labelKey: 'app.insight',
+    adminOnly: false,
     items: [
       { labelKey: 'app.reports', path: null, icon: '◷', badge: 'app.soon' },
       { labelKey: 'app.settings', path: null, icon: '⚙', badge: 'app.soon' },
@@ -112,7 +126,8 @@ onBeforeUnmount(() => {
       </button>
 
       <nav class="sidebar-nav" :aria-label="t('app.mainNav')">
-        <section v-for="group in groups" :key="group.labelKey" class="nav-group">
+        <template v-for="group in groups" :key="group.labelKey">
+          <section v-if="!group.adminOnly || auth.isAdmin" class="nav-group">
           <p class="nav-group-label">{{ t(group.labelKey) }}</p>
           <template v-for="item in group.items" :key="item.labelKey">
             <router-link
@@ -131,7 +146,8 @@ onBeforeUnmount(() => {
               <em>{{ t(item.badge) }}</em>
             </button>
           </template>
-        </section>
+          </section>
+        </template>
       </nav>
 
       <div class="sidebar-bottom">
@@ -152,7 +168,7 @@ onBeforeUnmount(() => {
             <img src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
             <strong>StockFlow</strong>
           </router-link>
-          <div class="breadcrumbs"><span>{{ t('app.workspaceName') }}</span><b>/</b><strong>{{ route.path === '/' ? t('app.dashboardBreadcrumb') : t('app.inventoryBreadcrumb') }}</strong></div>
+          <div class="breadcrumbs"><span>{{ t('app.workspaceName') }}</span><b>/</b><strong>{{ route.path === '/' ? t('app.dashboardBreadcrumb') : route.path.startsWith('/master-data') ? t('app.masterDataBreadcrumb') : t('app.inventoryBreadcrumb') }}</strong></div>
         </div>
         <div class="topbar-actions">
           <form class="global-search" @submit.prevent="handleSearch">

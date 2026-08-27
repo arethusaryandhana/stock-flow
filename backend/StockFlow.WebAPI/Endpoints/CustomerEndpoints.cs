@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using StockFlow.Application.Abstractions.UseCases;
 using StockFlow.Application.Models;
 
@@ -15,7 +17,25 @@ public sealed class CustomerEndpoints : IEndpoint
             .Produces<IReadOnlyList<CustomerResponse>>(StatusCodes.Status200OK);
 
         group.MapPost("/", CreateAsync)
-            .Produces<CustomerResponse>(StatusCodes.Status200OK);
+            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
+            .Produces<CustomerResponse>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status400BadRequest);
+
+        group.MapPut("/{id:guid}", UpdateAsync)
+            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
+            .Produces<CustomerResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
+
+        group.MapPatch("/{id:guid}/active", SetActiveAsync)
+            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status404NotFound);
+
+        group.MapDelete("/{id:guid}", DeleteAsync)
+            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status404NotFound);
     }
 
     private static async Task<IResult> GetAllAsync(
@@ -27,5 +47,25 @@ public sealed class CustomerEndpoints : IEndpoint
         MasterDataRequest request,
         ICustomerUseCase useCase,
         CancellationToken cancellationToken) =>
-        Results.Ok(await useCase.CreateAsync(request, cancellationToken));
+        (await useCase.CreateAsync(request, cancellationToken)).ToHttpResult();
+
+    private static async Task<IResult> UpdateAsync(
+        Guid id,
+        MasterDataRequest request,
+        ICustomerUseCase useCase,
+        CancellationToken cancellationToken) =>
+        (await useCase.UpdateAsync(id, request, cancellationToken)).ToHttpResult();
+
+    private static async Task<IResult> SetActiveAsync(
+        Guid id,
+        [FromBody] bool active,
+        ICustomerUseCase useCase,
+        CancellationToken cancellationToken) =>
+        (await useCase.SetActiveAsync(id, active, cancellationToken)).ToHttpResult();
+
+    private static Task<IResult> DeleteAsync(
+        Guid id,
+        ICustomerUseCase useCase,
+        CancellationToken cancellationToken) =>
+        SetActiveAsync(id, false, useCase, cancellationToken);
 }

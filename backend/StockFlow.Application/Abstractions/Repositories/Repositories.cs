@@ -31,6 +31,11 @@ public interface IProductRepository
 
     Task<bool> ExistsBySkuAsync(string sku, CancellationToken cancellationToken = default);
 
+    Task<bool> ExistsBySkuExceptAsync(
+        string sku,
+        Guid id,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(Product product, CancellationToken cancellationToken = default);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
@@ -41,6 +46,13 @@ public interface ICategoryRepository
     Task<IReadOnlyList<CategoryResponse>> GetAllAsync(CancellationToken cancellationToken = default);
 
     Task AddAsync(Category category, CancellationToken cancellationToken = default);
+
+    Task<Category?> FindAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<bool> ExistsByNameAsync(
+        string name,
+        Guid? exceptId = null,
+        CancellationToken cancellationToken = default);
 
     Task<bool> ExistsActiveAsync(Guid id, CancellationToken cancellationToken = default);
 
@@ -72,6 +84,13 @@ public interface ISupplierRepository
 
     Task AddAsync(Supplier supplier, CancellationToken cancellationToken = default);
 
+    Task<Supplier?> FindAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<bool> ExistsByCodeAsync(
+        string code,
+        Guid? exceptId = null,
+        CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
@@ -80,6 +99,13 @@ public interface ICustomerRepository
     Task<IReadOnlyList<CustomerResponse>> GetAllAsync(CancellationToken cancellationToken = default);
 
     Task AddAsync(Customer customer, CancellationToken cancellationToken = default);
+
+    Task<Customer?> FindAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<bool> ExistsByCodeAsync(
+        string code,
+        Guid? exceptId = null,
+        CancellationToken cancellationToken = default);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

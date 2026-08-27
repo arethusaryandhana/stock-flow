@@ -250,6 +250,12 @@ td small { display: block; margin-top: 3px; color: #9aa6b5; font-family: 'DM Mon
 .action-menu { position: absolute; z-index: 5; top: 32px; right: 0; min-width: 125px; padding: 5px; border: 1px solid var(--line); border-radius: 8px; background: #fff; box-shadow: var(--shadow-md); }
 .action-menu button { display: block; width: 100%; padding: 7px 8px; border-radius: 5px; color: #526176; background: transparent; font-size: .65rem; text-align: left; }
 .action-menu button:hover { color: var(--blue); background: var(--blue-soft); }
+.master-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; min-width: 210px; }
+.master-actions button { padding: 6px 8px; border-radius: 6px; color: #627188; background: #f7f9fc; font-size: .6rem; font-weight: 700; }
+.master-actions button:hover { color: var(--blue); background: var(--blue-soft); }
+.master-actions button:last-child { color: #bb4c59; background: var(--red-soft); }
+.field-label textarea { display: block; width: 100%; margin-top: 7px; padding: 9px 11px; border: 1px solid #dfe5ed; border-radius: 8px; outline: 0; resize: vertical; color: var(--ink); background-color: #fff; font: inherit; font-size: .68rem; }
+.field-label textarea:focus { border-color: #9db4ed; box-shadow: 0 0 0 3px #3567d614; }
 .form-panel { padding-bottom: 19px; }
 .adjustment-grid { display: grid; grid-template-columns: 1.3fr .55fr 1.15fr; gap: 11px; padding: 0 19px; }
 .field-label { display: block; color: #637187; font-size: .62rem; font-weight: 800; }

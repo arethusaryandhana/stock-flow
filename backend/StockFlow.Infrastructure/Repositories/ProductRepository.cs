@@ -58,6 +58,12 @@ public sealed class ProductRepository(StockFlowDbContext db) : IProductRepositor
         CancellationToken cancellationToken = default) =>
         db.ProductsSet.AnyAsync(product => product.Sku == sku, cancellationToken);
 
+    public Task<bool> ExistsBySkuExceptAsync(
+        string sku,
+        Guid id,
+        CancellationToken cancellationToken = default) =>
+        db.ProductsSet.AnyAsync(product => product.Sku == sku && product.Id != id, cancellationToken);
+
     public Task AddAsync(Product product, CancellationToken cancellationToken = default) =>
         db.ProductsSet.AddAsync(product, cancellationToken).AsTask();
 

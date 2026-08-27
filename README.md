@@ -21,13 +21,13 @@ Demo login: `admin@stockflow.local` / `StockFlow123!`
 - Clean Architecture boundaries and complete V1 domain model
 - PostgreSQL EF Core model with foreign keys, safe delete behaviors, indexes, and seed data
 - JWT authentication, role authorization, correlation IDs, structured logging, exception handling, CORS, health checks
-- Dashboard and product/category/supplier/customer APIs
-- Responsive Vue 3 + TypeScript + Tailwind shell, login, actionable dashboard, product inventory table
+- Dashboard and product/category/supplier/customer APIs, including Admin-only master-data CRUD (soft delete)
+- Responsive Vue 3 + TypeScript + Tailwind shell, login, actionable dashboard, product inventory table, and separate Admin-only menus for Categories, Products, Suppliers, and Customers
 - Separate idle-friendly worker with PostgreSQL `FOR UPDATE SKIP LOCKED` queue claim and streaming CSV export
 - Separate Docker Compose containers for web, API, worker, and PostgreSQL
 
 ## Next slices
 
-PO approval and atomic goods receipt, sales completion and stock deduction, adjustment UI/API, report job request/download endpoints, notification scheduler, audit history views, comprehensive tests, and remaining master-data screens.
+PO approval and atomic goods receipt, sales completion and stock deduction, report job request/download endpoints, notification scheduler, audit history views, and comprehensive tests.
 
 See [architecture](docs/architecture.md) for design rules and status.

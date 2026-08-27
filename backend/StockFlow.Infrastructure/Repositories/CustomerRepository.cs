@@ -29,6 +29,17 @@ public sealed class CustomerRepository(StockFlowDbContext db) : ICustomerReposit
     public Task AddAsync(Customer customer, CancellationToken cancellationToken = default) =>
         db.CustomersSet.AddAsync(customer, cancellationToken).AsTask();
 
+    public Task<Customer?> FindAsync(Guid id, CancellationToken cancellationToken = default) =>
+        db.CustomersSet.FindAsync([id], cancellationToken).AsTask();
+
+    public Task<bool> ExistsByCodeAsync(
+        string code,
+        Guid? exceptId = null,
+        CancellationToken cancellationToken = default) =>
+        db.CustomersSet.AnyAsync(
+            customer => customer.Code == code && (!exceptId.HasValue || customer.Id != exceptId.Value),
+            cancellationToken);
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
         db.SaveChangesAsync(cancellationToken);
 }

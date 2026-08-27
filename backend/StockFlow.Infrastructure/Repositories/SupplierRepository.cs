@@ -29,6 +29,17 @@ public sealed class SupplierRepository(StockFlowDbContext db) : ISupplierReposit
     public Task AddAsync(Supplier supplier, CancellationToken cancellationToken = default) =>
         db.SuppliersSet.AddAsync(supplier, cancellationToken).AsTask();
 
+    public Task<Supplier?> FindAsync(Guid id, CancellationToken cancellationToken = default) =>
+        db.SuppliersSet.FindAsync([id], cancellationToken).AsTask();
+
+    public Task<bool> ExistsByCodeAsync(
+        string code,
+        Guid? exceptId = null,
+        CancellationToken cancellationToken = default) =>
+        db.SuppliersSet.AnyAsync(
+            supplier => supplier.Code == code && (!exceptId.HasValue || supplier.Id != exceptId.Value),
+            cancellationToken);
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
         db.SaveChangesAsync(cancellationToken);
 }
