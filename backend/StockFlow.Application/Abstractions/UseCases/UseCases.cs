@@ -31,6 +31,11 @@ public interface IProductUseCase
         ProductRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<UseCaseResult<ProductResponse>> UpdateReorderLevelAsync(
+        Guid id,
+        ProductReorderLevelRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<UseCaseResult> SetActiveAsync(
         Guid id,
         bool active,

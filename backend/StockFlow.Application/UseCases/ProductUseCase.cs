@@ -31,9 +31,11 @@ public sealed class ProductUseCase(
             return UseCaseResult<ProductResponse>.BadRequest("Satuan produk wajib diisi.");
         }
 
-        if (request.PurchasePrice < 0 || request.SellingPrice < 0 || request.ReorderLevel < 0)
+        if (request.PurchasePrice < 0 || request.SellingPrice < 0 ||
+            request.ReorderLevel < 0 || decimal.Round(request.ReorderLevel, 2) != request.ReorderLevel)
         {
-            return UseCaseResult<ProductResponse>.BadRequest("Harga dan level pemesanan ulang tidak boleh negatif.");
+            return UseCaseResult<ProductResponse>.BadRequest(
+                "Harga tidak boleh negatif; minimum stok harus 0 atau lebih dan maksimal 2 angka desimal.");
         }
 
         if (!await categories.ExistsActiveAsync(request.CategoryId, cancellationToken))
@@ -64,6 +66,33 @@ public sealed class ProductUseCase(
             ?? throw new InvalidOperationException("Produk yang baru dibuat tidak ditemukan.");
 
         return UseCaseResult<ProductResponse>.Created(response, $"/api/products/{product.Id}");
+    }
+
+    public async Task<UseCaseResult<ProductResponse>> UpdateReorderLevelAsync(
+        Guid id,
+        ProductReorderLevelRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.ReorderLevel < 0 || decimal.Round(request.ReorderLevel, 2) != request.ReorderLevel)
+        {
+            return UseCaseResult<ProductResponse>.BadRequest(
+                "Batas minimum stok tidak boleh negatif dan maksimal 2 angka desimal.");
+        }
+
+        var product = await products.FindAsync(id, cancellationToken);
+
+        if (product is null)
+        {
+            return UseCaseResult<ProductResponse>.NotFound("Produk tidak ditemukan.");
+        }
+
+        product.ReorderLevel = request.ReorderLevel;
+        await products.SaveChangesAsync(cancellationToken);
+
+        var response = await products.GetByIdAsync(id, cancellationToken)
+            ?? throw new InvalidOperationException("Produk yang diperbarui tidak ditemukan.");
+
+        return UseCaseResult<ProductResponse>.Ok(response);
     }
 
     public async Task<UseCaseResult> SetActiveAsync(

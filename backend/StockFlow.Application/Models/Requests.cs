@@ -15,6 +15,8 @@ public sealed record ProductRequest(
     decimal ReorderLevel,
     string Unit);
 
+public sealed record ProductReorderLevelRequest(decimal ReorderLevel);
+
 public sealed record MasterDataRequest(
     string Code,
     string Name,

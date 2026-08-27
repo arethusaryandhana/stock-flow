@@ -11,7 +11,8 @@ public sealed class DashboardRepository(StockFlowDbContext db) : IDashboardRepos
     {
         var products = await db.ProductsSet.CountAsync(product => product.IsActive, cancellationToken);
         var lowStock = await db.ProductsSet.CountAsync(
-            product => product.IsActive && product.StockOnHand <= product.ReorderLevel,
+            product => product.IsActive && product.StockOnHand > 0 &&
+                product.StockOnHand <= product.ReorderLevel,
             cancellationToken);
         var purchases = await db.PurchaseOrders.CountAsync(
             order => order.Status == PurchaseOrderStatus.Submitted ||

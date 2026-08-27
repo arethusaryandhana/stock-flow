@@ -28,6 +28,12 @@ public sealed class InventoryUseCase(
                 "Jumlah penyesuaian tidak boleh nol.");
         }
 
+        if (decimal.Round(request.QuantityDelta, 2) != request.QuantityDelta)
+        {
+            return UseCaseResult<StockAdjustmentResponse>.BadRequest(
+                "Jumlah penyesuaian maksimal 2 angka desimal.");
+        }
+
         var reason = request.Reason?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(reason))
         {
@@ -47,7 +53,7 @@ public sealed class InventoryUseCase(
                 "Produk tidak aktif tidak dapat disesuaikan.");
         }
 
-        var balanceAfter = product.StockOnHand + request.QuantityDelta;
+        var balanceAfter = decimal.Round(product.StockOnHand + request.QuantityDelta, 2);
         if (balanceAfter < 0)
         {
             return UseCaseResult<StockAdjustmentResponse>.BadRequest(

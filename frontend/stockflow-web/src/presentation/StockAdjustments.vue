@@ -5,20 +5,34 @@ import { useI18n } from '../i18n'
 
 type Product = { id: string; sku: string; name: string; stockOnHand: number; unit: string; isActive: boolean }
 type Adjustment = { id: string; number: string; productId: string; productSku: string; productName: string; unit: string; quantityDelta: number; reason: string; createdAt: string }
+type AdjustmentForm = { productId: string; quantityDelta: string; reason: string }
 const products = ref<Product[]>([])
 const adjustments = ref<Adjustment[]>([])
 const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
 const formError = ref('')
-const form = ref({ productId: '', quantityDelta: 0, reason: '' })
+const form = ref<AdjustmentForm>({ productId: '', quantityDelta: '', reason: '' })
 const historyQuery = ref('')
 const { locale, t } = useI18n()
 const activeProducts = computed(() => products.value.filter((product) => product.isActive))
 const selectedProduct = computed(() => products.value.find((product) => product.id === form.value.productId))
-const newBalance = computed(() => (selectedProduct.value?.stockOnHand ?? 0) + form.value.quantityDelta)
+const quantityDelta = computed(() => parseQuantity(form.value.quantityDelta))
+const quantityDeltaValue = computed(() => quantityDelta.value ?? 0)
+const newBalance = computed(() => {
+  const stockOnHand = selectedProduct.value?.stockOnHand ?? 0
+  return quantityDelta.value === null ? stockOnHand : roundQuantity(stockOnHand + quantityDelta.value)
+})
 const date = (value: string) => new Intl.DateTimeFormat(locale.value, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
-const delta = (adjustment: Adjustment) => `${adjustment.quantityDelta > 0 ? '+' : '−'}${Math.abs(adjustment.quantityDelta)} ${adjustment.unit}`
+const roundQuantity = (value: number) => Number(value.toFixed(2))
+const formatQuantity = (value: number) => roundQuantity(value).toFixed(2)
+function parseQuantity(value: string): number | null {
+  const normalized = value.trim()
+  if (!/^[+-]?\d+(?:\.\d{1,2})?$/.test(normalized)) return null
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : null
+}
+const delta = (adjustment: Adjustment) => `${adjustment.quantityDelta > 0 ? '+' : '−'}${formatQuantity(Math.abs(adjustment.quantityDelta))} ${adjustment.unit}`
 const filteredAdjustments = computed(() => {
   const term = historyQuery.value.toLowerCase().trim()
   return adjustments.value.filter((item) => `${item.number} ${item.productName} ${item.productSku} ${item.reason}`.toLowerCase().includes(term))
@@ -31,18 +45,25 @@ async function load() {
     if (!form.value.productId && activeProducts.value[0]) form.value.productId = activeProducts.value[0].id
   } catch (requestError) { error.value = (requestError as Error).message } finally { loading.value = false }
 }
-function setDirection(direction: 'in' | 'out') { form.value.quantityDelta = Math.abs(form.value.quantityDelta) * (direction === 'in' ? 1 : -1) }
+function normalizeQuantity() {
+  if (quantityDelta.value !== null) form.value.quantityDelta = formatQuantity(quantityDelta.value)
+}
+function setDirection(direction: 'in' | 'out') {
+  const magnitude = quantityDelta.value === null ? 0 : Math.abs(quantityDelta.value)
+  form.value.quantityDelta = `${direction === 'in' ? '' : '-'}${formatQuantity(magnitude)}`
+}
 async function submit() {
   formError.value = ''
+  if (quantityDelta.value === null) { formError.value = t('adjustments.invalidChange'); return }
   if (newBalance.value < 0) { formError.value = t('adjustments.invalidBalance'); return }
-  if (!form.value.quantityDelta) { formError.value = t('adjustments.missingChange'); return }
+  if (!quantityDelta.value) { formError.value = t('adjustments.missingChange'); return }
   saving.value = true
   try {
-    const { data } = await api.post<Adjustment>('/stock-adjustments', form.value)
+    const { data } = await api.post<Adjustment>('/stock-adjustments', { productId: form.value.productId, quantityDelta: quantityDelta.value, reason: form.value.reason })
     adjustments.value.unshift(data)
     const product = products.value.find((item) => item.id === data.productId)
-    if (product) product.stockOnHand += data.quantityDelta
-    form.value.quantityDelta = 0; form.value.reason = ''
+    if (product) product.stockOnHand = roundQuantity(product.stockOnHand + data.quantityDelta)
+    form.value.quantityDelta = ''; form.value.reason = ''
   } catch (requestError) { formError.value = (requestError as Error).message } finally { saving.value = false }
 }
 function exportCsv() {
@@ -62,11 +83,11 @@ onMounted(load)
       <div class="surface-card-head"><div><h2>{{ t('adjustments.newTitle') }}</h2><p>{{ t('adjustments.newDescription') }}</p></div><span class="badge neutral">{{ t('adjustments.auditActive') }}</span></div>
       <form class="adjustment-grid" @submit.prevent="submit">
         <label class="field-label">{{ t('adjustments.product') }}<select v-model="form.productId" required :disabled="loading || !activeProducts.length"><option v-for="product in activeProducts" :key="product.id" :value="product.id">{{ product.name }} · {{ product.sku }}</option></select></label>
-        <label class="field-label">{{ t('adjustments.stockChange') }}<div class="quantity-control"><button type="button" :class="{ selected: form.quantityDelta > 0, in: form.quantityDelta > 0 }" :aria-label="t('adjustments.addStock')" @click="setDirection('in')">+</button><input v-model.number="form.quantityDelta" type="number" step="0.01" required><button type="button" :class="{ selected: form.quantityDelta < 0, out: form.quantityDelta < 0 }" :aria-label="t('adjustments.removeStock')" @click="setDirection('out')">−</button></div></label>
+        <label class="field-label">{{ t('adjustments.stockChange') }}<div class="quantity-control"><button type="button" :class="{ selected: quantityDeltaValue > 0, in: quantityDeltaValue > 0 }" :aria-label="t('adjustments.addStock')" @click="setDirection('in')">+</button><input v-model="form.quantityDelta" type="number" step="0.01" inputmode="decimal" placeholder="0.00" required @blur="normalizeQuantity"><button type="button" :class="{ selected: quantityDeltaValue < 0, out: quantityDeltaValue < 0 }" :aria-label="t('adjustments.removeStock')" @click="setDirection('out')">−</button></div><small class="field-hint">{{ t('adjustments.stockChangeHint') }}</small></label>
         <label class="field-label">{{ t('adjustments.reason') }}<input v-model.trim="form.reason" required maxlength="300" :placeholder="t('adjustments.reasonPlaceholder')"></label>
-        <p v-if="selectedProduct" class="adjustment-helper" :class="{ warning: newBalance < 0 }"><span>i</span> {{ t('adjustments.currentBalance') }} <strong>{{ selectedProduct.stockOnHand }} {{ selectedProduct.unit }}</strong> {{ t('adjustments.willBecome') }} <strong>{{ newBalance }} {{ selectedProduct.unit }}</strong>.</p>
+        <p v-if="selectedProduct" class="adjustment-helper" :class="{ warning: newBalance < 0 }"><span>i</span> {{ t('adjustments.currentBalance') }} <strong>{{ formatQuantity(selectedProduct.stockOnHand) }} {{ selectedProduct.unit }}</strong> {{ t('adjustments.willBecome') }} <strong>{{ formatQuantity(newBalance) }} {{ selectedProduct.unit }}</strong>.</p>
         <p v-if="formError" class="alert" style="grid-column: 1 / -1; margin: 14px 19px 0">{{ formError }}</p>
-        <div class="adjustment-actions" style="grid-column: 1 / -1"><button class="secondary" type="button" @click="form.quantityDelta = 0; form.reason = ''">{{ t('adjustments.reset') }}</button><button class="primary" :disabled="saving || loading || !activeProducts.length">{{ saving ? t('common.saving') : t('adjustments.save') }}</button></div>
+        <div class="adjustment-actions" style="grid-column: 1 / -1"><button class="secondary" type="button" @click="form.quantityDelta = ''; form.reason = ''">{{ t('adjustments.reset') }}</button><button class="primary" :disabled="saving || loading || !activeProducts.length">{{ saving ? t('common.saving') : t('adjustments.save') }}</button></div>
       </form>
     </section>
 

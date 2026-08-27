@@ -121,7 +121,14 @@ public sealed class StockFlowDbContext(
         b.Entity<StockMovement>().HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<StockAdjustment>().HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<PasswordResetToken>().HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
-        foreach (var e in new[] { typeof(Product), typeof(PurchaseOrderItem), typeof(SalesOrderItem) })
+        foreach (var e in new[]
+        {
+            typeof(Product),
+            typeof(PurchaseOrderItem),
+            typeof(SalesOrderItem),
+            typeof(StockMovement),
+            typeof(StockAdjustment)
+        })
             foreach (var p in b.Entity(e).Metadata.GetProperties().Where(p => p.ClrType == typeof(decimal)))
             {
                 p.SetPrecision(18);

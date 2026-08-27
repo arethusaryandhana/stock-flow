@@ -21,6 +21,12 @@ public sealed class ProductEndpoints : IEndpoint
             .Produces<ProductResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest);
 
+        group.MapPatch("/{id:guid}/reorder-level", UpdateReorderLevelAsync)
+            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin,Manager" })
+            .Produces<ProductResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
+
         group.MapPatch("/{id:guid}/active", SetActiveAsync)
             .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin,Manager" })
             .Produces(StatusCodes.Status204NoContent)
@@ -37,6 +43,13 @@ public sealed class ProductEndpoints : IEndpoint
         IProductUseCase useCase,
         CancellationToken cancellationToken) =>
         (await useCase.CreateAsync(request, cancellationToken)).ToHttpResult();
+
+    private static async Task<IResult> UpdateReorderLevelAsync(
+        Guid id,
+        ProductReorderLevelRequest request,
+        IProductUseCase useCase,
+        CancellationToken cancellationToken) =>
+        (await useCase.UpdateReorderLevelAsync(id, request, cancellationToken)).ToHttpResult();
 
     private static async Task<IResult> SetActiveAsync(
         Guid id,

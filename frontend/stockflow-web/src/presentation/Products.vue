@@ -17,6 +17,9 @@ const formError = ref('')
 const saving = ref(false)
 const showForm = ref(false)
 const openMenu = ref('')
+const editingProduct = ref<Product | null>(null)
+const editReorderLevel = ref(0)
+const editSaving = ref(false)
 const newProduct = ref({ sku: '', name: '', categoryId: '', purchasePrice: 0, sellingPrice: 0, reorderLevel: 0, unit: 'pcs' })
 const { locale, t } = useI18n()
 
@@ -57,6 +60,17 @@ async function load() {
 
 function openForm() { formError.value = ''; showForm.value = true }
 function closeForm() { showForm.value = false; formError.value = ''; newProduct.value = { sku: '', name: '', categoryId: categories.value[0]?.id ?? '', purchasePrice: 0, sellingPrice: 0, reorderLevel: 0, unit: 'pcs' } }
+function openEditForm(product: Product) {
+  openMenu.value = ''
+  formError.value = ''
+  editingProduct.value = product
+  editReorderLevel.value = product.reorderLevel
+}
+function closeEditForm() {
+  editingProduct.value = null
+  editReorderLevel.value = 0
+  formError.value = ''
+}
 async function createProduct() {
   formError.value = ''; saving.value = true
   try {
@@ -64,6 +78,25 @@ async function createProduct() {
     items.value = [...items.value, data].sort((left, right) => left.name.localeCompare(right.name))
     closeForm()
   } catch (requestError) { formError.value = (requestError as Error).message } finally { saving.value = false }
+}
+async function updateReorderLevel() {
+  formError.value = ''
+  const rawReorderLevel = String(editReorderLevel.value).trim()
+  const reorderLevel = Number(rawReorderLevel)
+  const roundedReorderLevel = Number(reorderLevel.toFixed(2))
+  if (!rawReorderLevel || !Number.isFinite(reorderLevel) || reorderLevel < 0 || roundedReorderLevel !== reorderLevel) {
+    formError.value = t('products.invalidReorderLevel')
+    return
+  }
+
+  if (!editingProduct.value) return
+
+  editSaving.value = true
+  try {
+    const { data } = await api.patch<Product>(`/products/${editingProduct.value.id}/reorder-level`, { reorderLevel })
+    items.value = items.value.map((item) => item.id === data.id ? data : item)
+    closeEditForm()
+  } catch (requestError) { formError.value = (requestError as Error).message } finally { editSaving.value = false }
 }
 async function toggleActive(product: Product) {
   openMenu.value = ''
@@ -100,9 +133,9 @@ onMounted(load)
       </div>
       <div v-if="loading" class="empty">{{ t('products.loading') }}</div>
       <div v-else-if="!filtered.length" class="empty"><strong>{{ t('products.noMatchTitle') }}</strong>{{ t('products.noMatchHint') }}</div>
-      <div v-else class="table-wrap"><table><thead><tr><th>{{ t('products.product') }}</th><th>{{ t('products.category') }}</th><th>{{ t('products.availableStock') }}</th><th>{{ t('products.sellingPrice') }}</th><th>{{ t('products.status') }}</th><th><span class="sr-only">{{ t('products.actionAria') }}</span></th></tr></thead><tbody><tr v-for="product in filtered" :key="product.id"><td><div class="product-cell"><span class="product-avatar">{{ shortName(product.name) }}</span><span><strong>{{ product.name }}</strong><small>{{ product.sku }}</small></span></div></td><td>{{ product.category }}</td><td><span class="stock-value" :class="{ low: status(product) === 'low', out: status(product) === 'out' }">{{ product.stockOnHand }} {{ product.unit }}</span><small>{{ t('products.min') }} {{ product.reorderLevel }} {{ product.unit }}</small></td><td class="stock-value">{{ money(product.sellingPrice) }}</td><td><span class="badge" :class="statusClass(product)">{{ statusLabel(product) }}</span></td><td><div class="action-menu-wrap"><button class="action-button" type="button" :aria-label="t('products.menuAria')" @click="openMenu = openMenu === product.id ? '' : product.id">•••</button><div v-if="openMenu === product.id" class="action-menu"><button type="button" @click="toggleActive(product)">{{ product.isActive ? t('products.deactivate') : t('products.activate') }}</button></div></div></td></tr></tbody></table></div>
+      <div v-else class="table-wrap"><table><thead><tr><th>{{ t('products.product') }}</th><th>{{ t('products.category') }}</th><th>{{ t('products.availableStock') }}</th><th>{{ t('products.sellingPrice') }}</th><th>{{ t('products.status') }}</th><th><span class="sr-only">{{ t('products.actionAria') }}</span></th></tr></thead><tbody><tr v-for="product in filtered" :key="product.id"><td><div class="product-cell"><span class="product-avatar">{{ shortName(product.name) }}</span><span><strong>{{ product.name }}</strong><small>{{ product.sku }}</small></span></div></td><td>{{ product.category }}</td><td><span class="stock-value" :class="{ low: status(product) === 'low', out: status(product) === 'out' }">{{ product.stockOnHand }} {{ product.unit }}</span><small>{{ t('products.min') }} {{ product.reorderLevel }} {{ product.unit }}</small></td><td class="stock-value">{{ money(product.sellingPrice) }}</td><td><span class="badge" :class="statusClass(product)">{{ statusLabel(product) }}</span></td><td><div class="action-menu-wrap"><button class="action-button" type="button" :aria-label="t('products.menuAria')" @click="openMenu = openMenu === product.id ? '' : product.id">•••</button><div v-if="openMenu === product.id" class="action-menu"><button type="button" @click="openEditForm(product)">{{ t('products.editReorderLevel') }}</button><button type="button" @click="toggleActive(product)">{{ product.isActive ? t('products.deactivate') : t('products.activate') }}</button></div></div></td></tr></tbody></table></div>
     </section>
 
-    <Teleport to="body"><div v-if="showForm" class="modal-backdrop" @click.self="closeForm"><form class="modal" @submit.prevent="createProduct"><div class="modal-head"><div><p class="eyebrow">{{ t('products.eyebrow') }}</p><h2>{{ t('products.modalTitle') }}</h2><p>{{ t('products.modalDescription') }}</p></div><button class="close-button" type="button" :aria-label="t('common.close')" @click="closeForm">×</button></div><div class="modal-body"><div class="form-grid"><label class="field-label">{{ t('products.sku') }}<input v-model.trim="newProduct.sku" required maxlength="80" :placeholder="t('products.skuPlaceholder')"></label><label class="field-label">{{ t('products.name') }}<input v-model.trim="newProduct.name" required maxlength="160" :placeholder="t('products.namePlaceholder')"></label><label class="field-label">{{ t('products.category') }}<select v-model="newProduct.categoryId" required><option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option></select></label><label class="field-label">{{ t('products.unit') }}<input v-model.trim="newProduct.unit" required maxlength="24" :placeholder="t('products.unitPlaceholder')"></label><label class="field-label">{{ t('products.purchasePrice') }}<input v-model.number="newProduct.purchasePrice" type="number" min="0" step="1" required></label><label class="field-label">{{ t('products.sellingPrice') }}<input v-model.number="newProduct.sellingPrice" type="number" min="0" step="1" required></label><label class="field-label full">{{ t('products.reorderLevel') }}<input v-model.number="newProduct.reorderLevel" type="number" min="0" step="0.01" required></label></div><p v-if="formError" class="alert" style="margin-top: 14px">{{ formError }}</p><div class="modal-actions"><button class="secondary" type="button" @click="closeForm">{{ t('common.cancel') }}</button><button class="primary" :disabled="saving">{{ saving ? t('common.saving') : t('common.save') }}</button></div></div></form></div></Teleport>
+    <Teleport to="body"><div v-if="showForm" class="modal-backdrop" @click.self="closeForm"><form class="modal" @submit.prevent="createProduct"><div class="modal-head"><div><p class="eyebrow">{{ t('products.eyebrow') }}</p><h2>{{ t('products.modalTitle') }}</h2><p>{{ t('products.modalDescription') }}</p></div><button class="close-button" type="button" :aria-label="t('common.close')" @click="closeForm">×</button></div><div class="modal-body"><div class="form-grid"><label class="field-label">{{ t('products.sku') }}<input v-model.trim="newProduct.sku" required maxlength="80" :placeholder="t('products.skuPlaceholder')"></label><label class="field-label">{{ t('products.name') }}<input v-model.trim="newProduct.name" required maxlength="160" :placeholder="t('products.namePlaceholder')"></label><label class="field-label">{{ t('products.category') }}<select v-model="newProduct.categoryId" required><option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option></select></label><label class="field-label">{{ t('products.unit') }}<input v-model.trim="newProduct.unit" required maxlength="24" :placeholder="t('products.unitPlaceholder')"></label><label class="field-label">{{ t('products.purchasePrice') }}<input v-model.number="newProduct.purchasePrice" type="number" min="0" step="1" required></label><label class="field-label">{{ t('products.sellingPrice') }}<input v-model.number="newProduct.sellingPrice" type="number" min="0" step="1" required></label><label class="field-label full">{{ t('products.reorderLevel') }}<input v-model.number="newProduct.reorderLevel" type="number" min="0" step="0.01" required><small class="field-hint">{{ t('products.reorderLevelHint') }}</small></label></div><p v-if="formError" class="alert" style="margin-top: 14px">{{ formError }}</p><div class="modal-actions"><button class="secondary" type="button" @click="closeForm">{{ t('common.cancel') }}</button><button class="primary" :disabled="saving">{{ saving ? t('common.saving') : t('common.save') }}</button></div></div></form></div><div v-if="editingProduct" class="modal-backdrop" @click.self="closeEditForm"><form class="modal edit-modal" @submit.prevent="updateReorderLevel"><div class="modal-head"><div><p class="eyebrow">{{ t('products.eyebrow') }}</p><h2>{{ t('products.editReorderTitle') }}</h2><p>{{ editingProduct.name }} · {{ editingProduct.sku }}</p></div><button class="close-button" type="button" :aria-label="t('common.close')" @click="closeEditForm">×</button></div><div class="modal-body"><label class="field-label">{{ t('products.reorderLevel') }}<input v-model.number="editReorderLevel" type="number" min="0" step="0.01" required autofocus></label><p class="field-hint">{{ t('products.reorderLevelHint') }}</p><p v-if="formError" class="alert" style="margin-top: 14px">{{ formError }}</p><div class="modal-actions"><button class="secondary" type="button" @click="closeEditForm">{{ t('common.cancel') }}</button><button class="primary" :disabled="editSaving">{{ editSaving ? t('common.saving') : t('products.saveReorderLevel') }}</button></div></div></form></div></Teleport>
   </div>
 </template>
