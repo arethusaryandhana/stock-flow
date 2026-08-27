@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../infrastructure/api'
 import { useAuthStore } from '../stores/auth'
+import { useI18n } from '../i18n'
 
 type AuthMode = 'login' | 'forgot' | 'reset'
 
@@ -21,6 +22,7 @@ const feedback = ref('')
 const busy = ref(false)
 const auth = useAuthStore()
 const router = useRouter()
+const { language, t, toggleLanguage } = useI18n()
 
 function clearMessages() {
   error.value = ''
@@ -63,8 +65,8 @@ async function submitForgot() {
 
 async function submitReset() {
   clearMessages()
-  if (newPassword.value.length < 8) { error.value = 'Password baru minimal 8 karakter.'; return }
-  if (newPassword.value !== confirmPassword.value) { error.value = 'Konfirmasi password belum sesuai.'; return }
+  if (newPassword.value.length < 8) { error.value = t('login.passwordMinLength'); return }
+  if (newPassword.value !== confirmPassword.value) { error.value = t('login.passwordMismatch'); return }
   busy.value = true
   try {
     const { data } = await api.post<{ message: string }>('/auth/reset-password', { token: resetToken.value, newPassword: newPassword.value })
@@ -81,41 +83,42 @@ async function submitReset() {
 <template>
   <main class="login">
     <section class="login-visual">
+      <button class="language-switcher login-language" type="button" :aria-label="language === 'id' ? t('app.switchToEnglish') : t('app.switchToIndonesian')" @click="toggleLanguage"><span :class="{ active: language === 'en' }">EN</span><span :class="{ active: language === 'id' }">ID</span></button>
       <div class="login-brand"><img class="brand-logo" src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true"><div><strong>StockFlow</strong><small>Inventory OS</small></div></div>
-      <div class="login-copy"><p class="eyebrow">OPERATIONS, SIMPLIFIED</p><h2>Stok terkendali.<br>Bisnis melaju.</h2><p>Ruang kerja untuk melihat kondisi inventori, mengelola pergerakan, dan membuat keputusan restock dengan lebih percaya diri.</p><div class="login-points"><span>Real-time visibility</span><span>Audit-ready</span><span>Multi-workspace</span></div></div>
-      <p class="login-footer">© 2026 StockFlow · Inventory operations platform</p>
+      <div class="login-copy"><p class="eyebrow">{{ t('login.operationsEyebrow') }}</p><h2 v-html="t('login.visualTitle')" /><p>{{ t('login.visualDescription') }}</p><div class="login-points"><span>{{ t('login.realTime') }}</span><span>{{ t('login.auditReady') }}</span><span>{{ t('login.multiWorkspace') }}</span></div></div>
+      <p class="login-footer">{{ t('login.footer') }}</p>
     </section>
     <section class="login-form-side">
       <div class="login-card">
         <template v-if="mode === 'login'">
-          <p class="eyebrow">WELCOME BACK</p><h1>Masuk ke workspace</h1><p class="subtitle">Lanjutkan mengelola operasional StockFlow Anda.</p>
+          <p class="eyebrow">{{ t('login.welcome') }}</p><h1>{{ t('login.title') }}</h1><p class="subtitle">{{ t('login.subtitle') }}</p>
           <form class="login-form" @submit.prevent="submitLogin">
-            <label class="login-label">Email kerja<input v-model="email" type="email" autocomplete="username" required></label>
-            <label class="login-label">Password<div class="password-field"><input v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required><button class="password-toggle" type="button" :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'" :aria-pressed="showPassword" @click="showPassword = !showPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showPassword" d="m3 3 18 18" /></svg></button></div></label>
-            <div class="login-options"><label class="checkbox"><input type="checkbox"> Ingat saya</label><button class="text-link" type="button" @click="showForgot">Lupa password?</button></div>
+            <label class="login-label">{{ t('login.workEmail') }}<input v-model="email" type="email" autocomplete="username" required></label>
+            <label class="login-label">{{ t('login.password') }}<div class="password-field"><input v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required><button class="password-toggle" type="button" :aria-label="showPassword ? t('login.hidePassword') : t('login.showPassword')" :aria-pressed="showPassword" @click="showPassword = !showPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showPassword" d="m3 3 18 18" /></svg></button></div></label>
+            <div class="login-options"><label class="checkbox"><input type="checkbox"> {{ t('login.rememberMe') }}</label><button class="text-link" type="button" @click="showForgot">{{ t('login.forgotPassword') }}</button></div>
             <p v-if="error" class="alert">{{ error }}</p><p v-if="feedback" class="form-feedback">{{ feedback }}</p>
-            <button class="primary login-submit" :disabled="busy">{{ busy ? 'Memeriksa akses…' : 'Masuk ke StockFlow →' }}</button>
+            <button class="primary login-submit" :disabled="busy">{{ busy ? t('login.checkingAccess') : t('login.submit') }}</button>
           </form>
-          <div class="demo-note"><strong>Demo workspace</strong> Kredensial demo sudah diisi. Silakan langsung masuk untuk melihat dashboard.</div>
+          <div class="demo-note"><strong>{{ t('login.demoWorkspace') }}</strong> {{ t('login.demoDescription') }}</div>
         </template>
 
         <template v-else-if="mode === 'forgot'">
-          <button class="back-link" type="button" @click="showLogin">← Kembali ke login</button><p class="eyebrow flow-eyebrow">ACCOUNT RECOVERY</p><h1>Reset password</h1><p class="subtitle">Masukkan email kerja Anda. Kami akan menyiapkan instruksi untuk membuat password baru.</p>
+          <button class="back-link" type="button" @click="showLogin">{{ t('login.backToLogin') }}</button><p class="eyebrow flow-eyebrow">{{ t('login.recovery') }}</p><h1>{{ t('login.resetTitle') }}</h1><p class="subtitle">{{ t('login.resetSubtitle') }}</p>
           <form class="login-form" @submit.prevent="submitForgot">
-            <label class="login-label">Email kerja<input v-model="forgotEmail" type="email" autocomplete="email" required placeholder="nama@perusahaan.com"></label>
+            <label class="login-label">{{ t('login.workEmail') }}<input v-model="forgotEmail" type="email" autocomplete="email" required placeholder="nama@perusahaan.com"></label>
             <p v-if="error" class="alert">{{ error }}</p><p v-if="feedback" class="form-feedback">{{ feedback }}</p>
-            <button class="primary login-submit" :disabled="busy">{{ busy ? 'Menyiapkan link…' : 'Kirim instruksi reset' }}</button>
+            <button class="primary login-submit" :disabled="busy">{{ busy ? t('login.preparingLink') : t('login.sendReset') }}</button>
           </form>
-          <div class="demo-note"><strong>Untuk demo lokal</strong> Link reset akan langsung diteruskan ke halaman berikutnya. Pada production, token harus dikirim lewat email.</div>
+          <div class="demo-note"><strong>{{ t('login.localDemo') }}</strong> {{ t('login.localDemoDescription') }}</div>
         </template>
 
         <template v-else>
-          <button class="back-link" type="button" @click="showLogin">← Kembali ke login</button><p class="eyebrow flow-eyebrow">ACCOUNT RECOVERY</p><h1>Buat password baru</h1><p class="subtitle">Gunakan password minimal 8 karakter untuk mengamankan akun Anda.</p>
+          <button class="back-link" type="button" @click="showLogin">{{ t('login.backToLogin') }}</button><p class="eyebrow flow-eyebrow">{{ t('login.recovery') }}</p><h1>{{ t('login.newPasswordTitle') }}</h1><p class="subtitle">{{ t('login.newPasswordSubtitle') }}</p>
           <form class="login-form" @submit.prevent="submitReset">
-            <label class="login-label">Password baru<div class="password-field"><input v-model="newPassword" :type="showNewPassword ? 'text' : 'password'" autocomplete="new-password" minlength="8" required><button class="password-toggle" type="button" :aria-label="showNewPassword ? 'Sembunyikan password baru' : 'Tampilkan password baru'" :aria-pressed="showNewPassword" @click="showNewPassword = !showNewPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showNewPassword" d="m3 3 18 18" /></svg></button></div></label>
-            <label class="login-label">Konfirmasi password<div class="password-field"><input v-model="confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" autocomplete="new-password" minlength="8" required><button class="password-toggle" type="button" :aria-label="showConfirmPassword ? 'Sembunyikan konfirmasi password' : 'Tampilkan konfirmasi password'" :aria-pressed="showConfirmPassword" @click="showConfirmPassword = !showConfirmPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showConfirmPassword" d="m3 3 18 18" /></svg></button></div></label>
+            <label class="login-label">{{ t('login.newPassword') }}<div class="password-field"><input v-model="newPassword" :type="showNewPassword ? 'text' : 'password'" autocomplete="new-password" minlength="8" required><button class="password-toggle" type="button" :aria-label="showNewPassword ? t('login.hideNewPassword') : t('login.showNewPassword')" :aria-pressed="showNewPassword" @click="showNewPassword = !showNewPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showNewPassword" d="m3 3 18 18" /></svg></button></div></label>
+            <label class="login-label">{{ t('login.confirmPassword') }}<div class="password-field"><input v-model="confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" autocomplete="new-password" minlength="8" required><button class="password-toggle" type="button" :aria-label="showConfirmPassword ? t('login.hideConfirmPassword') : t('login.showConfirmPassword')" :aria-pressed="showConfirmPassword" @click="showConfirmPassword = !showConfirmPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showConfirmPassword" d="m3 3 18 18" /></svg></button></div></label>
             <p v-if="error" class="alert">{{ error }}</p><p v-if="feedback" class="form-feedback">{{ feedback }}</p>
-            <button class="primary login-submit" :disabled="busy">{{ busy ? 'Menyimpan password…' : 'Simpan password baru' }}</button>
+            <button class="primary login-submit" :disabled="busy">{{ busy ? t('login.savingPassword') : t('login.saveNewPassword') }}</button>
           </form>
         </template>
       </div>

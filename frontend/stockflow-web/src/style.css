@@ -76,6 +76,13 @@ h3 { font-size: .9rem; font-weight: 800; }
 kbd { padding: 3px 5px; border: 1px solid #e0e5ed; border-radius: 4px; color: #94a0b0; background: #fff; font-family: 'DM Mono', monospace; font-size: .55rem; white-space: nowrap; }
 .topbar-icon { position: relative; display: grid; width: 35px; height: 35px; place-items: center; border: 1px solid var(--line); border-radius: 9px; color: #68778c; background: #fff; font-size: .9rem; font-weight: 700; }
 .topbar-icon:hover { color: var(--blue); border-color: #c9d7f5; background: var(--blue-soft); }
+.language-switcher { display: inline-flex; height: 35px; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 9px; color: #8290a3; background: #fff; font-size: .59rem; font-weight: 800; letter-spacing: .03em; }
+.language-switcher span { display: grid; min-width: 25px; height: 27px; place-items: center; border-radius: 6px; transition: color .18s, background .18s; }
+.language-switcher span.active { color: var(--blue); background: var(--blue-soft); }
+.language-switcher:hover { border-color: #c9d7f5; }
+.login-language { position: absolute; top: 42px; right: 50px; z-index: 2; border-color: #ffffff24; color: #9aabc4; background: #ffffff0b; }
+.login-language span.active { color: #173057; background: #ccefeb; }
+.login-language:hover { border-color: #ffffff42; }
 .notification-button { font-size: 1.15rem; }
 .notification-button span { position: absolute; top: 7px; right: 7px; width: 5px; height: 5px; border: 1px solid #fff; border-radius: 50%; background: #dc6672; }
 .profile-wrap { position: relative; }
@@ -322,6 +329,7 @@ td small { display: block; margin-top: 3px; color: #9aa6b5; font-family: 'DM Mon
   .page { padding-right: 23px; padding-left: 23px; }
   .profile-copy { display: none; }
   .profile-menu { padding-left: 9px; }
+  .login-language { top: 25px; right: 25px; }
   .health-body { grid-template-columns: 135px 1fr; padding-right: 14px; padding-left: 14px; }
   .health-ring { width: 118px; height: 118px; }
   .health-ring::before { width: 84px; height: 84px; }
@@ -342,7 +350,8 @@ td small { display: block; margin-top: 3px; color: #9aa6b5; font-family: 'DM Mon
   .mobile-brand strong { display: none; }
   .topbar-actions { flex: 1; justify-content: flex-end; }
   .global-search { flex: 1; width: auto; min-width: 0; }
-  .global-search kbd, .topbar-actions > .topbar-icon:first-of-type { display: none; }
+  .global-search kbd, .topbar-actions .help-button { display: none; }
+  .language-switcher { display: inline-flex; flex: 0 0 auto; }
   .profile-chevron { display: none; }
   .profile-menu { margin-left: 0; padding-left: 0; border-left: 0; }
   .page { padding: 24px 15px 35px; }
@@ -385,4 +394,5 @@ td small { display: block; margin-top: 3px; color: #9aa6b5; font-family: 'DM Mon
   .login-footer { display: none; }
   .login-form-side { min-height: calc(100vh - 265px); padding: 18px 15px 28px; }
   .login-card { padding: 25px 20px; }
+  .login-language { display: inline-flex; top: 25px; right: 22px; }
 }

@@ -2,9 +2,11 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
+import { useI18n } from './i18n'
 
 const route = useRoute()
 const auth = useAuthStore()
+const { language, t, toggleLanguage } = useI18n()
 const mobileOpen = ref(false)
 const search = ref('')
 const toast = ref('')
@@ -13,36 +15,36 @@ const profileWrap = ref<HTMLElement | null>(null)
 
 const groups = [
   {
-    label: 'Workspace',
-    items: [{ label: 'Dashboard', path: '/', icon: '⌂', badge: '' }],
+    labelKey: 'app.workspace',
+    items: [{ labelKey: 'app.dashboard', path: '/', icon: '⌂', badge: '' }],
   },
   {
-    label: 'Inventory',
+    labelKey: 'app.inventory',
     items: [
-      { label: 'Produk & stok', path: '/products', icon: '▦', badge: '' },
-      { label: 'Pergerakan stok', path: '/inventory/movements', icon: '↕', badge: '' },
-      { label: 'Penyesuaian', path: '/inventory/adjustments', icon: '△', badge: '' },
+      { labelKey: 'app.products', path: '/products', icon: '▦', badge: '' },
+      { labelKey: 'app.movements', path: '/inventory/movements', icon: '↕', badge: '' },
+      { labelKey: 'app.adjustments', path: '/inventory/adjustments', icon: '△', badge: '' },
     ],
   },
   {
-    label: 'Operasional',
+    labelKey: 'app.operations',
     items: [
-      { label: 'Purchase order', path: null, icon: '▤', badge: 'Soon' },
-      { label: 'Penerimaan barang', path: null, icon: '↓', badge: 'Soon' },
-      { label: 'Supplier', path: null, icon: '◎', badge: 'Soon' },
+      { labelKey: 'app.purchaseOrders', path: null, icon: '▤', badge: 'app.soon' },
+      { labelKey: 'app.receiving', path: null, icon: '↓', badge: 'app.soon' },
+      { labelKey: 'app.suppliers', path: null, icon: '◎', badge: 'app.soon' },
     ],
   },
   {
-    label: 'Insight',
+    labelKey: 'app.insight',
     items: [
-      { label: 'Laporan', path: null, icon: '◷', badge: 'Soon' },
-      { label: 'Pengaturan', path: null, icon: '⚙', badge: 'Soon' },
+      { labelKey: 'app.reports', path: null, icon: '◷', badge: 'app.soon' },
+      { labelKey: 'app.settings', path: null, icon: '⚙', badge: 'app.soon' },
     ],
   },
 ]
 
 const initials = computed(() =>
-  (auth.name || 'Demo Administrator')
+  (auth.name || t('app.defaultName'))
     .split(' ')
     .map((part) => part[0])
     .slice(0, 2)
@@ -62,7 +64,7 @@ function closeMobileNav() {
 }
 
 function handleSearch() {
-  if (search.value.trim()) notify(`Pencarian untuk “${search.value.trim()}” akan tersedia di rilis berikutnya.`)
+  if (search.value.trim()) notify(t('app.searchToast', { term: search.value.trim() }))
 }
 
 function logout() {
@@ -95,7 +97,7 @@ onBeforeUnmount(() => {
   <div v-else class="app-shell">
     <div v-if="mobileOpen" class="mobile-backdrop" @click="closeMobileNav" />
     <aside class="sidebar" :class="{ 'sidebar-open': mobileOpen }">
-      <router-link class="brand-lockup" to="/" aria-label="Buka Dashboard StockFlow" @click="closeMobileNav">
+      <router-link class="brand-lockup" to="/" :aria-label="t('app.brandAria')" @click="closeMobileNav">
         <img class="brand-logo" src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
         <div>
           <strong>StockFlow</strong>
@@ -103,16 +105,16 @@ onBeforeUnmount(() => {
         </div>
       </router-link>
 
-      <button class="workspace-switcher" type="button" @click="notify('Workspace switcher siap digunakan saat multi-cabang diaktifkan.')">
+      <button class="workspace-switcher" type="button" @click="notify(t('app.workspaceToast'))">
         <span class="workspace-avatar"><img src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true"></span>
-        <span class="workspace-copy"><small>WORKSPACE</small><strong>StockFlow Demo</strong></span>
+        <span class="workspace-copy"><small>{{ t('app.workspaceLabel') }}</small><strong>{{ t('app.workspaceName') }}</strong></span>
         <span class="workspace-chevron chevron-icon" aria-hidden="true" />
       </button>
 
-      <nav class="sidebar-nav" aria-label="Navigasi utama">
-        <section v-for="group in groups" :key="group.label" class="nav-group">
-          <p class="nav-group-label">{{ group.label }}</p>
-          <template v-for="item in group.items" :key="item.label">
+      <nav class="sidebar-nav" :aria-label="t('app.mainNav')">
+        <section v-for="group in groups" :key="group.labelKey" class="nav-group">
+          <p class="nav-group-label">{{ t(group.labelKey) }}</p>
+          <template v-for="item in group.items" :key="item.labelKey">
             <router-link
               v-if="item.path"
               :to="item.path"
@@ -121,22 +123,22 @@ onBeforeUnmount(() => {
               @click="closeMobileNav"
             >
               <span class="nav-icon">{{ item.icon }}</span>
-              <span>{{ item.label }}</span>
+              <span>{{ t(item.labelKey) }}</span>
             </router-link>
-            <button v-else class="nav-link nav-placeholder" type="button" @click="notify(`${item.label} akan hadir di rilis berikutnya.`)">
+            <button v-else class="nav-link nav-placeholder" type="button" @click="notify(t('app.comingSoonToast', { label: t(item.labelKey) }))">
               <span class="nav-icon">{{ item.icon }}</span>
-              <span>{{ item.label }}</span>
-              <em>{{ item.badge }}</em>
+              <span>{{ t(item.labelKey) }}</span>
+              <em>{{ t(item.badge) }}</em>
             </button>
           </template>
         </section>
       </nav>
 
       <div class="sidebar-bottom">
-        <div class="sync-pill"><span class="status-dot" /> Data tersinkronisasi</div>
-        <button class="sidebar-help" type="button" @click="notify('Tim support akan segera tersedia di workspace ini.')">
+        <div class="sync-pill"><span class="status-dot" /> {{ t('app.synced') }}</div>
+        <button class="sidebar-help" type="button" @click="notify(t('app.supportToast'))">
           <span class="help-icon">?</span>
-          <span><strong>Butuh bantuan?</strong><small>Pelajari StockFlow</small></span>
+          <span><strong>{{ t('app.help') }}</strong><small>{{ t('app.learnStockflow') }}</small></span>
           <span class="arrow">↗</span>
         </button>
       </div>
@@ -145,30 +147,31 @@ onBeforeUnmount(() => {
     <div class="app-main">
       <header class="topbar">
         <div class="topbar-left">
-          <button class="mobile-menu" type="button" aria-label="Buka navigasi" @click="mobileOpen = true">☰</button>
-          <router-link class="mobile-brand" to="/" aria-label="Buka Dashboard StockFlow">
+          <button class="mobile-menu" type="button" :aria-label="t('app.mainNav')" @click="mobileOpen = true">☰</button>
+          <router-link class="mobile-brand" to="/" :aria-label="t('app.brandAria')">
             <img src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
             <strong>StockFlow</strong>
           </router-link>
-          <div class="breadcrumbs"><span>StockFlow Demo</span><b>/</b><strong>{{ route.path === '/' ? 'Dashboard' : 'Inventory' }}</strong></div>
+          <div class="breadcrumbs"><span>{{ t('app.workspaceName') }}</span><b>/</b><strong>{{ route.path === '/' ? t('app.dashboardBreadcrumb') : t('app.inventoryBreadcrumb') }}</strong></div>
         </div>
         <div class="topbar-actions">
           <form class="global-search" @submit.prevent="handleSearch">
             <span class="search-glyph">⌕</span>
-            <input v-model="search" aria-label="Cari di StockFlow" placeholder="Cari produk, SKU, atau aktivitas...">
+            <input v-model="search" :aria-label="t('app.searchAria')" :placeholder="t('app.searchPlaceholder')">
             <kbd>⌘ K</kbd>
           </form>
-          <button class="topbar-icon" type="button" aria-label="Bantuan" @click="notify('Pusat bantuan akan segera tersedia.')">?</button>
-          <button class="topbar-icon notification-button" type="button" aria-label="Notifikasi" @click="notify('Tidak ada notifikasi baru.')"><span />◔</button>
+          <button class="language-switcher" type="button" :aria-label="language === 'id' ? t('app.switchToEnglish') : t('app.switchToIndonesian')" @click="toggleLanguage"><span :class="{ active: language === 'en' }">EN</span><span :class="{ active: language === 'id' }">ID</span></button>
+          <button class="topbar-icon help-button" type="button" :aria-label="t('app.helpAria')" @click="notify(t('app.helpToast'))">?</button>
+          <button class="topbar-icon notification-button" type="button" :aria-label="t('app.notificationsAria')" @click="notify(t('app.notificationToast'))"><span />◔</button>
           <div ref="profileWrap" class="profile-wrap">
-            <button class="profile-menu profile-trigger" type="button" :aria-expanded="profileOpen" aria-label="Buka menu profil" @click="profileOpen = !profileOpen">
+            <button class="profile-menu profile-trigger" type="button" :aria-expanded="profileOpen" :aria-label="t('app.profileAria')" @click="profileOpen = !profileOpen">
               <div class="profile-avatar">{{ initials }}</div>
-              <div class="profile-copy"><strong>{{ auth.name || 'Demo Administrator' }}</strong><small>{{ auth.role || 'Administrator' }}</small></div>
+              <div class="profile-copy"><strong>{{ auth.name || t('app.defaultName') }}</strong><small>{{ auth.role || t('app.defaultRole') }}</small></div>
               <span class="profile-chevron chevron-icon" aria-hidden="true" />
             </button>
             <div v-if="profileOpen" class="profile-dropdown">
-              <div class="profile-dropdown-meta"><span class="profile-dropdown-label">SIGNED IN AS</span><strong>{{ auth.name || 'Demo Administrator' }}</strong><small>{{ auth.role || 'Administrator' }}</small></div>
-              <button class="profile-logout" type="button" @click="logout"><span>↪</span> Logout</button>
+              <div class="profile-dropdown-meta"><span class="profile-dropdown-label">{{ t('app.signedInAs') }}</span><strong>{{ auth.name || t('app.defaultName') }}</strong><small>{{ auth.role || t('app.defaultRole') }}</small></div>
+              <button class="profile-logout" type="button" @click="logout"><span>↪</span> {{ t('app.logout') }}</button>
             </div>
           </div>
         </div>

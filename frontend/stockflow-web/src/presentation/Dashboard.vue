@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { api } from '../infrastructure/api'
+import { useI18n } from '../i18n'
 
 type DashboardData = {
   products: number
@@ -18,9 +19,10 @@ const products = ref<Product[]>([])
 const movements = ref<Movement[]>([])
 const loading = ref(true)
 const error = ref('')
+const { locale, t } = useI18n()
 
-const money = (value: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value)
-const date = (value: string) => new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+const money = (value: number) => new Intl.NumberFormat(locale.value, { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value)
+const date = (value: string) => new Intl.DateTimeFormat(locale.value, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 const shortName = (value: string) => value.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase()
 const activeProducts = computed(() => products.value.filter((product) => product.isActive))
 const outOfStock = computed(() => activeProducts.value.filter((product) => product.stockOnHand <= 0).length)
@@ -59,7 +61,7 @@ async function load() {
     api.get<Movement[]>('/stock-movements'),
   ])
   if (dashboardResult.status === 'fulfilled') data.value = dashboardResult.value.data
-  else error.value = (dashboardResult.reason as Error)?.message || 'Dashboard belum dapat dimuat.'
+  else error.value = (dashboardResult.reason as Error)?.message || t('dashboard.loadError')
   if (productsResult.status === 'fulfilled') products.value = productsResult.value.data
   if (movementsResult.status === 'fulfilled') movements.value = movementsResult.value.data
   loading.value = false
@@ -72,84 +74,84 @@ onMounted(load)
   <div class="page">
     <div class="page-heading page-heading-dashboard">
       <div>
-        <p class="eyebrow">WORKSPACE OVERVIEW</p>
-        <h1>Selamat pagi, Admin <span aria-hidden="true">👋</span></h1>
-        <p class="subtitle">Pantau kondisi inventori dan ambil tindakan sebelum operasional terhambat.</p>
+        <p class="eyebrow">{{ t('dashboard.eyebrow') }}</p>
+        <h1>{{ t('dashboard.greeting') }} <span aria-hidden="true">👋</span></h1>
+        <p class="subtitle">{{ t('dashboard.subtitle') }}</p>
       </div>
       <div class="header-actions">
-        <div class="date-control" aria-label="Periode data 01 sampai 27 Agustus 2026"><span class="date-icon" aria-hidden="true">◷</span> 01 – 27 Agu 2026 <span class="chevron-icon" aria-hidden="true" /></div>
+        <div class="date-control" :aria-label="t('dashboard.dateAria')"><span class="date-icon" aria-hidden="true">◷</span> {{ t('dashboard.date') }} <span class="chevron-icon" aria-hidden="true" /></div>
       </div>
     </div>
 
-    <div class="notice-strip"><span class="status-dot" /><span><strong>Live inventory</strong> · Data terakhir diperbarui beberapa detik lalu dari workspace StockFlow Demo.</span></div>
+    <div class="notice-strip"><span class="status-dot" /><span><strong>{{ t('dashboard.liveInventory') }}</strong> · {{ t('dashboard.updated') }}</span></div>
     <p v-if="error" class="alert error-banner">{{ error }}</p>
 
-    <section class="metric-grid" aria-label="Ringkasan metrik">
-      <router-link class="metric-card dashboard-link" to="/products" aria-label="Buka menu Produk dan stok">
-        <div class="metric-top"><span class="metric-label">Total produk aktif</span><span class="metric-icon blue">▦</span></div>
+    <section class="metric-grid" :aria-label="t('dashboard.metricsAria')">
+      <router-link class="metric-card dashboard-link" to="/products" :aria-label="t('dashboard.openProducts')">
+        <div class="metric-top"><span class="metric-label">{{ t('dashboard.activeProducts') }}</span><span class="metric-icon blue">▦</span></div>
         <strong class="metric-value">{{ loading ? '—' : data.products }}</strong>
-        <div class="metric-meta"><span class="metric-trend up">Aktif</span> terdaftar di workspace</div>
+        <div class="metric-meta"><span class="metric-trend up">{{ t('dashboard.active') }}</span> {{ t('dashboard.registeredInWorkspace') }}</div>
       </router-link>
-      <router-link class="metric-card dashboard-link" to="/products" aria-label="Buka menu Produk dan stok untuk melihat stok menipis">
-        <div class="metric-top"><span class="metric-label">Stok menipis</span><span class="metric-icon amber">△</span></div>
+      <router-link class="metric-card dashboard-link" to="/products" :aria-label="t('dashboard.openLowStock')">
+        <div class="metric-top"><span class="metric-label">{{ t('dashboard.lowStock') }}</span><span class="metric-icon amber">△</span></div>
         <strong class="metric-value">{{ loading ? '—' : data.lowStock }}</strong>
-        <div class="metric-meta"><span class="metric-trend warn">Perlu tindakan</span> di bawah minimum</div>
+        <div class="metric-meta"><span class="metric-trend warn">{{ t('dashboard.needsAction') }}</span> {{ t('dashboard.belowMinimum') }}</div>
       </router-link>
       <article class="metric-card">
-        <div class="metric-top"><span class="metric-label">Purchase order</span><span class="metric-icon teal">▤</span></div>
+        <div class="metric-top"><span class="metric-label">{{ t('dashboard.purchaseOrder') }}</span><span class="metric-icon teal">▤</span></div>
         <strong class="metric-value">{{ loading ? '—' : data.purchases }}</strong>
-        <div class="metric-meta"><span class="metric-trend up">Aktif</span> menunggu diproses</div>
+        <div class="metric-meta"><span class="metric-trend up">{{ t('dashboard.active') }}</span> {{ t('dashboard.waitingToProcess') }}</div>
       </article>
-      <router-link class="metric-card dashboard-link" to="/inventory/movements" aria-label="Buka menu Pergerakan stok untuk melihat penjualan hari ini">
-        <div class="metric-top"><span class="metric-label">Penjualan hari ini</span><span class="metric-icon red" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.75h11v16.5l-2.75-1.75L12 20.25l-2.75-1.75L6.5 20.25V3.75Z" /><path d="M9.5 8h5M9.5 11.5h5M9.5 15h2.5" /></svg></span></div>
+      <router-link class="metric-card dashboard-link" to="/inventory/movements" :aria-label="t('dashboard.openSales')">
+        <div class="metric-top"><span class="metric-label">{{ t('dashboard.salesToday') }}</span><span class="metric-icon red" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.75h11v16.5l-2.75-1.75L12 20.25l-2.75-1.75L6.5 20.25V3.75Z" /><path d="M9.5 8h5M9.5 11.5h5M9.5 15h2.5" /></svg></span></div>
         <strong class="metric-value currency">{{ loading ? '—' : money(data.salesToday) }}</strong>
-        <div class="metric-meta"><span class="metric-trend up">Hari ini</span> nilai transaksi tercatat</div>
+        <div class="metric-meta"><span class="metric-trend up">{{ t('dashboard.today') }}</span> {{ t('dashboard.recordedTransactions') }}</div>
       </router-link>
     </section>
 
     <div class="dashboard-grid">
-      <router-link class="surface-card dashboard-link" to="/inventory/movements" aria-label="Buka menu Pergerakan stok">
+      <router-link class="surface-card dashboard-link" to="/inventory/movements" :aria-label="t('dashboard.openMovements')">
         <div class="surface-card-head">
-          <div><h2>Aktivitas inventori</h2><p>Ringkasan barang masuk dan keluar dalam 30 hari terakhir</p></div>
+          <div><h2>{{ t('dashboard.inventoryActivity') }}</h2><p>{{ t('dashboard.inventoryActivitySubtitle') }}</p></div>
           <span class="dashboard-link-arrow" aria-hidden="true">↗</span>
         </div>
         <div class="chart-area">
           <div class="chart-y"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span></div>
           <div class="chart">
             <div v-for="(bar, index) in chartBars" :key="chartLabels[index]" class="chart-bar"><span :style="{ height: `${bar.outbound}px` }" /><span :style="{ height: `${bar.inbound}px` }" /><label>{{ chartLabels[index] }}</label></div>
-            <div v-if="!movements.length && !loading" class="chart-empty">Belum ada transaksi pada periode ini</div>
+            <div v-if="!movements.length && !loading" class="chart-empty">{{ t('dashboard.noTransactions') }}</div>
           </div>
         </div>
-        <div class="chart-legend"><span class="legend-item"><i class="legend-dot strong" /> Barang masuk</span><span class="legend-item"><i class="legend-dot" /> Barang keluar</span></div>
+        <div class="chart-legend"><span class="legend-item"><i class="legend-dot strong" /> {{ t('dashboard.inbound') }}</span><span class="legend-item"><i class="legend-dot" /> {{ t('dashboard.outbound') }}</span></div>
       </router-link>
 
-      <router-link class="surface-card dashboard-link" to="/products" aria-label="Buka menu Produk dan stok">
-        <div class="surface-card-head"><div><h2>Kesehatan stok</h2><p>Distribusi kondisi produk aktif</p></div><span class="dashboard-link-arrow" aria-hidden="true">↗</span></div>
+      <router-link class="surface-card dashboard-link" to="/products" :aria-label="t('dashboard.openProducts')">
+        <div class="surface-card-head"><div><h2>{{ t('dashboard.stockHealth') }}</h2><p>{{ t('dashboard.stockHealthSubtitle') }}</p></div><span class="dashboard-link-arrow" aria-hidden="true">↗</span></div>
         <div class="health-body">
-          <div class="health-ring" :style="{ background: healthGradient }"><div class="health-ring-copy"><strong>{{ healthPercent }}%</strong><span>aman</span></div></div>
+          <div class="health-ring" :style="{ background: healthGradient }"><div class="health-ring-copy"><strong>{{ healthPercent }}%</strong><span>{{ t('dashboard.safe') }}</span></div></div>
           <div class="health-legend">
-            <div class="health-row"><span class="health-row-label"><i /> Stok aman</span><strong>{{ healthyStock }}</strong></div>
-            <div class="health-row"><span class="health-row-label"><i class="amber" /> Stok menipis</span><strong>{{ lowStock }}</strong></div>
-            <div class="health-row"><span class="health-row-label"><i class="red" /> Stok habis</span><strong>{{ outOfStock }}</strong></div>
-            <div class="health-note">Total <strong>{{ totalUnits }} unit</strong> tercatat di seluruh produk aktif.</div>
+            <div class="health-row"><span class="health-row-label"><i /> {{ t('dashboard.safeStock') }}</span><strong>{{ healthyStock }}</strong></div>
+            <div class="health-row"><span class="health-row-label"><i class="amber" /> {{ t('dashboard.lowStock') }}</span><strong>{{ lowStock }}</strong></div>
+            <div class="health-row"><span class="health-row-label"><i class="red" /> {{ t('dashboard.depletedStock') }}</span><strong>{{ outOfStock }}</strong></div>
+            <div class="health-note">{{ t('dashboard.totalUnits', { count: totalUnits }) }}</div>
           </div>
         </div>
       </router-link>
     </div>
 
     <div class="two-column">
-      <router-link class="surface-card dashboard-link" to="/products" aria-label="Buka menu Produk dan stok untuk melihat produk yang perlu perhatian">
-        <div class="surface-card-head"><div><h2>Perlu perhatian</h2><p>Produk yang sudah menyentuh batas minimum stok</p></div><span class="dashboard-link-arrow" aria-hidden="true">↗</span></div>
-        <div v-if="loading" class="empty">Memuat data produk…</div>
-        <div v-else-if="!data.attention.length" class="empty"><strong>Semua stok terlihat aman</strong>Tidak ada produk yang perlu direstock saat ini.</div>
-        <div v-else class="table-wrap"><table><thead><tr><th>Produk</th><th>Stok tersisa</th><th>Status</th></tr></thead><tbody><tr v-for="product in data.attention.slice(0, 5)" :key="product.id"><td><div class="product-cell"><span class="product-avatar amber">{{ shortName(product.name) }}</span><span><strong>{{ product.name }}</strong><small>{{ product.sku }} · {{ product.category }}</small></span></div></td><td><span class="stock-value" :class="product.stockOnHand <= 0 ? 'out' : 'low'">{{ product.stockOnHand }} {{ product.unit }}</span><small>Min. {{ product.reorderLevel }}</small></td><td><span class="badge" :class="product.stockOnHand <= 0 ? 'danger' : 'warn'">{{ product.stockOnHand <= 0 ? 'Habis' : 'Menipis' }}</span></td></tr></tbody></table></div>
+      <router-link class="surface-card dashboard-link" to="/products" :aria-label="t('dashboard.openAttention')">
+        <div class="surface-card-head"><div><h2>{{ t('dashboard.attention') }}</h2><p>{{ t('dashboard.attentionSubtitle') }}</p></div><span class="dashboard-link-arrow" aria-hidden="true">↗</span></div>
+        <div v-if="loading" class="empty">{{ t('dashboard.loadingProducts') }}</div>
+        <div v-else-if="!data.attention.length" class="empty"><strong>{{ t('dashboard.allSafe') }}</strong>{{ t('dashboard.noRestock') }}</div>
+        <div v-else class="table-wrap"><table><thead><tr><th>{{ t('products.product') }}</th><th>{{ t('dashboard.remainingStock') }}</th><th>{{ t('dashboard.status') }}</th></tr></thead><tbody><tr v-for="product in data.attention.slice(0, 5)" :key="product.id"><td><div class="product-cell"><span class="product-avatar amber">{{ shortName(product.name) }}</span><span><strong>{{ product.name }}</strong><small>{{ product.sku }} · {{ product.category }}</small></span></div></td><td><span class="stock-value" :class="product.stockOnHand <= 0 ? 'out' : 'low'">{{ product.stockOnHand }} {{ product.unit }}</span><small>{{ t('products.min') }} {{ product.reorderLevel }}</small></td><td><span class="badge" :class="product.stockOnHand <= 0 ? 'danger' : 'warn'">{{ product.stockOnHand <= 0 ? t('products.out') : t('products.low') }}</span></td></tr></tbody></table></div>
       </router-link>
 
-      <router-link class="surface-card dashboard-link" to="/inventory/movements" aria-label="Buka menu Pergerakan stok untuk melihat aktivitas terbaru">
-        <div class="surface-card-head"><div><h2>Aktivitas terbaru</h2><p>Perubahan stok paling baru di workspace</p></div><span class="dashboard-link-arrow" aria-hidden="true">↗</span></div>
-        <div v-if="loading" class="empty">Memuat aktivitas…</div>
-        <div v-else-if="!latestMovements.length" class="empty"><strong>Belum ada aktivitas</strong>Aktivitas stok akan muncul di sini.</div>
-        <div v-else class="activity-list"><div v-for="movement in latestMovements" :key="movement.id" class="activity-item"><span class="activity-icon" :class="{ out: movement.type === 'Sale' || movement.type === 'AdjustmentOut' }">{{ movement.type === 'Sale' || movement.type === 'AdjustmentOut' ? '↑' : '↓' }}</span><div class="activity-copy"><strong>{{ movement.productName }}</strong><p>{{ movement.type === 'Sale' ? 'Penjualan' : movement.type === 'GoodsReceipt' ? 'Barang masuk' : 'Penyesuaian' }} · {{ movement.quantity }} {{ movement.unit }}</p></div><span class="activity-time">{{ date(movement.createdAt) }}</span></div></div>
+      <router-link class="surface-card dashboard-link" to="/inventory/movements" :aria-label="t('dashboard.openLatest')">
+        <div class="surface-card-head"><div><h2>{{ t('dashboard.latestActivity') }}</h2><p>{{ t('dashboard.latestActivitySubtitle') }}</p></div><span class="dashboard-link-arrow" aria-hidden="true">↗</span></div>
+        <div v-if="loading" class="empty">{{ t('dashboard.loadingActivity') }}</div>
+        <div v-else-if="!latestMovements.length" class="empty"><strong>{{ t('dashboard.noActivity') }}</strong>{{ t('dashboard.noActivityHint') }}</div>
+        <div v-else class="activity-list"><div v-for="movement in latestMovements" :key="movement.id" class="activity-item"><span class="activity-icon" :class="{ out: movement.type === 'Sale' || movement.type === 'AdjustmentOut' }">{{ movement.type === 'Sale' || movement.type === 'AdjustmentOut' ? '↑' : '↓' }}</span><div class="activity-copy"><strong>{{ movement.productName }}</strong><p>{{ movement.type === 'Sale' ? t('dashboard.sale') : movement.type === 'GoodsReceipt' ? t('dashboard.inbound') : t('dashboard.adjustment') }} · {{ movement.quantity }} {{ movement.unit }}</p></div><span class="activity-time">{{ date(movement.createdAt) }}</span></div></div>
       </router-link>
     </div>
   </div>
