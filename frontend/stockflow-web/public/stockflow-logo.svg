@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="stockflow-blue" x1="8" y1="5" x2="57" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5A88EF" />
+      <stop offset="0.48" stop-color="#3567D6" />
+      <stop offset="1" stop-color="#1D46A6" />
+    </linearGradient>
+    <radialGradient id="stockflow-glow" cx="0" cy="0" r="1" gradientTransform="translate(17 11) rotate(48) scale(44)">
+      <stop stop-color="#9BBAFF" stop-opacity="0.62" />
+      <stop offset="1" stop-color="#9BBAFF" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="stockflow-ribbon" x1="19" y1="16" x2="46" y2="53" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" />
+      <stop offset="0.58" stop-color="#F5F8FF" />
+      <stop offset="1" stop-color="#C9D8FF" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="18" fill="url(#stockflow-blue)" />
+  <rect width="64" height="64" rx="18" fill="url(#stockflow-glow)" />
+  <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="17.25" stroke="#FFFFFF" stroke-opacity="0.18" stroke-width="1.5" />
+  <g transform="rotate(-7 32 32)">
+    <path d="M45.5 17.5H27c-7 0-11.5 3.6-11.5 8.75S20 35 27 35h10c7 0 11.5 3.6 11.5 8.75S44 52.5 37 52.5H18.5" stroke="#12377F" stroke-opacity="0.28" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 1.5)" />
+    <path d="M45.5 17.5H27c-7 0-11.5 3.6-11.5 8.75S20 35 27 35h10c7 0 11.5 3.6 11.5 8.75S44 52.5 37 52.5H18.5" stroke="url(#stockflow-ribbon)" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+</svg>

@@ -1,7 +1,7 @@
 services:
   stockflow-api:
     build: { context: ./backend, dockerfile: ../docker/api.Dockerfile }
-    environment: { ASPNETCORE_URLS: http://+:8080, ConnectionStrings__Database: "Host=host.docker.internal;Port=5432;Database=stockflow;Username=postgres;Password=postgres;Pooling=true", WebOrigin: "http://localhost:5173" }
+    environment: { ASPNETCORE_URLS: http://+:8080, ConnectionStrings__Database: "Host=host.docker.internal;Port=5432;Database=stockflow;Username=postgres;Password=postgres;Pooling=true", WebOrigin: "http://localhost:5173", PasswordReset__ExposeResetToken: "true" }
     ports: ["8080:8080"]
   stockflow-worker:
     build: { context: ./backend, dockerfile: ../docker/worker.Dockerfile }

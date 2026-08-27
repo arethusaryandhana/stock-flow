@@ -28,6 +28,8 @@ public sealed class StockFlowDbContext(DbContextOptions<StockFlowDbContext> opti
 
     public DbSet<Role> Roles => Set<Role>();
 
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
 
     public DbSet<PurchaseOrderItem> PurchaseOrderItems => Set<PurchaseOrderItem>();
@@ -62,6 +64,8 @@ public sealed class StockFlowDbContext(DbContextOptions<StockFlowDbContext> opti
         b.Entity<Supplier>().HasIndex(x => x.Code).IsUnique();
         b.Entity<Customer>().HasIndex(x => x.Code).IsUnique();
         b.Entity<User>().HasIndex(x => x.Email).IsUnique();
+        b.Entity<PasswordResetToken>().HasIndex(x => x.TokenHash).IsUnique();
+        b.Entity<PasswordResetToken>().HasIndex(x => new { x.UserId, x.ExpiresAt });
         b.Entity<PurchaseOrder>().HasIndex(x => new { x.Status, x.OrderDate });
         b.Entity<SalesOrder>().HasIndex(x => new { x.Status, x.OrderDate });
         b.Entity<StockMovement>().HasIndex(x => new { x.ProductId, x.CreatedAt });
@@ -76,6 +80,7 @@ public sealed class StockFlowDbContext(DbContextOptions<StockFlowDbContext> opti
         b.Entity<GoodsReceipt>().HasOne(x => x.PurchaseOrder).WithMany().HasForeignKey(x => x.PurchaseOrderId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<StockMovement>().HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<StockAdjustment>().HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<PasswordResetToken>().HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         foreach (var e in new[] { typeof(Product), typeof(PurchaseOrderItem), typeof(SalesOrderItem) })
             foreach (var p in b.Entity(e).Metadata.GetProperties().Where(p => p.ClrType == typeof(decimal)))
             {
@@ -88,6 +93,15 @@ public sealed class StockFlowDbContext(DbContextOptions<StockFlowDbContext> opti
 public sealed class PasswordService : IPasswordService
 {
     public string Hash(string password) => BCrypt.Net.BCrypt.HashPassword(password); public bool Verify(string password, string hash) => BCrypt.Net.BCrypt.Verify(password, hash);
+}
+public sealed class PasswordResetTokenService : IPasswordResetTokenService
+{
+    public string Generate() => Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
+        .Replace("+", "-")
+        .Replace("/", "_")
+        .TrimEnd('=');
+
+    public string Hash(string token) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token)));
 }
 public sealed class TokenService(IConfiguration config) : ITokenService
 {
@@ -106,6 +120,7 @@ public static class DependencyInjection
             options.UseNpgsql(configuration.GetConnectionString("Database")));
 
         services.AddScoped<IPasswordService, PasswordService>();
+        services.AddScoped<IPasswordResetTokenService, PasswordResetTokenService>();
         services.AddScoped<ITokenService, TokenService>();
 
         services.AddScoped<IUserRepository, UserRepository>();

@@ -13,3 +13,10 @@ public interface IPasswordService
 
     bool Verify(string password, string hash);
 }
+
+public interface IPasswordResetTokenService
+{
+    string Generate();
+
+    string Hash(string token);
+}

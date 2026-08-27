@@ -6,6 +6,14 @@ namespace StockFlow.Application.Abstractions.Repositories;
 public interface IUserRepository
 {
     Task<User?> GetActiveByEmailAsync(string email, CancellationToken cancellationToken = default);
+
+    Task<PasswordResetToken?> GetPasswordResetTokenAsync(string tokenHash, CancellationToken cancellationToken = default);
+
+    Task InvalidatePasswordResetTokensAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    Task AddPasswordResetTokenAsync(PasswordResetToken token, CancellationToken cancellationToken = default);
+
+    Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IDashboardRepository

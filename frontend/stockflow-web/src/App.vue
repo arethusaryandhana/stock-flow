@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 
@@ -8,6 +8,8 @@ const auth = useAuthStore()
 const mobileOpen = ref(false)
 const search = ref('')
 const toast = ref('')
+const profileOpen = ref(false)
+const profileWrap = ref<HTMLElement | null>(null)
 
 const groups = [
   {
@@ -62,6 +64,29 @@ function closeMobileNav() {
 function handleSearch() {
   if (search.value.trim()) notify(`Pencarian untuk “${search.value.trim()}” akan tersedia di rilis berikutnya.`)
 }
+
+function logout() {
+  profileOpen.value = false
+  auth.logout()
+}
+
+function closeProfileOnOutsideClick(event: MouseEvent) {
+  if (profileWrap.value && !profileWrap.value.contains(event.target as Node)) profileOpen.value = false
+}
+
+function closeProfileOnEscape(event: KeyboardEvent) {
+  if (event.key === 'Escape') profileOpen.value = false
+}
+
+onMounted(() => {
+  document.addEventListener('click', closeProfileOnOutsideClick)
+  document.addEventListener('keydown', closeProfileOnEscape)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', closeProfileOnOutsideClick)
+  document.removeEventListener('keydown', closeProfileOnEscape)
+})
 </script>
 
 <template>
@@ -70,16 +95,16 @@ function handleSearch() {
   <div v-else class="app-shell">
     <div v-if="mobileOpen" class="mobile-backdrop" @click="closeMobileNav" />
     <aside class="sidebar" :class="{ 'sidebar-open': mobileOpen }">
-      <div class="brand-lockup">
-        <div class="brand-mark"><span /> <span /> <span /></div>
+      <router-link class="brand-lockup" to="/" aria-label="Buka Ringkasan StockFlow" @click="closeMobileNav">
+        <img class="brand-logo" src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
         <div>
           <strong>StockFlow</strong>
           <span>Inventory OS</span>
         </div>
-      </div>
+      </router-link>
 
       <button class="workspace-switcher" type="button" @click="notify('Workspace switcher siap digunakan saat multi-cabang diaktifkan.')">
-        <span class="workspace-avatar">S</span>
+        <span class="workspace-avatar"><img src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true"></span>
         <span class="workspace-copy"><small>WORKSPACE</small><strong>StockFlow Demo</strong></span>
         <span class="workspace-chevron">⌄</span>
       </button>
@@ -121,6 +146,10 @@ function handleSearch() {
       <header class="topbar">
         <div class="topbar-left">
           <button class="mobile-menu" type="button" aria-label="Buka navigasi" @click="mobileOpen = true">☰</button>
+          <router-link class="mobile-brand" to="/" aria-label="Buka Ringkasan StockFlow">
+            <img src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
+            <strong>StockFlow</strong>
+          </router-link>
           <div class="breadcrumbs"><span>StockFlow Demo</span><b>/</b><strong>{{ route.path === '/' ? 'Ringkasan' : 'Inventory' }}</strong></div>
         </div>
         <div class="topbar-actions">
@@ -131,12 +160,17 @@ function handleSearch() {
           </form>
           <button class="topbar-icon" type="button" aria-label="Bantuan" @click="notify('Pusat bantuan akan segera tersedia.')">?</button>
           <button class="topbar-icon notification-button" type="button" aria-label="Notifikasi" @click="notify('Tidak ada notifikasi baru.')"><span />◔</button>
-          <div class="profile-menu">
-            <div class="profile-avatar">{{ initials }}</div>
-            <div class="profile-copy"><strong>{{ auth.name || 'Demo Administrator' }}</strong><small>{{ auth.role || 'Administrator' }}</small></div>
-            <span class="profile-chevron">⌄</span>
+          <div ref="profileWrap" class="profile-wrap">
+            <button class="profile-menu profile-trigger" type="button" :aria-expanded="profileOpen" aria-label="Buka menu profil" @click="profileOpen = !profileOpen">
+              <div class="profile-avatar">{{ initials }}</div>
+              <div class="profile-copy"><strong>{{ auth.name || 'Demo Administrator' }}</strong><small>{{ auth.role || 'Administrator' }}</small></div>
+              <span class="profile-chevron">⌄</span>
+            </button>
+            <div v-if="profileOpen" class="profile-dropdown">
+              <div class="profile-dropdown-meta"><span class="profile-dropdown-label">SIGNED IN AS</span><strong>{{ auth.name || 'Demo Administrator' }}</strong><small>{{ auth.role || 'Administrator' }}</small></div>
+              <button class="profile-logout" type="button" @click="logout"><span>↪</span> Logout</button>
+            </div>
           </div>
-          <button class="signout-button" type="button" @click="auth.logout">Keluar</button>
         </div>
       </header>
 

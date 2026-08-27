@@ -2,6 +2,10 @@ namespace StockFlow.Application.Models;
 
 public sealed record LoginResponse(string Token, string FullName, string Role);
 
+public sealed record PasswordResetRequestResponse(string Message, string? ResetToken = null);
+
+public sealed record MessageResponse(string Message);
+
 public sealed record DashboardResponse(
     int Products,
     int LowStock,
