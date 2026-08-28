@@ -262,7 +262,7 @@ const messages: Record<Language, Record<string, string>> = {
     'app.operations': 'Operations',
     'app.insight': 'Insights',
     'app.dashboard': 'Dashboard',
-    'app.products': 'Products & stock',
+    'app.products': 'Product & stock',
     'app.movements': 'Stock movements',
     'app.adjustments': 'Adjustments',
     'app.purchaseOrders': 'Purchase orders',
