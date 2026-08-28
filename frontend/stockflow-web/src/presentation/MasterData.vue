@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useI18n } from '../i18n'
 import PaginationControls from '../components/PaginationControls.vue'
+import FormattedNumberInput from '../components/FormattedNumberInput.vue'
 
 type EntityType = 'categories' | 'products' | 'suppliers' | 'customers'
 type Category = { id: string; name: string; description?: string | null; isActive: boolean }
@@ -52,9 +53,9 @@ const emptyForm = () => ({
   address: '',
   sku: '',
   categoryId: categories.value[0]?.id ?? '',
-  purchasePrice: 0,
-  sellingPrice: 0,
-  reorderLevel: 0,
+  purchasePrice: '0',
+  sellingPrice: '0',
+  reorderLevel: '0',
   unit: 'pcs',
 })
 const form = reactive(emptyForm())
@@ -124,7 +125,7 @@ function openEdit(item: MasterItem) {
     Object.assign(form, { ...emptyForm(), name: category.name, description: category.description ?? '' })
   } else if (props.entity === 'products') {
     const product = item as Product
-    Object.assign(form, { ...emptyForm(), sku: product.sku, name: product.name, categoryId: product.categoryId, purchasePrice: product.purchasePrice, sellingPrice: product.sellingPrice, reorderLevel: product.reorderLevel, unit: product.unit })
+    Object.assign(form, { ...emptyForm(), sku: product.sku, name: product.name, categoryId: product.categoryId, purchasePrice: String(product.purchasePrice), sellingPrice: String(product.sellingPrice), reorderLevel: String(product.reorderLevel), unit: product.unit })
   } else {
     const partner = item as Partner
     Object.assign(form, { ...emptyForm(), code: partner.code, name: partner.name, email: partner.email ?? '', phone: partner.phone ?? '', address: partner.address ?? '' })
@@ -243,7 +244,7 @@ watch(() => props.entity, () => {
 
     <Teleport to="body"><div v-if="showForm" class="modal-backdrop" @click.self="closeForm"><form class="modal" @submit.prevent="save"><div class="modal-head"><div><p class="eyebrow">{{ t('master.eyebrow') }}</p><h2>{{ editingId ? t('master.editTitle', { entity: entityLabel }) : t('master.createTitle', { entity: entityLabel }) }}</h2></div><button class="close-button" type="button" :aria-label="t('common.close')" @click="closeForm">×</button></div><div class="modal-body">
       <div v-if="props.entity === 'categories'" class="form-grid"><label class="field-label">{{ t('master.name') }}<input v-model.trim="form.name" required maxlength="160"></label><label class="field-label full">{{ t('master.description') }}<textarea v-model.trim="form.description" rows="3" maxlength="500" /></label></div>
-      <div v-else-if="props.entity === 'products'" class="form-grid"><label class="field-label">{{ t('master.sku') }}<input v-model.trim="form.sku" required maxlength="80"></label><label class="field-label">{{ t('master.name') }}<input v-model.trim="form.name" required maxlength="160"></label><label class="field-label full">{{ t('master.category') }}<select v-model="form.categoryId" required><option disabled value="">{{ t('master.noCategories') }}</option><option v-for="category in categoryOptions" :key="category.id" :value="category.id">{{ category.name }}{{ !category.isActive ? ` (${t('master.inactive')})` : '' }}</option></select></label><label class="field-label">{{ t('master.purchasePrice') }}<input v-model.number="form.purchasePrice" type="number" min="0" step="1" required></label><label class="field-label">{{ t('master.sellingPrice') }}<input v-model.number="form.sellingPrice" type="number" min="0" step="1" required></label><label class="field-label">{{ t('master.reorderLevel') }}<input v-model.number="form.reorderLevel" type="number" min="0" step="0.01" required></label><label class="field-label">{{ t('master.unit') }}<input v-model.trim="form.unit" required maxlength="24"></label></div>
+      <div v-else-if="props.entity === 'products'" class="form-grid"><label class="field-label">{{ t('master.sku') }}<input v-model.trim="form.sku" required maxlength="80"></label><label class="field-label">{{ t('master.name') }}<input v-model.trim="form.name" required maxlength="160"></label><label class="field-label full">{{ t('master.category') }}<select v-model="form.categoryId" required><option disabled value="">{{ t('master.noCategories') }}</option><option v-for="category in categoryOptions" :key="category.id" :value="category.id">{{ category.name }}{{ !category.isActive ? ` (${t('master.inactive')})` : '' }}</option></select></label><label class="field-label">{{ t('master.purchasePrice') }}<FormattedNumberInput v-model="form.purchasePrice" required></FormattedNumberInput></label><label class="field-label">{{ t('master.sellingPrice') }}<FormattedNumberInput v-model="form.sellingPrice" required></FormattedNumberInput></label><label class="field-label">{{ t('master.reorderLevel') }}<FormattedNumberInput v-model="form.reorderLevel" :decimal-scale="2" required></FormattedNumberInput></label><label class="field-label">{{ t('master.unit') }}<input v-model.trim="form.unit" required maxlength="24"></label></div>
       <div v-else class="form-grid"><label class="field-label">{{ t('master.code') }}<input v-model.trim="form.code" required maxlength="80"></label><label class="field-label">{{ t('master.name') }}<input v-model.trim="form.name" required maxlength="160"></label><label class="field-label">{{ t('master.email') }}<input v-model.trim="form.email" type="email" maxlength="160"></label><label class="field-label">{{ t('master.phone') }}<input v-model.trim="form.phone" maxlength="40"></label><label class="field-label full">{{ t('master.address') }}<textarea v-model.trim="form.address" rows="3" maxlength="300" /></label></div>
       <p v-if="formError" class="alert" style="margin-top: 14px">{{ formError }}</p><div class="modal-actions"><button class="secondary" type="button" @click="closeForm">{{ t('master.cancel') }}</button><button class="primary" :disabled="saving">{{ saving ? t('master.saving') : t('master.save') }}</button></div>
     </div></form></div></Teleport>

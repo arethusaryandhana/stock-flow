@@ -5,6 +5,7 @@ import type { PagedResponse } from '../infrastructure/api'
 import { useI18n } from '../i18n'
 import { useToastStore } from '../stores/toast'
 import PaginationControls from '../components/PaginationControls.vue'
+import FormattedNumberInput from '../components/FormattedNumberInput.vue'
 
 type Product = { id: string; sku: string; name: string; stockOnHand: number; unit: string; isActive: boolean }
 type Adjustment = { id: string; number: string; productId: string; productSku: string; productName: string; unit: string; quantityDelta: number; reason: string; createdAt: string }
@@ -16,6 +17,7 @@ const saving = ref(false)
 const error = ref('')
 const formError = ref('')
 const form = ref<AdjustmentForm>({ productId: '', quantityDelta: '', reason: '' })
+const reasonTemplates = ['New', 'New Item', 'New Stock']
 const historyQuery = ref('')
 const page = ref(1)
 const pageSize = ref(10)
@@ -117,8 +119,8 @@ onMounted(load)
       <div class="surface-card-head"><div><h2>{{ t('adjustments.newTitle') }}</h2><p>{{ t('adjustments.newDescription') }}</p></div><span class="badge neutral">{{ t('adjustments.auditActive') }}</span></div>
       <form class="adjustment-grid" @submit.prevent="submit">
         <label class="field-label">{{ t('adjustments.product') }}<select v-model="form.productId" required :disabled="loading || !activeProducts.length"><option v-for="product in activeProducts" :key="product.id" :value="product.id">{{ product.name }} · {{ product.sku }}</option></select></label>
-        <label class="field-label">{{ t('adjustments.stockChange') }}<div class="quantity-control"><button type="button" :class="{ selected: quantityDeltaValue > 0, in: quantityDeltaValue > 0 }" :aria-label="t('adjustments.addStock')" @click="setDirection('in')">+</button><input v-model="form.quantityDelta" type="text" inputmode="decimal" autocomplete="off" placeholder="0" required :aria-invalid="quantityDelta === null && form.quantityDelta !== ''" @input="formError = ''"><button type="button" :class="{ selected: quantityDeltaValue < 0, out: quantityDeltaValue < 0 }" :aria-label="t('adjustments.removeStock')" @click="setDirection('out')">−</button></div><small class="field-hint">{{ t('adjustments.stockChangeHint') }}</small></label>
-        <label class="field-label">{{ t('adjustments.reason') }}<input v-model.trim="form.reason" required maxlength="300" :placeholder="t('adjustments.reasonPlaceholder')"></label>
+        <label class="field-label">{{ t('adjustments.stockChange') }}<div class="quantity-control"><button type="button" :class="{ selected: quantityDeltaValue > 0, in: quantityDeltaValue > 0 }" :aria-label="t('adjustments.addStock')" @click="setDirection('in')">+</button><FormattedNumberInput v-model="form.quantityDelta" :decimal-scale="2" allow-negative placeholder="0" required :aria-invalid="quantityDelta === null && form.quantityDelta !== ''" @input="formError = ''"></FormattedNumberInput><button type="button" :class="{ selected: quantityDeltaValue < 0, out: quantityDeltaValue < 0 }" :aria-label="t('adjustments.removeStock')" @click="setDirection('out')">−</button></div><small class="field-hint">{{ t('adjustments.stockChangeHint') }}</small></label>
+        <label class="field-label">{{ t('adjustments.reason') }}<input v-model.trim="form.reason" list="adjustment-reason-templates" required maxlength="300" :placeholder="t('adjustments.reasonPlaceholder')"><datalist id="adjustment-reason-templates"><option v-for="template in reasonTemplates" :key="template" :value="template"></option></datalist></label>
         <p v-if="selectedProduct" class="adjustment-helper" :class="{ warning: newBalance < 0 }"><span>i</span> {{ t('adjustments.currentBalance') }} <strong>{{ formatQuantity(selectedProduct.stockOnHand) }} {{ selectedProduct.unit }}</strong> {{ t('adjustments.willBecome') }} <strong>{{ formatQuantity(newBalance) }} {{ selectedProduct.unit }}</strong>.</p>
         <p v-if="formError" class="alert" style="grid-column: 1 / -1; margin: 14px 19px 0">{{ formError }}</p>
         <div class="adjustment-actions" style="grid-column: 1 / -1"><button class="secondary" type="button" @click="form.quantityDelta = ''; form.reason = ''; formError = ''">{{ t('adjustments.reset') }}</button><button class="primary" type="submit" :disabled="saving || loading || !activeProducts.length">{{ saving ? t('common.saving') : t('adjustments.save') }}</button></div>
