@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../infrastructure/api'
 import type { PagedResponse } from '../infrastructure/api'
 import { useI18n } from '../i18n'
+import { useToastStore } from '../stores/toast'
 import PaginationControls from '../components/PaginationControls.vue'
 
 type Product = { id: string; sku: string; name: string; stockOnHand: number; unit: string; isActive: boolean }
@@ -21,6 +22,7 @@ const pageSize = ref(10)
 const totalCount = ref(0)
 const totalPages = ref(0)
 const { locale, t } = useI18n()
+const toast = useToastStore()
 const activeProducts = computed(() => products.value.filter((product) => product.isActive))
 const selectedProduct = computed(() => products.value.find((product) => product.id === form.value.productId))
 const quantityDelta = computed(() => parseQuantity(form.value.quantityDelta))
@@ -32,12 +34,13 @@ const newBalance = computed(() => {
 const date = (value: string) => new Intl.DateTimeFormat(locale.value, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 const roundQuantity = (value: number) => Number(value.toFixed(2))
 const formatQuantity = (value: number) => roundQuantity(value).toFixed(2)
-function parseQuantity(value: string): number | null {
-  const normalized = value.trim()
+function parseQuantity(value: unknown): number | null {
+  const normalized = String(value ?? '').trim().replace(',', '.')
   if (!/^[+-]?\d+(?:\.\d{1,2})?$/.test(normalized)) return null
   const parsed = Number(normalized)
   return Number.isFinite(parsed) ? parsed : null
 }
+const formatQuantityInput = (value: number) => String(roundQuantity(value))
 const delta = (adjustment: Adjustment) => `${adjustment.quantityDelta > 0 ? '+' : '−'}${formatQuantity(Math.abs(adjustment.quantityDelta))} ${adjustment.unit}`
 const filteredAdjustments = computed(() => adjustments.value)
 async function load() {
@@ -55,12 +58,16 @@ async function load() {
     if (!form.value.productId && activeProducts.value[0]) form.value.productId = activeProducts.value[0].id
   } catch (requestError) { error.value = (requestError as Error).message } finally { loading.value = false }
 }
-function normalizeQuantity() {
-  if (quantityDelta.value !== null) form.value.quantityDelta = formatQuantity(quantityDelta.value)
-}
 function setDirection(direction: 'in' | 'out') {
-  const magnitude = quantityDelta.value === null ? 0 : Math.abs(quantityDelta.value)
-  form.value.quantityDelta = `${direction === 'in' ? '' : '-'}${formatQuantity(magnitude)}`
+  const rawValue = String(form.value.quantityDelta ?? '').trim()
+  const magnitude = quantityDelta.value === null ? null : Math.abs(quantityDelta.value)
+
+  if (magnitude === null) {
+    form.value.quantityDelta = rawValue === '' || rawValue === '-' ? (direction === 'out' ? '-' : '') : rawValue
+    return
+  }
+
+  form.value.quantityDelta = `${direction === 'in' ? '' : '-'}${formatQuantityInput(magnitude)}`
 }
 async function submit() {
   formError.value = ''
@@ -74,7 +81,12 @@ async function submit() {
     if (product) product.stockOnHand = roundQuantity(product.stockOnHand + data.quantityDelta)
     form.value.quantityDelta = ''; form.value.reason = ''
     await load()
-  } catch (requestError) { formError.value = (requestError as Error).message } finally { saving.value = false }
+    toast.success(t('adjustments.createdToast', { number: data.number }))
+  } catch (requestError) {
+    const message = (requestError as Error).message
+    formError.value = message
+    toast.error(message)
+  } finally { saving.value = false }
 }
 function exportCsv() {
   const rows = [[t('common.date'), t('adjustments.number'), t('adjustments.product'), 'SKU', t('adjustments.change'), t('adjustments.reason')], ...filteredAdjustments.value.map((item) => [date(item.createdAt), item.number, item.productName, item.productSku, delta(item), item.reason])]
@@ -105,11 +117,11 @@ onMounted(load)
       <div class="surface-card-head"><div><h2>{{ t('adjustments.newTitle') }}</h2><p>{{ t('adjustments.newDescription') }}</p></div><span class="badge neutral">{{ t('adjustments.auditActive') }}</span></div>
       <form class="adjustment-grid" @submit.prevent="submit">
         <label class="field-label">{{ t('adjustments.product') }}<select v-model="form.productId" required :disabled="loading || !activeProducts.length"><option v-for="product in activeProducts" :key="product.id" :value="product.id">{{ product.name }} · {{ product.sku }}</option></select></label>
-        <label class="field-label">{{ t('adjustments.stockChange') }}<div class="quantity-control"><button type="button" :class="{ selected: quantityDeltaValue > 0, in: quantityDeltaValue > 0 }" :aria-label="t('adjustments.addStock')" @click="setDirection('in')">+</button><input v-model="form.quantityDelta" type="number" step="0.01" inputmode="decimal" placeholder="0.00" required @blur="normalizeQuantity"><button type="button" :class="{ selected: quantityDeltaValue < 0, out: quantityDeltaValue < 0 }" :aria-label="t('adjustments.removeStock')" @click="setDirection('out')">−</button></div><small class="field-hint">{{ t('adjustments.stockChangeHint') }}</small></label>
+        <label class="field-label">{{ t('adjustments.stockChange') }}<div class="quantity-control"><button type="button" :class="{ selected: quantityDeltaValue > 0, in: quantityDeltaValue > 0 }" :aria-label="t('adjustments.addStock')" @click="setDirection('in')">+</button><input v-model="form.quantityDelta" type="text" inputmode="decimal" autocomplete="off" placeholder="0" required :aria-invalid="quantityDelta === null && form.quantityDelta !== ''" @input="formError = ''"><button type="button" :class="{ selected: quantityDeltaValue < 0, out: quantityDeltaValue < 0 }" :aria-label="t('adjustments.removeStock')" @click="setDirection('out')">−</button></div><small class="field-hint">{{ t('adjustments.stockChangeHint') }}</small></label>
         <label class="field-label">{{ t('adjustments.reason') }}<input v-model.trim="form.reason" required maxlength="300" :placeholder="t('adjustments.reasonPlaceholder')"></label>
         <p v-if="selectedProduct" class="adjustment-helper" :class="{ warning: newBalance < 0 }"><span>i</span> {{ t('adjustments.currentBalance') }} <strong>{{ formatQuantity(selectedProduct.stockOnHand) }} {{ selectedProduct.unit }}</strong> {{ t('adjustments.willBecome') }} <strong>{{ formatQuantity(newBalance) }} {{ selectedProduct.unit }}</strong>.</p>
         <p v-if="formError" class="alert" style="grid-column: 1 / -1; margin: 14px 19px 0">{{ formError }}</p>
-        <div class="adjustment-actions" style="grid-column: 1 / -1"><button class="secondary" type="button" @click="form.quantityDelta = ''; form.reason = ''">{{ t('adjustments.reset') }}</button><button class="primary" :disabled="saving || loading || !activeProducts.length">{{ saving ? t('common.saving') : t('adjustments.save') }}</button></div>
+        <div class="adjustment-actions" style="grid-column: 1 / -1"><button class="secondary" type="button" @click="form.quantityDelta = ''; form.reason = ''; formError = ''">{{ t('adjustments.reset') }}</button><button class="primary" type="submit" :disabled="saving || loading || !activeProducts.length">{{ saving ? t('common.saving') : t('adjustments.save') }}</button></div>
       </form>
     </section>
 

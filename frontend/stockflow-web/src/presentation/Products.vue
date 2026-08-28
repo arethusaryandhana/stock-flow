@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../infrastructure/api'
 import type { PagedResponse } from '../infrastructure/api'
 import { useAuthStore } from '../stores/auth'
+import { useToastStore } from '../stores/toast'
 import { useI18n } from '../i18n'
 import PaginationControls from '../components/PaginationControls.vue'
 
@@ -31,6 +32,7 @@ const totalPages = ref(0)
 const counts = ref({ all: 0, low: 0, out: 0, inactive: 0 })
 const { locale, t } = useI18n()
 const auth = useAuthStore()
+const toast = useToastStore()
 const canManage = computed(() => auth.isAdmin)
 watch(openMenu, (value) => { if (value && !canManage.value) openMenu.value = '' })
 
@@ -100,10 +102,16 @@ function closeEditForm() {
 async function createProduct() {
   formError.value = ''; saving.value = true
   try {
+    const productName = newProduct.value.name
     await api.post<Product>('/products', newProduct.value)
     closeForm()
     await load()
-  } catch (requestError) { formError.value = (requestError as Error).message } finally { saving.value = false }
+    toast.success(t('products.createdToast', { name: productName }))
+  } catch (requestError) {
+    const message = (requestError as Error).message
+    formError.value = message
+    toast.error(message)
+  } finally { saving.value = false }
 }
 async function updateReorderLevel() {
   formError.value = ''
@@ -122,13 +130,27 @@ async function updateReorderLevel() {
     const { data } = await api.patch<Product>(`/products/${editingProduct.value.id}/reorder-level`, { reorderLevel })
     items.value = items.value.map((item) => item.id === data.id ? data : item)
     await load()
+    toast.success(t('products.reorderUpdatedToast', { name: editingProduct.value.name }))
     closeEditForm()
-  } catch (requestError) { formError.value = (requestError as Error).message } finally { editSaving.value = false }
+  } catch (requestError) {
+    const message = (requestError as Error).message
+    formError.value = message
+    toast.error(message)
+  } finally { editSaving.value = false }
 }
 async function toggleActive(product: Product) {
   if (!canManage.value) return
   openMenu.value = ''
-  try { await api.patch(`/products/${product.id}/active`, !product.isActive); await load() } catch (requestError) { error.value = (requestError as Error).message }
+  const willActivate = !product.isActive
+  try {
+    await api.patch(`/products/${product.id}/active`, willActivate)
+    await load()
+    toast.success(t(willActivate ? 'products.activatedToast' : 'products.deactivatedToast', { name: product.name }))
+  } catch (requestError) {
+    const message = (requestError as Error).message
+    error.value = message
+    toast.error(message)
+  }
 }
 function exportCsv() {
   const rows = [[t('products.sku'), t('products.product'), t('products.category'), t('products.availableStock'), t('products.unit'), t('products.sellingPrice'), t('products.status')], ...filtered.value.map((item) => [item.sku, item.name, item.category, String(item.stockOnHand), item.unit, String(item.sellingPrice), statusLabel(item)])]

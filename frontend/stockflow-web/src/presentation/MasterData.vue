@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { api } from '../infrastructure/api'
 import type { PagedResponse } from '../infrastructure/api'
 import { useAuthStore } from '../stores/auth'
+import { useToastStore } from '../stores/toast'
 import { useI18n } from '../i18n'
 import PaginationControls from '../components/PaginationControls.vue'
 
@@ -26,6 +27,7 @@ type MasterItem = Category | Product | Partner
 
 const props = defineProps<{ entity: EntityType }>()
 const auth = useAuthStore()
+const toast = useToastStore()
 const { locale, t } = useI18n()
 const items = ref<MasterItem[]>([])
 const categories = ref<Category[]>([])
@@ -146,13 +148,18 @@ async function save() {
   if (!canManage.value) return
   formError.value = ''
   saving.value = true
+  const isEditing = Boolean(editingId.value)
+  const itemName = form.name
   try {
     if (editingId.value) await api.put<MasterItem>(`${endpoint.value}/${editingId.value}`, payload())
     else await api.post<MasterItem>(endpoint.value, payload())
     closeForm()
     await load()
+    toast.success(t(isEditing ? 'master.updatedToast' : 'master.createdToast', { entity: entityLabel.value, name: itemName }))
   } catch (requestError) {
-    formError.value = (requestError as Error).message
+    const message = (requestError as Error).message
+    formError.value = message
+    toast.error(message)
   } finally {
     saving.value = false
   }
@@ -160,11 +167,15 @@ async function save() {
 
 async function toggleActive(item: MasterItem) {
   if (!canManage.value) return
+  const willActivate = !item.isActive
   try {
-    await api.patch(`${endpoint.value}/${item.id}/active`, !item.isActive)
-    item.isActive = !item.isActive
+    await api.patch(`${endpoint.value}/${item.id}/active`, willActivate)
+    item.isActive = willActivate
+    toast.success(t(willActivate ? 'master.activatedToast' : 'master.deactivatedToast', { entity: entityLabel.value, name: item.name }))
   } catch (requestError) {
-    error.value = (requestError as Error).message
+    const message = (requestError as Error).message
+    error.value = message
+    toast.error(message)
   }
 }
 
@@ -173,8 +184,11 @@ async function remove(item: MasterItem) {
   try {
     await api.delete(`${endpoint.value}/${item.id}`)
     item.isActive = false
+    toast.success(t('master.deletedToast', { entity: entityLabel.value, name: item.name }))
   } catch (requestError) {
-    error.value = (requestError as Error).message
+    const message = (requestError as Error).message
+    error.value = message
+    toast.error(message)
   }
 }
 

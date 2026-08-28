@@ -2,15 +2,16 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
+import { useToastStore } from './stores/toast'
 import { useI18n } from './i18n'
 
 const route = useRoute()
 const auth = useAuthStore()
+const toast = useToastStore()
 const { language, t, toggleLanguage } = useI18n()
 const mobileOpen = ref(false)
 const sidebarCollapsed = ref(localStorage.getItem('stockflow_sidebar_collapsed') === 'true')
 const search = ref('')
-const toast = ref('')
 const profileOpen = ref(false)
 const profileWrap = ref<HTMLElement | null>(null)
 
@@ -68,10 +69,7 @@ const initials = computed(() =>
 )
 
 function notify(message: string) {
-  toast.value = message
-  window.setTimeout(() => {
-    toast.value = ''
-  }, 2600)
+  toast.info(message)
 }
 
 function closeMobileNav() {
@@ -215,8 +213,15 @@ onBeforeUnmount(() => {
       <router-view />
     </div>
 
-    <Transition name="toast">
-      <div v-if="toast" class="toast-message"><span>✓</span>{{ toast }}</div>
-    </Transition>
+    <TransitionGroup name="toast" tag="div" class="toast-region" aria-live="polite">
+      <div v-for="item in toast.items" :key="item.id" class="toast-message" :class="item.type" :role="item.type === 'error' ? 'alert' : 'status'">
+        <span class="toast-icon" aria-hidden="true">{{ item.type === 'success' ? '✓' : item.type === 'error' ? '!' : 'i' }}</span>
+        <div class="toast-copy">
+          <strong>{{ t(`toast.${item.type}Title`) }}</strong>
+          <p>{{ item.message }}</p>
+        </div>
+        <button type="button" :aria-label="t('toast.dismiss')" @click="toast.dismiss(item.id)">×</button>
+      </div>
+    </TransitionGroup>
   </div>
 </template>

@@ -303,10 +303,28 @@ td small { display: block; margin-top: 3px; color: #9aa6b5; font-family: 'DM Mon
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .form-grid .full { grid-column: 1 / -1; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
-.toast-message { position: fixed; z-index: 100; right: 22px; bottom: 22px; display: flex; max-width: min(380px, calc(100vw - 30px)); align-items: flex-start; gap: 9px; padding: 12px 14px; border: 1px solid #d6e4ff; border-radius: 10px; color: #385284; background: #f7faff; box-shadow: var(--shadow-md); font-size: .68rem; line-height: 1.4; }
-.toast-message span { display: grid; width: 17px; height: 17px; flex: 0 0 17px; place-items: center; border-radius: 50%; color: #fff; background: var(--blue); font-size: .58rem; }
-.toast-enter-active, .toast-leave-active { transition: opacity .2s, transform .2s; }
-.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(8px); }
+.toast-region { position: fixed; z-index: 120; top: 82px; right: 24px; display: flex; width: min(420px, calc(100vw - 32px)); flex-direction: column; gap: 11px; pointer-events: none; }
+.toast-message { position: relative; display: flex; width: 100%; min-height: 76px; align-items: flex-start; gap: 12px; overflow: hidden; padding: 15px 13px 15px 15px; border: 1px solid #9dd8b9; border-left: 5px solid #15945e; border-radius: 14px; color: #174d36; background: linear-gradient(135deg, #f2fff8 0%, #fff 72%); box-shadow: 0 22px 55px #1722342e, 0 6px 18px #1722341f; font-size: .76rem; line-height: 1.5; pointer-events: auto; }
+.toast-message::after { position: absolute; right: 0; bottom: 0; left: 0; height: 3px; background: #15945e; content: ''; opacity: .32; }
+.toast-copy { min-width: 0; flex: 1; }
+.toast-copy strong { display: block; margin-bottom: 2px; color: #123f2d; font-size: .82rem; font-weight: 800; letter-spacing: -.01em; }
+.toast-copy p { color: #35644f; }
+.toast-message .toast-icon { display: grid; width: 29px; height: 29px; flex: 0 0 29px; place-items: center; border-radius: 9px; color: #fff; background: #15945e; box-shadow: 0 6px 14px #15945e42; font-size: .8rem; font-weight: 800; }
+.toast-message > button { display: grid; width: 27px; height: 27px; flex: 0 0 27px; place-items: center; border-radius: 8px; color: currentColor; background: #ffffff9e; font-size: 1.15rem; line-height: 1; opacity: .72; }
+.toast-message > button:hover { background: #0000000b; opacity: 1; }
+.toast-message.error { border-color: #efabb3; border-left-color: #c63f50; color: #8a2634; background: linear-gradient(135deg, #fff1f3 0%, #fff 72%); }
+.toast-message.error::after, .toast-message.error .toast-icon { background: #c63f50; }
+.toast-message.error .toast-icon { box-shadow: 0 6px 14px #c63f5042; }
+.toast-message.error .toast-copy strong { color: #7c1f2c; }
+.toast-message.error .toast-copy p { color: #9a4350; }
+.toast-message.info { border-color: #a9c2f6; border-left-color: var(--blue); color: #294d9a; background: linear-gradient(135deg, #eef4ff 0%, #fff 72%); }
+.toast-message.info::after, .toast-message.info .toast-icon { background: var(--blue); }
+.toast-message.info .toast-icon { box-shadow: 0 6px 14px #3567d642; }
+.toast-message.info .toast-copy strong { color: #23458d; }
+.toast-message.info .toast-copy p { color: #48649c; }
+.toast-enter-active, .toast-leave-active { transition: opacity .25s ease, transform .28s cubic-bezier(.2, .85, .25, 1); }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(28px) scale(.97); }
+.toast-move { transition: transform .25s ease; }
 
 .login { display: grid; min-height: 100vh; grid-template-columns: minmax(360px, .92fr) minmax(460px, 1.08fr); background: #f5f7fb; }
 .login-visual { position: relative; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; padding: 42px 50px; color: #eef4ff; background: var(--navy); }
@@ -390,6 +408,9 @@ td small { display: block; margin-top: 3px; color: #9aa6b5; font-family: 'DM Mon
   .dashboard-grid, .two-column { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {
+  .toast-region { top: 76px; right: 12px; left: 12px; width: auto; }
+  .toast-message { min-height: 72px; padding: 13px 11px 13px 13px; }
+  .toast-enter-from, .toast-leave-to { transform: translateY(-14px) scale(.98); }
   .topbar { min-height: 65px; gap: 12px; }
   .breadcrumbs { display: none; }
   .mobile-brand strong { display: none; }
