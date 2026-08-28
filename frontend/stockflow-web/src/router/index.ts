@@ -22,10 +22,35 @@ const router = createRouter({
   ],
 })
 
+function isTokenExpired(token: string) {
+  try {
+    const payload = token.split('.')[1]
+    if (!payload) return true
+
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=')
+    const { exp } = JSON.parse(atob(padded)) as { exp?: number }
+
+    return typeof exp !== 'number' || exp * 1000 <= Date.now()
+  } catch {
+    return true
+  }
+}
+
+function clearExpiredSession() {
+  for (const key of ['stockflow_token', 'stockflow_name', 'stockflow_role']) {
+    localStorage.removeItem(key)
+  }
+  sessionStorage.clear()
+}
+
 router.beforeEach((to) => {
   const token = localStorage.getItem('stockflow_token')
-  if (to.meta.auth && !token) return '/login'
-  if (to.meta.admin && localStorage.getItem('stockflow_role')?.trim().toLowerCase() !== 'admin') return token ? '/' : '/login'
+  const hasValidToken = Boolean(token && !isTokenExpired(token))
+
+  if (token && !hasValidToken) clearExpiredSession()
+  if (to.meta.auth && !hasValidToken) return '/login'
+  if (to.meta.admin && localStorage.getItem('stockflow_role')?.trim().toLowerCase() !== 'admin') return hasValidToken ? '/' : '/login'
   return true
 })
 
