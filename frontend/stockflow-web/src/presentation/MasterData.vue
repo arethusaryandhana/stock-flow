@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { api } from '../infrastructure/api'
+import type { PagedResponse } from '../infrastructure/api'
 import { useAuthStore } from '../stores/auth'
 import { useI18n } from '../i18n'
+import PaginationControls from '../components/PaginationControls.vue'
 
 type EntityType = 'categories' | 'products' | 'suppliers' | 'customers'
 type Category = { id: string; name: string; description?: string | null; isActive: boolean }
@@ -34,6 +36,10 @@ const formError = ref('')
 const saving = ref(false)
 const showForm = ref(false)
 const editingId = ref<string | null>(null)
+const page = ref(1)
+const pageSize = ref(10)
+const totalCount = ref(0)
+const totalPages = ref(0)
 
 const emptyForm = () => ({
   code: '',
@@ -55,18 +61,7 @@ const entityKey = computed(() => props.entity === 'categories' ? 'master.categor
 const entityLabel = computed(() => t(entityKey.value))
 const endpoint = computed(() => `/${props.entity}`)
 const canManage = computed(() => auth.isAdmin)
-const filtered = computed(() => {
-  const term = query.value.trim().toLowerCase()
-  if (!term) return items.value
-  return items.value.filter((item) => {
-    const value = props.entity === 'categories'
-      ? `${(item as Category).name} ${(item as Category).description ?? ''}`
-      : props.entity === 'products'
-        ? `${(item as Product).sku} ${(item as Product).name} ${(item as Product).category}`
-        : `${(item as Partner).code} ${(item as Partner).name} ${(item as Partner).email ?? ''} ${(item as Partner).phone ?? ''}`
-    return value.toLowerCase().includes(term)
-  })
-})
+const filtered = computed(() => items.value)
 const categoryItems = computed(() => filtered.value as Category[])
 const productItems = computed(() => filtered.value as Product[])
 const partnerItems = computed(() => filtered.value as Partner[])
@@ -84,11 +79,14 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const response = await api.get<MasterItem[]>(endpoint.value)
-    items.value = response.data
+    const response = await api.get<PagedResponse<MasterItem>>(endpoint.value, { params: { page: page.value, pageSize: pageSize.value, search: query.value.trim() || undefined } })
+    items.value = response.data.items
+    page.value = response.data.page
+    totalCount.value = response.data.totalCount
+    totalPages.value = response.data.totalPages
     if (props.entity === 'products') {
-      const categoryResponse = await api.get<Category[]>('/categories')
-      categories.value = categoryResponse.data
+      const categoryResponse = await api.get<PagedResponse<Category>>('/categories', { params: { page: 1, pageSize: 100 } })
+      categories.value = categoryResponse.data.items
       if (!form.categoryId && categories.value[0]) form.categoryId = categories.value[0].id
     }
   } catch (requestError) {
@@ -101,6 +99,11 @@ async function load() {
 function resetForm() {
   Object.assign(form, emptyForm())
   formError.value = ''
+}
+
+function changePageSize(nextPageSize: number) {
+  pageSize.value = nextPageSize
+  page.value = 1
 }
 
 function openCreate() {
@@ -144,14 +147,10 @@ async function save() {
   formError.value = ''
   saving.value = true
   try {
-    const response = editingId.value
-      ? await api.put<MasterItem>(`${endpoint.value}/${editingId.value}`, payload())
-      : await api.post<MasterItem>(endpoint.value, payload())
-    const data = response.data
-    items.value = editingId.value
-      ? items.value.map((item) => item.id === data.id ? data : item)
-      : [...items.value, data]
+    if (editingId.value) await api.put<MasterItem>(`${endpoint.value}/${editingId.value}`, payload())
+    else await api.post<MasterItem>(endpoint.value, payload())
     closeForm()
+    await load()
   } catch (requestError) {
     formError.value = (requestError as Error).message
   } finally {
@@ -180,8 +179,17 @@ async function remove(item: MasterItem) {
 }
 
 onMounted(load)
+watch(query, () => {
+  page.value = 1
+  void load()
+})
+watch(page, (nextPage, previousPage) => {
+  if (nextPage !== previousPage) void load()
+})
+watch(pageSize, () => void load())
 watch(() => props.entity, () => {
   query.value = ''
+  page.value = 1
   closeForm()
   void load()
 })
@@ -215,6 +223,8 @@ watch(() => props.entity, () => {
       <div v-else-if="props.entity === 'products'" class="table-wrap"><table><thead><tr><th>{{ t('master.sku') }} / {{ t('master.name') }}</th><th>{{ t('master.category') }}</th><th>{{ t('master.sellingPrice') }}</th><th>{{ t('master.status') }}</th><th><span class="sr-only">{{ t('master.edit') }}</span></th></tr></thead><tbody><tr v-for="item in productItems" :key="item.id"><td><div class="product-cell"><span class="product-avatar">{{ shortName(item.name) }}</span><span><strong>{{ item.name }}</strong><small>{{ item.sku }}</small></span></div></td><td>{{ item.category }}</td><td class="stock-value">{{ money(item.sellingPrice) }}</td><td><span class="badge" :class="item.isActive ? 'ok' : 'neutral'">{{ item.isActive ? t('master.active') : t('master.inactive') }}</span></td><td><div class="master-actions"><button type="button" @click="openEdit(item)">{{ t('master.edit') }}</button><button type="button" @click="toggleActive(item)">{{ item.isActive ? t('master.deactivate') : t('master.activate') }}</button><button type="button" @click="remove(item)">{{ t('master.delete') }}</button></div></td></tr></tbody></table></div>
 
       <div v-else class="table-wrap"><table><thead><tr><th>{{ t('master.code') }}</th><th>{{ t('master.name') }}</th><th>{{ t('master.email') }}</th><th>{{ t('master.phone') }}</th><th>{{ t('master.status') }}</th><th><span class="sr-only">{{ t('master.edit') }}</span></th></tr></thead><tbody><tr v-for="item in partnerItems" :key="item.id"><td class="stock-value">{{ item.code }}</td><td><strong>{{ item.name }}</strong><small>{{ item.address || '—' }}</small></td><td>{{ item.email || '—' }}</td><td>{{ item.phone || '—' }}</td><td><span class="badge" :class="item.isActive ? 'ok' : 'neutral'">{{ item.isActive ? t('master.active') : t('master.inactive') }}</span></td><td><div class="master-actions"><button type="button" @click="openEdit(item)">{{ t('master.edit') }}</button><button type="button" @click="toggleActive(item)">{{ item.isActive ? t('master.deactivate') : t('master.activate') }}</button><button type="button" @click="remove(item)">{{ t('master.delete') }}</button></div></td></tr></tbody></table></div>
+
+      <PaginationControls v-if="!loading && filtered.length" :page="page" :page-size="pageSize" :total-count="totalCount" :total-pages="totalPages" @page-change="page = $event" @page-size-change="changePageSize" />
     </section>
 
     <Teleport to="body"><div v-if="showForm" class="modal-backdrop" @click.self="closeForm"><form class="modal" @submit.prevent="save"><div class="modal-head"><div><p class="eyebrow">{{ t('master.eyebrow') }}</p><h2>{{ editingId ? t('master.editTitle', { entity: entityLabel }) : t('master.createTitle', { entity: entityLabel }) }}</h2></div><button class="close-button" type="button" :aria-label="t('common.close')" @click="closeForm">×</button></div><div class="modal-body">

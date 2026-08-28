@@ -25,7 +25,13 @@ public interface IDashboardUseCase
 
 public interface IProductUseCase
 {
-    Task<IReadOnlyList<ProductResponse>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<PagedResponse<ProductResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        string? status = null,
+        Guid? categoryId = null,
+        CancellationToken cancellationToken = default);
 
     Task<UseCaseResult<ProductResponse>> CreateAsync(
         ProductRequest request,
@@ -49,7 +55,11 @@ public interface IProductUseCase
 
 public interface ICategoryUseCase
 {
-    Task<IReadOnlyList<CategoryResponse>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<PagedResponse<CategoryResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        CancellationToken cancellationToken = default);
 
     Task<UseCaseResult<CategoryResponse>> CreateAsync(
         CategoryRequest request,
@@ -68,10 +78,18 @@ public interface ICategoryUseCase
 
 public interface IInventoryUseCase
 {
-    Task<IReadOnlyList<StockMovementResponse>> GetMovementsAsync(
+    Task<StockMovementPageResponse> GetMovementsAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        string? type = null,
+        int? periodDays = null,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<StockAdjustmentResponse>> GetAdjustmentsAsync(
+    Task<PagedResponse<StockAdjustmentResponse>> GetAdjustmentsAsync(
+        int page,
+        int pageSize,
+        string? search = null,
         CancellationToken cancellationToken = default);
 
     Task<UseCaseResult<StockAdjustmentResponse>> CreateAdjustmentAsync(
@@ -82,7 +100,11 @@ public interface IInventoryUseCase
 
 public interface ISupplierUseCase
 {
-    Task<IReadOnlyList<SupplierResponse>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<PagedResponse<SupplierResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        CancellationToken cancellationToken = default);
 
     Task<UseCaseResult<SupplierResponse>> CreateAsync(
         MasterDataRequest request,
@@ -101,7 +123,11 @@ public interface ISupplierUseCase
 
 public interface ICustomerUseCase
 {
-    Task<IReadOnlyList<CustomerResponse>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<PagedResponse<CustomerResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        CancellationToken cancellationToken = default);
 
     Task<UseCaseResult<CustomerResponse>> CreateAsync(
         MasterDataRequest request,

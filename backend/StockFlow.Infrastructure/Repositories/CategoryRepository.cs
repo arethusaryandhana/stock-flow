@@ -7,12 +7,30 @@ namespace StockFlow.Infrastructure.Repositories;
 
 public sealed class CategoryRepository(StockFlowDbContext db) : ICategoryRepository
 {
-    public async Task<IReadOnlyList<CategoryResponse>> GetAllAsync(
+    public async Task<PagedResponse<CategoryResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
         CancellationToken cancellationToken = default)
     {
-        return await db.CategoriesSet
+        var pagination = Pagination.Normalize(page, pageSize);
+        var query = db.CategoriesSet.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+            query = query.Where(category =>
+                category.Name.ToLower().Contains(term) ||
+                (category.Description != null && category.Description.ToLower().Contains(term)));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
             .AsNoTracking()
             .OrderBy(category => category.Name)
+            .ThenBy(category => category.Id)
+            .Skip(pagination.Skip)
+            .Take(pagination.PageSize)
             .Select(category => new CategoryResponse(
                 category.Id,
                 category.Name,
@@ -21,6 +39,8 @@ public sealed class CategoryRepository(StockFlowDbContext db) : ICategoryReposit
                 category.CreatedAt,
                 category.UpdatedAt))
             .ToListAsync(cancellationToken);
+
+        return new PagedResponse<CategoryResponse>(items, pagination.Page, pagination.PageSize, totalCount);
     }
 
     public Task AddAsync(Category category, CancellationToken cancellationToken = default) =>

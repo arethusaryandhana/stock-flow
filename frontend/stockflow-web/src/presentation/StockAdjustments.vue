@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../infrastructure/api'
+import type { PagedResponse } from '../infrastructure/api'
 import { useI18n } from '../i18n'
+import PaginationControls from '../components/PaginationControls.vue'
 
 type Product = { id: string; sku: string; name: string; stockOnHand: number; unit: string; isActive: boolean }
 type Adjustment = { id: string; number: string; productId: string; productSku: string; productName: string; unit: string; quantityDelta: number; reason: string; createdAt: string }
@@ -14,6 +16,10 @@ const error = ref('')
 const formError = ref('')
 const form = ref<AdjustmentForm>({ productId: '', quantityDelta: '', reason: '' })
 const historyQuery = ref('')
+const page = ref(1)
+const pageSize = ref(10)
+const totalCount = ref(0)
+const totalPages = ref(0)
 const { locale, t } = useI18n()
 const activeProducts = computed(() => products.value.filter((product) => product.isActive))
 const selectedProduct = computed(() => products.value.find((product) => product.id === form.value.productId))
@@ -33,15 +39,19 @@ function parseQuantity(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 const delta = (adjustment: Adjustment) => `${adjustment.quantityDelta > 0 ? '+' : '−'}${formatQuantity(Math.abs(adjustment.quantityDelta))} ${adjustment.unit}`
-const filteredAdjustments = computed(() => {
-  const term = historyQuery.value.toLowerCase().trim()
-  return adjustments.value.filter((item) => `${item.number} ${item.productName} ${item.productSku} ${item.reason}`.toLowerCase().includes(term))
-})
+const filteredAdjustments = computed(() => adjustments.value)
 async function load() {
   loading.value = true; error.value = ''
   try {
-    const [productsResponse, adjustmentsResponse] = await Promise.all([api.get<Product[]>('/products'), api.get<Adjustment[]>('/stock-adjustments')])
-    products.value = productsResponse.data; adjustments.value = adjustmentsResponse.data
+    const [productsResponse, adjustmentsResponse] = await Promise.all([
+      api.get<PagedResponse<Product>>('/products', { params: { page: 1, pageSize: 100 } }),
+      api.get<PagedResponse<Adjustment>>('/stock-adjustments', { params: { page: page.value, pageSize: pageSize.value, search: historyQuery.value.trim() || undefined } }),
+    ])
+    products.value = productsResponse.data.items
+    adjustments.value = adjustmentsResponse.data.items
+    page.value = adjustmentsResponse.data.page
+    totalCount.value = adjustmentsResponse.data.totalCount
+    totalPages.value = adjustmentsResponse.data.totalPages
     if (!form.value.productId && activeProducts.value[0]) form.value.productId = activeProducts.value[0].id
   } catch (requestError) { error.value = (requestError as Error).message } finally { loading.value = false }
 }
@@ -60,10 +70,10 @@ async function submit() {
   saving.value = true
   try {
     const { data } = await api.post<Adjustment>('/stock-adjustments', { productId: form.value.productId, quantityDelta: quantityDelta.value, reason: form.value.reason })
-    adjustments.value.unshift(data)
     const product = products.value.find((item) => item.id === data.productId)
     if (product) product.stockOnHand = roundQuantity(product.stockOnHand + data.quantityDelta)
     form.value.quantityDelta = ''; form.value.reason = ''
+    await load()
   } catch (requestError) { formError.value = (requestError as Error).message } finally { saving.value = false }
 }
 function exportCsv() {
@@ -71,6 +81,18 @@ function exportCsv() {
   const csv = rows.map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(',')).join('\n')
   const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = 'stockflow-penyesuaian.csv'; link.click(); URL.revokeObjectURL(link.href)
 }
+function changePageSize(nextPageSize: number) {
+  pageSize.value = nextPageSize
+  page.value = 1
+}
+watch(historyQuery, () => {
+  page.value = 1
+  void load()
+})
+watch(page, (nextPage, previousPage) => {
+  if (nextPage !== previousPage) void load()
+})
+watch(pageSize, () => void load())
 onMounted(load)
 </script>
 
@@ -97,6 +119,7 @@ onMounted(load)
       <div v-if="loading" class="empty">{{ t('adjustments.loading') }}</div>
       <div v-else-if="!filteredAdjustments.length" class="empty"><strong>{{ t('adjustments.emptyTitle') }}</strong>{{ t('adjustments.emptyHint') }}</div>
       <div v-else class="table-wrap"><table><thead><tr><th>{{ t('common.date') }}</th><th>{{ t('adjustments.number') }}</th><th>{{ t('adjustments.product') }}</th><th>{{ t('adjustments.change') }}</th><th>{{ t('adjustments.reason') }}</th></tr></thead><tbody><tr v-for="adjustment in filteredAdjustments" :key="adjustment.id"><td class="date-cell">{{ date(adjustment.createdAt) }}</td><td class="muted-cell">{{ adjustment.number }}</td><td><div class="product-cell"><span class="product-avatar amber">{{ adjustment.productName.slice(0, 2).toUpperCase() }}</span><span><strong>{{ adjustment.productName }}</strong><small>{{ adjustment.productSku }}</small></span></div></td><td :class="adjustment.quantityDelta > 0 ? 'quantity-in' : 'quantity-out'">{{ delta(adjustment) }}</td><td>{{ adjustment.reason }}</td></tr></tbody></table></div>
+      <PaginationControls v-if="!loading && filteredAdjustments.length" :page="page" :page-size="pageSize" :total-count="totalCount" :total-pages="totalPages" @page-change="page = $event" @page-size-change="changePageSize" />
     </section>
   </div>
 </template>

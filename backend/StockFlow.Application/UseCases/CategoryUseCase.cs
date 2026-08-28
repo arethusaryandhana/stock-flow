@@ -7,9 +7,12 @@ namespace StockFlow.Application.UseCases;
 
 public sealed class CategoryUseCase(ICategoryRepository categories) : ICategoryUseCase
 {
-    public Task<IReadOnlyList<CategoryResponse>> GetAllAsync(
+    public Task<PagedResponse<CategoryResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
         CancellationToken cancellationToken = default) =>
-        categories.GetAllAsync(cancellationToken);
+        categories.GetAllAsync(page, pageSize, search, cancellationToken);
 
     public async Task<UseCaseResult<CategoryResponse>> CreateAsync(
         CategoryRequest request,

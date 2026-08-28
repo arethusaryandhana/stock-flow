@@ -7,9 +7,12 @@ namespace StockFlow.Application.UseCases;
 
 public sealed class CustomerUseCase(ICustomerRepository customers) : ICustomerUseCase
 {
-    public Task<IReadOnlyList<CustomerResponse>> GetAllAsync(
+    public Task<PagedResponse<CustomerResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
         CancellationToken cancellationToken = default) =>
-        customers.GetAllAsync(cancellationToken);
+        customers.GetAllAsync(page, pageSize, search, cancellationToken);
 
     public async Task<UseCaseResult<CustomerResponse>> CreateAsync(
         MasterDataRequest request,

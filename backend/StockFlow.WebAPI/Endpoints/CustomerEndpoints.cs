@@ -14,7 +14,7 @@ public sealed class CustomerEndpoints : IEndpoint
             .WithTags("Customers");
 
         group.MapGet("/", GetAllAsync)
-            .Produces<IReadOnlyList<CustomerResponse>>(StatusCodes.Status200OK);
+            .Produces<PagedResponse<CustomerResponse>>(StatusCodes.Status200OK);
 
         group.MapPost("/", CreateAsync)
             .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
@@ -40,8 +40,11 @@ public sealed class CustomerEndpoints : IEndpoint
 
     private static async Task<IResult> GetAllAsync(
         ICustomerUseCase useCase,
-        CancellationToken cancellationToken) =>
-        Results.Ok(await useCase.GetAllAsync(cancellationToken));
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null) =>
+        Results.Ok(await useCase.GetAllAsync(page, pageSize, search, cancellationToken));
 
     private static async Task<IResult> CreateAsync(
         MasterDataRequest request,

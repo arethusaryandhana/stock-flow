@@ -1,37 +1,61 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../infrastructure/api'
+import type { PagedResponse } from '../infrastructure/api'
 import { useI18n } from '../i18n'
+import PaginationControls from '../components/PaginationControls.vue'
 
 type Movement = { id: string; productId: string; productSku: string; productName: string; unit: string; type: string; quantity: number; balanceAfter: number; referenceNumber: string; reason: string | null; createdAt: string }
+type MovementPageResponse = PagedResponse<Movement> & { summary: { todayCount: number; inboundQuantity: number; outboundQuantity: number } }
 const movements = ref<Movement[]>([])
 const q = ref('')
 const typeFilter = ref('all')
 const period = ref('30')
 const loading = ref(true)
 const error = ref('')
+const page = ref(1)
+const pageSize = ref(10)
+const totalCount = ref(0)
+const totalPages = ref(0)
+const summary = ref({ todayCount: 0, inboundQuantity: 0, outboundQuantity: 0 })
 const { locale, t } = useI18n()
 const isInbound = (movement: Movement) => movement.type === 'GoodsReceipt' || movement.type === 'AdjustmentIn'
 const label = (movement: Movement) => movement.type === 'GoodsReceipt' ? t('movements.receipt') : movement.type === 'Sale' ? t('movements.sale') : movement.type === 'AdjustmentIn' ? t('movements.adjustmentIn') : movement.type === 'AdjustmentOut' ? t('movements.adjustmentOut') : movement.type
 const quantity = (movement: Movement) => `${isInbound(movement) ? '+' : '−'}${movement.quantity} ${movement.unit}`
 const date = (value: string) => new Intl.DateTimeFormat(locale.value, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 const shortName = (value: string) => value.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase()
-const filtered = computed(() => {
-  const term = q.value.toLowerCase().trim()
-  return movements.value.filter((movement) => `${movement.productSku} ${movement.productName} ${movement.referenceNumber} ${movement.reason ?? ''}`.toLowerCase().includes(term) && (typeFilter.value === 'all' || movement.type === typeFilter.value))
-})
-const received = computed(() => movements.value.filter(isInbound).reduce((sum, movement) => sum + movement.quantity, 0))
-const shipped = computed(() => movements.value.filter((movement) => !isInbound(movement)).reduce((sum, movement) => sum + movement.quantity, 0))
-const todayCount = computed(() => movements.value.filter((movement) => new Date(movement.createdAt).toDateString() === new Date().toDateString()).length)
+const filtered = computed(() => movements.value)
+const received = computed(() => summary.value.inboundQuantity)
+const shipped = computed(() => summary.value.outboundQuantity)
+const todayCount = computed(() => summary.value.todayCount)
 async function load() {
   loading.value = true; error.value = ''
-  try { movements.value = (await api.get<Movement[]>('/stock-movements')).data } catch (requestError) { error.value = (requestError as Error).message } finally { loading.value = false }
+  try {
+    const response = await api.get<MovementPageResponse>('/stock-movements', { params: { page: page.value, pageSize: pageSize.value, search: q.value.trim() || undefined, type: typeFilter.value === 'all' ? undefined : typeFilter.value, periodDays: Number(period.value) } })
+    movements.value = response.data.items
+    page.value = response.data.page
+    totalCount.value = response.data.totalCount
+    totalPages.value = response.data.totalPages
+    summary.value = response.data.summary
+  } catch (requestError) { error.value = (requestError as Error).message } finally { loading.value = false }
 }
 function exportCsv() {
   const rows = [[t('common.date'), t('products.product'), 'SKU', t('movements.activityType'), t('movements.quantity'), t('movements.balance'), t('movements.reference'), t('movements.note')], ...filtered.value.map((item) => [date(item.createdAt), item.productName, item.productSku, label(item), String(item.quantity), String(item.balanceAfter), item.referenceNumber, item.reason ?? ''])]
   const csv = rows.map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(',')).join('\n')
   const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = 'stockflow-pergerakan.csv'; link.click(); URL.revokeObjectURL(link.href)
 }
+function changePageSize(nextPageSize: number) {
+  pageSize.value = nextPageSize
+  page.value = 1
+}
+watch([q, typeFilter, period], () => {
+  page.value = 1
+  void load()
+})
+watch(page, (nextPage, previousPage) => {
+  if (nextPage !== previousPage) void load()
+})
+watch(pageSize, () => void load())
 onMounted(load)
 </script>
 
@@ -46,10 +70,11 @@ onMounted(load)
 
     <section class="surface-card page-panel">
       <div class="toolbar"><label class="search-input"><span>⌕</span><input v-model="q" :aria-label="t('movements.searchAria')" :placeholder="t('movements.searchPlaceholder')"></label><div class="toolbar-actions"><select v-model="typeFilter" class="filter-select wide" :aria-label="t('movements.typeFilterAria')"><option value="all">{{ t('movements.allTypes') }}</option><option value="GoodsReceipt">{{ t('movements.receipt') }}</option><option value="Sale">{{ t('movements.sale') }}</option><option value="AdjustmentIn">{{ t('movements.adjustmentIn') }}</option><option value="AdjustmentOut">{{ t('movements.adjustmentOut') }}</option></select><select v-model="period" class="filter-select" :aria-label="t('movements.periodAria')"><option value="7">{{ t('movements.last7') }}</option><option value="30">{{ t('movements.last30') }}</option><option value="90">{{ t('movements.last90') }}</option></select></div></div>
-      <div class="section-note" style="padding: 12px 18px 0"><span class="status-dot" /> {{ t('movements.showing', { count: filtered.length }) }}</div>
+      <div class="section-note" style="padding: 12px 18px 0"><span class="status-dot" /> {{ t('movements.showing', { count: totalCount }) }}</div>
       <div v-if="loading" class="empty">{{ t('movements.loading') }}</div>
       <div v-else-if="!filtered.length" class="empty"><strong>{{ t('movements.emptyTitle') }}</strong>{{ t('movements.emptyHint') }}</div>
       <div v-else class="table-wrap"><table><thead><tr><th>{{ t('common.date') }}</th><th>{{ t('products.product') }}</th><th>{{ t('movements.activityType') }}</th><th>{{ t('movements.change') }}</th><th>{{ t('movements.balance') }}</th><th>{{ t('movements.reference') }}</th><th>{{ t('movements.note') }}</th></tr></thead><tbody><tr v-for="movement in filtered" :key="movement.id"><td class="date-cell">{{ date(movement.createdAt) }}</td><td><div class="product-cell"><span class="product-avatar" :class="{ teal: isInbound(movement) }">{{ shortName(movement.productName) }}</span><span><strong>{{ movement.productName }}</strong><small>{{ movement.productSku }}</small></span></div></td><td><span class="badge" :class="isInbound(movement) ? 'ok' : 'danger'">{{ label(movement) }}</span></td><td :class="isInbound(movement) ? 'quantity-in' : 'quantity-out'">{{ quantity(movement) }}</td><td class="stock-value">{{ movement.balanceAfter }} {{ movement.unit }}</td><td class="muted-cell">{{ movement.referenceNumber }}</td><td class="muted-cell">{{ movement.reason || '—' }}</td></tr></tbody></table></div>
+      <PaginationControls v-if="!loading && filtered.length" :page="page" :page-size="pageSize" :total-count="totalCount" :total-pages="totalPages" @page-change="page = $event" @page-size-change="changePageSize" />
     </section>
   </div>
 </template>

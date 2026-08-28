@@ -32,7 +32,7 @@ h3 { font-size: .9rem; font-weight: 800; }
 .brand-lockup strong { display: block; color: #fff; font-size: 1.05rem; font-weight: 800; letter-spacing: -.03em; }
 .brand-lockup span:not(.brand-logo) { display: block; margin-top: 2px; color: #8291a9; font-size: .65rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .brand-logo { display: block; width: 34px; height: 34px; flex: 0 0 34px; border-radius: 10px; box-shadow: 0 6px 16px #07132940; }
-.sidebar-toggle { position: absolute; top: 72px; right: -12px; z-index: 2; display: grid; width: 25px; height: 25px; place-items: center; border: 1px solid #dfe5ed; border-radius: 50%; color: #6f7d91; background: #fff; box-shadow: 0 5px 13px #0713292b; transition: color .18s, background .18s, border-color .18s, transform .18s; }
+.sidebar-toggle { position: absolute; top: 28px; right: -12px; z-index: 2; display: grid; width: 25px; height: 25px; place-items: center; border: 1px solid #dfe5ed; border-radius: 50%; color: #6f7d91; background: #fff; box-shadow: 0 5px 13px #0713292b; transition: color .18s, background .18s, border-color .18s, transform .18s; }
 .sidebar-toggle:hover { border-color: #c9d7f5; color: var(--blue); background: var(--blue-soft); transform: translateX(1px); }
 .sidebar-toggle-icon { display: block; color: currentColor; font-size: 1.05rem; font-weight: 700; line-height: 1; }
 .workspace-switcher { display: flex; width: 100%; align-items: center; gap: 9px; margin: 33px 0 27px; padding: 9px 10px; border: 1px solid #ffffff12; border-radius: 12px; color: #eef4ff; background: #ffffff09; text-align: left; transition: background .2s, border-color .2s; }
@@ -237,6 +237,16 @@ td small { display: block; margin-top: 3px; color: #9aa6b5; font-family: 'DM Mon
 .count { margin-left: 4px; color: #adb7c4; font-family: 'DM Mono', monospace; font-size: .57rem; }
 .page-panel { overflow: hidden; }
 .section-note { display: flex; align-items: center; gap: 7px; margin-top: 7px; color: var(--muted); font-size: .68rem; }
+.pagination { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 18px 15px; border-top: 1px solid var(--line); color: var(--muted); font-size: .62rem; }
+.pagination p { margin: 0; }
+.pagination-actions { display: flex; align-items: center; gap: 12px; }
+.pagination-size { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.pagination-size select { height: 28px; padding: 0 24px 0 7px; border: 1px solid var(--line); border-radius: 7px; color: #68778c; background-color: #fff; background-image: linear-gradient(45deg, transparent 50%, #8f9bad 50%), linear-gradient(135deg, #8f9bad 50%, transparent 50%); background-position: calc(100% - 11px) 50%, calc(100% - 7px) 50%; background-repeat: no-repeat; background-size: 4px 4px, 4px 4px; font-size: .61rem; outline: 0; appearance: none; }
+.pagination-controls { display: flex; align-items: center; gap: 4px; }
+.pagination-controls button { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--line); border-radius: 7px; color: #68778c; background: #fff; font-size: .75rem; }
+.pagination-controls button:hover:not(:disabled) { border-color: #c9d7f5; color: var(--blue); background: var(--blue-soft); }
+.pagination-controls button.active { border-color: var(--blue); color: #fff; background: var(--blue); }
+.pagination-controls button:disabled { color: #c1c8d2; background: #f7f9fc; }
 .summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 11px; margin-bottom: 14px; }
 .mini-stat { display: flex; align-items: center; gap: 11px; padding: 14px; border: 1px solid var(--line); border-radius: 11px; background: #fff; box-shadow: var(--shadow-sm); }
 .mini-stat-icon { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 8px; color: var(--blue); background: var(--blue-soft); font-size: 1rem; }
@@ -418,6 +428,8 @@ td small { display: block; margin-top: 3px; color: #9aa6b5; font-family: 'DM Mon
   .form-grid .full { grid-column: auto; }
   .history-head { align-items: flex-start; flex-direction: column; padding: 15px; }
   .history-filter { align-items: stretch; flex-direction: column; padding: 0 15px 13px; }
+  .pagination { align-items: flex-start; flex-direction: column; padding-right: 15px; padding-left: 15px; }
+  .pagination-actions { width: 100%; justify-content: space-between; }
   .adjustment-grid { padding: 0 15px; }
   .adjustment-helper { align-items: flex-start; margin-right: 15px; margin-left: 15px; }
   .adjustment-actions { margin-right: 15px; margin-left: 15px; }

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../infrastructure/api'
+import type { PagedResponse } from '../infrastructure/api'
 import { useAuthStore } from '../stores/auth'
 import { useI18n } from '../i18n'
+import PaginationControls from '../components/PaginationControls.vue'
 
 type Product = { id: string; sku: string; name: string; categoryId: string; category: string; purchasePrice: number; sellingPrice: number; stockOnHand: number; reorderLevel: number; unit: string; isActive: boolean }
 type Category = { id: string; name: string; isActive: boolean }
@@ -22,6 +24,11 @@ const editingProduct = ref<Product | null>(null)
 const editReorderLevel = ref(0)
 const editSaving = ref(false)
 const newProduct = ref({ sku: '', name: '', categoryId: '', purchasePrice: 0, sellingPrice: 0, reorderLevel: 0, unit: 'pcs' })
+const page = ref(1)
+const pageSize = ref(10)
+const totalCount = ref(0)
+const totalPages = ref(0)
+const counts = ref({ all: 0, low: 0, out: 0, inactive: 0 })
 const { locale, t } = useI18n()
 const auth = useAuthStore()
 const canManage = computed(() => auth.isAdmin)
@@ -37,25 +44,39 @@ const status = (product: Product) => {
 }
 const statusLabel = (product: Product) => status(product) === 'ok' ? t('products.safe') : status(product) === 'low' ? t('products.low') : status(product) === 'out' ? t('products.out') : t('products.inactive')
 const statusClass = (product: Product) => status(product) === 'ok' ? 'ok' : status(product) === 'low' ? 'warn' : status(product) === 'out' ? 'danger' : 'neutral'
-const activeItems = computed(() => items.value.filter((item) => item.isActive))
-const counts = computed(() => ({ all: items.value.length, healthy: activeItems.value.filter((item) => status(item) === 'ok').length, low: activeItems.value.filter((item) => status(item) === 'low').length, out: activeItems.value.filter((item) => status(item) === 'out').length, inactive: items.value.filter((item) => !item.isActive).length }))
-const filtered = computed(() => {
-  const term = q.value.toLowerCase().trim()
-  return items.value.filter((item) => {
-    const matchesTerm = `${item.sku} ${item.name} ${item.category}`.toLowerCase().includes(term)
-    const matchesCategory = categoryFilter.value === 'all' || item.categoryId === categoryFilter.value
-    const matchesStatus = statusFilter.value === 'all' || (statusFilter.value === 'inactive' ? !item.isActive : status(item) === statusFilter.value)
-    return matchesTerm && matchesCategory && matchesStatus
-  })
-})
+const filtered = computed(() => items.value)
+const attentionCount = computed(() => counts.value.low + counts.value.out)
+const statusQuery = computed(() => statusFilter.value === 'all' ? undefined : statusFilter.value)
+const categoryQuery = computed(() => categoryFilter.value === 'all' ? undefined : categoryFilter.value)
 
 async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [productsResponse, categoriesResponse] = await Promise.all([api.get<Product[]>('/products'), api.get<Category[]>('/categories')])
-    items.value = productsResponse.data
-    categories.value = categoriesResponse.data.filter((category) => category.isActive)
+    const statuses = [undefined, 'low', 'out', 'inactive'] as const
+    const productResponse = api.get<PagedResponse<Product>>('/products', { params: { page: page.value, pageSize: pageSize.value, search: q.value.trim() || undefined, status: statusQuery.value, categoryId: categoryQuery.value } })
+    const countResponses = statuses.map((statusValue) => statusValue === statusQuery.value
+      ? productResponse
+      : api.get<PagedResponse<Product>>('/products', { params: { page: 1, pageSize: 1, search: q.value.trim() || undefined, status: statusValue, categoryId: categoryQuery.value } }))
+    const [productsResponse, allCountResponse, lowCountResponse, outCountResponse, inactiveCountResponse, categoriesResponse] = await Promise.all([
+      productResponse,
+      countResponses[0],
+      countResponses[1],
+      countResponses[2],
+      countResponses[3],
+      api.get<PagedResponse<Category>>('/categories', { params: { page: 1, pageSize: 100 } }),
+    ])
+    items.value = productsResponse.data.items
+    page.value = productsResponse.data.page
+    totalCount.value = productsResponse.data.totalCount
+    totalPages.value = productsResponse.data.totalPages
+    counts.value = {
+      all: allCountResponse.data.totalCount,
+      low: lowCountResponse.data.totalCount,
+      out: outCountResponse.data.totalCount,
+      inactive: inactiveCountResponse.data.totalCount,
+    }
+    categories.value = categoriesResponse.data.items.filter((category) => category.isActive)
     if (!newProduct.value.categoryId && categories.value[0]) newProduct.value.categoryId = categories.value[0].id
   } catch (requestError) {
     error.value = (requestError as Error).message
@@ -79,9 +100,9 @@ function closeEditForm() {
 async function createProduct() {
   formError.value = ''; saving.value = true
   try {
-    const { data } = await api.post<Product>('/products', newProduct.value)
-    items.value = [...items.value, data].sort((left, right) => left.name.localeCompare(right.name))
+    await api.post<Product>('/products', newProduct.value)
     closeForm()
+    await load()
   } catch (requestError) { formError.value = (requestError as Error).message } finally { saving.value = false }
 }
 async function updateReorderLevel() {
@@ -100,19 +121,32 @@ async function updateReorderLevel() {
   try {
     const { data } = await api.patch<Product>(`/products/${editingProduct.value.id}/reorder-level`, { reorderLevel })
     items.value = items.value.map((item) => item.id === data.id ? data : item)
+    await load()
     closeEditForm()
   } catch (requestError) { formError.value = (requestError as Error).message } finally { editSaving.value = false }
 }
 async function toggleActive(product: Product) {
   if (!canManage.value) return
   openMenu.value = ''
-  try { await api.patch(`/products/${product.id}/active`, !product.isActive); product.isActive = !product.isActive } catch (requestError) { error.value = (requestError as Error).message }
+  try { await api.patch(`/products/${product.id}/active`, !product.isActive); await load() } catch (requestError) { error.value = (requestError as Error).message }
 }
 function exportCsv() {
   const rows = [[t('products.sku'), t('products.product'), t('products.category'), t('products.availableStock'), t('products.unit'), t('products.sellingPrice'), t('products.status')], ...filtered.value.map((item) => [item.sku, item.name, item.category, String(item.stockOnHand), item.unit, String(item.sellingPrice), statusLabel(item)])]
   const csv = rows.map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(',')).join('\n')
   const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = 'stockflow-produk.csv'; link.click(); URL.revokeObjectURL(link.href)
 }
+function changePageSize(nextPageSize: number) {
+  pageSize.value = nextPageSize
+  page.value = 1
+}
+watch([q, statusFilter, categoryFilter], () => {
+  page.value = 1
+  void load()
+})
+watch(page, (nextPage, previousPage) => {
+  if (nextPage !== previousPage) void load()
+})
+watch(pageSize, () => void load())
 onMounted(load)
 </script>
 
@@ -124,7 +158,7 @@ onMounted(load)
     </div>
 
     <p v-if="error" class="alert error-banner">{{ error }}</p>
-    <div class="summary-grid"><div class="mini-stat"><span class="mini-stat-icon">▦</span><span><small>{{ t('products.total') }}</small><strong>{{ loading ? '—' : counts.all }}</strong></span></div><div class="mini-stat"><span class="mini-stat-icon in">✓</span><span><small>{{ t('products.safe') }}</small><strong>{{ loading ? '—' : counts.healthy }}</strong></span></div><div class="mini-stat"><span class="mini-stat-icon out">△</span><span><small>{{ t('products.attention') }}</small><strong>{{ loading ? '—' : counts.low + counts.out }}</strong></span></div></div>
+    <div class="summary-grid"><div class="mini-stat"><span class="mini-stat-icon">▦</span><span><small>{{ t('products.total') }}</small><strong>{{ loading ? '—' : counts.all }}</strong></span></div><div class="mini-stat"><span class="mini-stat-icon in">✓</span><span><small>{{ t('products.safe') }}</small><strong>{{ loading ? '—' : Math.max(counts.all - attentionCount - counts.inactive, 0) }}</strong></span></div><div class="mini-stat"><span class="mini-stat-icon out">△</span><span><small>{{ t('products.attention') }}</small><strong>{{ loading ? '—' : attentionCount }}</strong></span></div></div>
 
     <section class="surface-card page-panel">
       <div class="tab-row">
@@ -140,6 +174,7 @@ onMounted(load)
       <div v-if="loading" class="empty">{{ t('products.loading') }}</div>
       <div v-else-if="!filtered.length" class="empty"><strong>{{ t('products.noMatchTitle') }}</strong>{{ t('products.noMatchHint') }}</div>
       <div v-else class="table-wrap"><table><thead><tr><th>{{ t('products.product') }}</th><th>{{ t('products.category') }}</th><th>{{ t('products.availableStock') }}</th><th>{{ t('products.sellingPrice') }}</th><th>{{ t('products.status') }}</th><th><span class="sr-only">{{ t('products.actionAria') }}</span></th></tr></thead><tbody><tr v-for="product in filtered" :key="product.id"><td><div class="product-cell"><span class="product-avatar">{{ shortName(product.name) }}</span><span><strong>{{ product.name }}</strong><small>{{ product.sku }}</small></span></div></td><td>{{ product.category }}</td><td><span class="stock-value" :class="{ low: status(product) === 'low', out: status(product) === 'out' }">{{ product.stockOnHand }} {{ product.unit }}</span><small>{{ t('products.min') }} {{ product.reorderLevel }} {{ product.unit }}</small></td><td class="stock-value">{{ money(product.sellingPrice) }}</td><td><span class="badge" :class="statusClass(product)">{{ statusLabel(product) }}</span></td><td><div class="action-menu-wrap"><button class="action-button" type="button" :aria-label="t('products.menuAria')" @click="openMenu = openMenu === product.id ? '' : product.id">•••</button><div v-if="openMenu === product.id" class="action-menu"><button type="button" @click="openEditForm(product)">{{ t('products.editReorderLevel') }}</button><button type="button" @click="toggleActive(product)">{{ product.isActive ? t('products.deactivate') : t('products.activate') }}</button></div></div></td></tr></tbody></table></div>
+      <PaginationControls v-if="!loading && filtered.length" :page="page" :page-size="pageSize" :total-count="totalCount" :total-pages="totalPages" @page-change="page = $event" @page-size-change="changePageSize" />
     </section>
 
     <Teleport to="body"><div v-if="showForm" class="modal-backdrop" @click.self="closeForm"><form class="modal" @submit.prevent="createProduct"><div class="modal-head"><div><p class="eyebrow">{{ t('products.eyebrow') }}</p><h2>{{ t('products.modalTitle') }}</h2><p>{{ t('products.modalDescription') }}</p></div><button class="close-button" type="button" :aria-label="t('common.close')" @click="closeForm">×</button></div><div class="modal-body"><div class="form-grid"><label class="field-label">{{ t('products.sku') }}<input v-model.trim="newProduct.sku" required maxlength="80" :placeholder="t('products.skuPlaceholder')"></label><label class="field-label">{{ t('products.name') }}<input v-model.trim="newProduct.name" required maxlength="160" :placeholder="t('products.namePlaceholder')"></label><label class="field-label">{{ t('products.category') }}<select v-model="newProduct.categoryId" required><option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option></select></label><label class="field-label">{{ t('products.unit') }}<input v-model.trim="newProduct.unit" required maxlength="24" :placeholder="t('products.unitPlaceholder')"></label><label class="field-label">{{ t('products.purchasePrice') }}<input v-model.number="newProduct.purchasePrice" type="number" min="0" step="1" required></label><label class="field-label">{{ t('products.sellingPrice') }}<input v-model.number="newProduct.sellingPrice" type="number" min="0" step="1" required></label><label class="field-label full">{{ t('products.reorderLevel') }}<input v-model.number="newProduct.reorderLevel" type="number" min="0" step="0.01" required><small class="field-hint">{{ t('products.reorderLevelHint') }}</small></label></div><p v-if="formError" class="alert" style="margin-top: 14px">{{ formError }}</p><div class="modal-actions"><button class="secondary" type="button" @click="closeForm">{{ t('common.cancel') }}</button><button class="primary" :disabled="saving">{{ saving ? t('common.saving') : t('common.save') }}</button></div></div></form></div><div v-if="editingProduct" class="modal-backdrop" @click.self="closeEditForm"><form class="modal edit-modal" @submit.prevent="updateReorderLevel"><div class="modal-head"><div><p class="eyebrow">{{ t('products.eyebrow') }}</p><h2>{{ t('products.editReorderTitle') }}</h2><p>{{ editingProduct.name }} · {{ editingProduct.sku }}</p></div><button class="close-button" type="button" :aria-label="t('common.close')" @click="closeEditForm">×</button></div><div class="modal-body"><label class="field-label">{{ t('products.reorderLevel') }}<input v-model.number="editReorderLevel" type="number" min="0" step="0.01" required autofocus></label><p class="field-hint">{{ t('products.reorderLevelHint') }}</p><p v-if="formError" class="alert" style="margin-top: 14px">{{ formError }}</p><div class="modal-actions"><button class="secondary" type="button" @click="closeEditForm">{{ t('common.cancel') }}</button><button class="primary" :disabled="editSaving">{{ editSaving ? t('common.saving') : t('products.saveReorderLevel') }}</button></div></div></form></div></Teleport>

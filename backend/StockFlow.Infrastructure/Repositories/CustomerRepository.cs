@@ -7,12 +7,32 @@ namespace StockFlow.Infrastructure.Repositories;
 
 public sealed class CustomerRepository(StockFlowDbContext db) : ICustomerRepository
 {
-    public async Task<IReadOnlyList<CustomerResponse>> GetAllAsync(
+    public async Task<PagedResponse<CustomerResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
         CancellationToken cancellationToken = default)
     {
-        return await db.CustomersSet
+        var pagination = Pagination.Normalize(page, pageSize);
+        var query = db.CustomersSet.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+            query = query.Where(customer =>
+                customer.Code.ToLower().Contains(term) ||
+                customer.Name.ToLower().Contains(term) ||
+                (customer.Email != null && customer.Email.ToLower().Contains(term)) ||
+                (customer.Phone != null && customer.Phone.ToLower().Contains(term)));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
             .AsNoTracking()
             .OrderBy(customer => customer.Name)
+            .ThenBy(customer => customer.Id)
+            .Skip(pagination.Skip)
+            .Take(pagination.PageSize)
             .Select(customer => new CustomerResponse(
                 customer.Id,
                 customer.Code,
@@ -24,6 +44,8 @@ public sealed class CustomerRepository(StockFlowDbContext db) : ICustomerReposit
                 customer.CreatedAt,
                 customer.UpdatedAt))
             .ToListAsync(cancellationToken);
+
+        return new PagedResponse<CustomerResponse>(items, pagination.Page, pagination.PageSize, totalCount);
     }
 
     public Task AddAsync(Customer customer, CancellationToken cancellationToken = default) =>
