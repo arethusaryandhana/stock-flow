@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../infrastructure/api'
+import { useAuthStore } from '../stores/auth'
 import { useI18n } from '../i18n'
 
 type Product = { id: string; sku: string; name: string; categoryId: string; category: string; purchasePrice: number; sellingPrice: number; stockOnHand: number; reorderLevel: number; unit: string; isActive: boolean }
@@ -22,6 +23,9 @@ const editReorderLevel = ref(0)
 const editSaving = ref(false)
 const newProduct = ref({ sku: '', name: '', categoryId: '', purchasePrice: 0, sellingPrice: 0, reorderLevel: 0, unit: 'pcs' })
 const { locale, t } = useI18n()
+const auth = useAuthStore()
+const canManage = computed(() => auth.isAdmin)
+watch(openMenu, (value) => { if (value && !canManage.value) openMenu.value = '' })
 
 const money = (value: number) => new Intl.NumberFormat(locale.value, { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value)
 const shortName = (value: string) => value.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase()
@@ -61,6 +65,7 @@ async function load() {
 function openForm() { formError.value = ''; showForm.value = true }
 function closeForm() { showForm.value = false; formError.value = ''; newProduct.value = { sku: '', name: '', categoryId: categories.value[0]?.id ?? '', purchasePrice: 0, sellingPrice: 0, reorderLevel: 0, unit: 'pcs' } }
 function openEditForm(product: Product) {
+  if (!canManage.value) return
   openMenu.value = ''
   formError.value = ''
   editingProduct.value = product
@@ -99,6 +104,7 @@ async function updateReorderLevel() {
   } catch (requestError) { formError.value = (requestError as Error).message } finally { editSaving.value = false }
 }
 async function toggleActive(product: Product) {
+  if (!canManage.value) return
   openMenu.value = ''
   try { await api.patch(`/products/${product.id}/active`, !product.isActive); product.isActive = !product.isActive } catch (requestError) { error.value = (requestError as Error).message }
 }
@@ -114,7 +120,7 @@ onMounted(load)
   <div class="page">
     <div class="page-heading">
       <div><p class="eyebrow">{{ t('products.eyebrow') }}</p><h1>{{ t('products.title') }}</h1><p class="subtitle">{{ t('products.subtitle') }}</p></div>
-      <div class="header-actions"><button class="secondary" type="button" @click="exportCsv">{{ t('common.exportCsv') }}</button><button class="primary" type="button" @click="openForm"><span class="button-plus">+</span> {{ t('products.add') }}</button></div>
+      <div class="header-actions"><button class="secondary" type="button" @click="exportCsv">{{ t('common.exportCsv') }}</button><button v-if="canManage" class="primary" type="button" @click="openForm"><span class="button-plus">+</span> {{ t('products.add') }}</button></div>
     </div>
 
     <p v-if="error" class="alert error-banner">{{ error }}</p>

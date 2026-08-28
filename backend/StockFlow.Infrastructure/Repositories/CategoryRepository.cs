@@ -26,6 +26,17 @@ public sealed class CategoryRepository(StockFlowDbContext db) : ICategoryReposit
     public Task AddAsync(Category category, CancellationToken cancellationToken = default) =>
         db.CategoriesSet.AddAsync(category, cancellationToken).AsTask();
 
+    public Task<Category?> FindAsync(Guid id, CancellationToken cancellationToken = default) =>
+        db.CategoriesSet.FindAsync([id], cancellationToken).AsTask();
+
+    public Task<bool> ExistsByNameAsync(
+        string name,
+        Guid? exceptId = null,
+        CancellationToken cancellationToken = default) =>
+        db.CategoriesSet.AnyAsync(
+            category => category.Name == name && (!exceptId.HasValue || category.Id != exceptId.Value),
+            cancellationToken);
+
     public Task<bool> ExistsActiveAsync(
         Guid id,
         CancellationToken cancellationToken = default) =>

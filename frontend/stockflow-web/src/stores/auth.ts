@@ -9,6 +9,9 @@ export const useAuthStore = defineStore('auth', {
     name: localStorage.getItem('stockflow_name') ?? '',
     role: localStorage.getItem('stockflow_role') ?? '',
   }),
+  getters: {
+    isAdmin: (state) => state.role.trim().toLowerCase() === 'admin',
+  },
   actions: {
     async login(email: string, password: string) {
       const { data } = await api.post('/auth/login', { email, password })

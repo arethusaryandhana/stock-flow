@@ -17,18 +17,29 @@ public sealed class ProductEndpoints : IEndpoint
             .Produces<IReadOnlyList<ProductResponse>>(StatusCodes.Status200OK);
 
         group.MapPost("/", CreateAsync)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin,Manager" })
+            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
             .Produces<ProductResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest);
 
+        group.MapPut("/{id:guid}", UpdateAsync)
+            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
+            .Produces<ProductResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
+
         group.MapPatch("/{id:guid}/reorder-level", UpdateReorderLevelAsync)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin,Manager" })
+            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
             .Produces<ProductResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
 
         group.MapPatch("/{id:guid}/active", SetActiveAsync)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin,Manager" })
+            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status404NotFound);
+
+        group.MapDelete("/{id:guid}", DeleteAsync)
+            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound);
     }
@@ -51,10 +62,23 @@ public sealed class ProductEndpoints : IEndpoint
         CancellationToken cancellationToken) =>
         (await useCase.UpdateReorderLevelAsync(id, request, cancellationToken)).ToHttpResult();
 
+    private static async Task<IResult> UpdateAsync(
+        Guid id,
+        ProductRequest request,
+        IProductUseCase useCase,
+        CancellationToken cancellationToken) =>
+        (await useCase.UpdateAsync(id, request, cancellationToken)).ToHttpResult();
+
     private static async Task<IResult> SetActiveAsync(
         Guid id,
         [FromBody] bool active,
         IProductUseCase useCase,
         CancellationToken cancellationToken) =>
         (await useCase.SetActiveAsync(id, active, cancellationToken)).ToHttpResult();
+
+    private static Task<IResult> DeleteAsync(
+        Guid id,
+        IProductUseCase useCase,
+        CancellationToken cancellationToken) =>
+        SetActiveAsync(id, false, useCase, cancellationToken);
 }

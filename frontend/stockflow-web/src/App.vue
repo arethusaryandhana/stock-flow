@@ -8,6 +8,7 @@ const route = useRoute()
 const auth = useAuthStore()
 const { language, t, toggleLanguage } = useI18n()
 const mobileOpen = ref(false)
+const sidebarCollapsed = ref(localStorage.getItem('stockflow_sidebar_collapsed') === 'true')
 const search = ref('')
 const toast = ref('')
 const profileOpen = ref(false)
@@ -16,10 +17,22 @@ const profileWrap = ref<HTMLElement | null>(null)
 const groups = [
   {
     labelKey: 'app.workspace',
+    adminOnly: false,
     items: [{ labelKey: 'app.dashboard', path: '/', icon: '⌂', badge: '' }],
   },
   {
+    labelKey: 'app.administration',
+    adminOnly: true,
+    items: [
+      { labelKey: 'app.masterCategories', path: '/master-data/categories', icon: '◫', badge: '' },
+      { labelKey: 'app.masterProducts', path: '/master-data/products', icon: '▦', badge: '' },
+      { labelKey: 'app.masterSuppliers', path: '/master-data/suppliers', icon: '◎', badge: '' },
+      { labelKey: 'app.masterCustomers', path: '/master-data/customers', icon: '◌', badge: '' },
+    ],
+  },
+  {
     labelKey: 'app.inventory',
+    adminOnly: false,
     items: [
       { labelKey: 'app.products', path: '/products', icon: '▦', badge: '' },
       { labelKey: 'app.movements', path: '/inventory/movements', icon: '↕', badge: '' },
@@ -28,6 +41,7 @@ const groups = [
   },
   {
     labelKey: 'app.operations',
+    adminOnly: false,
     items: [
       { labelKey: 'app.purchaseOrders', path: null, icon: '▤', badge: 'app.soon' },
       { labelKey: 'app.receiving', path: null, icon: '↓', badge: 'app.soon' },
@@ -36,6 +50,7 @@ const groups = [
   },
   {
     labelKey: 'app.insight',
+    adminOnly: false,
     items: [
       { labelKey: 'app.reports', path: null, icon: '◷', badge: 'app.soon' },
       { labelKey: 'app.settings', path: null, icon: '⚙', badge: 'app.soon' },
@@ -61,6 +76,11 @@ function notify(message: string) {
 
 function closeMobileNav() {
   mobileOpen.value = false
+}
+
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+  localStorage.setItem('stockflow_sidebar_collapsed', String(sidebarCollapsed.value))
 }
 
 function handleSearch() {
@@ -96,23 +116,36 @@ onBeforeUnmount(() => {
 
   <div v-else class="app-shell">
     <div v-if="mobileOpen" class="mobile-backdrop" @click="closeMobileNav" />
-    <aside class="sidebar" :class="{ 'sidebar-open': mobileOpen }">
-      <router-link class="brand-lockup" to="/" :aria-label="t('app.brandAria')" @click="closeMobileNav">
-        <img class="brand-logo" src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
-        <div>
-          <strong>StockFlow</strong>
-          <span>Inventory OS</span>
-        </div>
-      </router-link>
+    <aside class="sidebar" :class="{ 'sidebar-open': mobileOpen, 'sidebar-collapsed': sidebarCollapsed }">
+      <div class="sidebar-head">
+        <router-link class="brand-lockup" to="/" :aria-label="t('app.brandAria')" @click="closeMobileNav">
+          <img class="brand-logo" src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
+          <div>
+            <strong>StockFlow</strong>
+            <span>Inventory OS</span>
+          </div>
+        </router-link>
+      </div>
+      <button
+        class="sidebar-toggle"
+        type="button"
+        :aria-label="sidebarCollapsed ? t('app.openSidebar') : t('app.closeSidebar')"
+        :aria-expanded="!sidebarCollapsed"
+        :title="sidebarCollapsed ? t('app.openSidebar') : t('app.closeSidebar')"
+        @click="toggleSidebar"
+      >
+        <span class="sidebar-toggle-icon" aria-hidden="true">{{ sidebarCollapsed ? '>' : '<' }}</span>
+      </button>
 
-      <button class="workspace-switcher" type="button" @click="notify(t('app.workspaceToast'))">
-        <span class="workspace-avatar"><img src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true"></span>
+      <button class="workspace-switcher" type="button" :aria-label="t('app.workspaceName')" @click="notify(t('app.workspaceToast'))">
+        <span class="workspace-symbol" aria-hidden="true">▦</span>
         <span class="workspace-copy"><small>{{ t('app.workspaceLabel') }}</small><strong>{{ t('app.workspaceName') }}</strong></span>
         <span class="workspace-chevron chevron-icon" aria-hidden="true" />
       </button>
 
       <nav class="sidebar-nav" :aria-label="t('app.mainNav')">
-        <section v-for="group in groups" :key="group.labelKey" class="nav-group">
+        <template v-for="group in groups" :key="group.labelKey">
+          <section v-if="!group.adminOnly || auth.isAdmin" class="nav-group">
           <p class="nav-group-label">{{ t(group.labelKey) }}</p>
           <template v-for="item in group.items" :key="item.labelKey">
             <router-link
@@ -120,25 +153,27 @@ onBeforeUnmount(() => {
               :to="item.path"
               class="nav-link"
               :class="{ active: route.path === item.path }"
+              :title="sidebarCollapsed ? t(item.labelKey) : undefined"
               @click="closeMobileNav"
             >
               <span class="nav-icon">{{ item.icon }}</span>
               <span>{{ t(item.labelKey) }}</span>
             </router-link>
-            <button v-else class="nav-link nav-placeholder" type="button" @click="notify(t('app.comingSoonToast', { label: t(item.labelKey) }))">
+            <button v-else class="nav-link nav-placeholder" type="button" :title="sidebarCollapsed ? t(item.labelKey) : undefined" @click="notify(t('app.comingSoonToast', { label: t(item.labelKey) }))">
               <span class="nav-icon">{{ item.icon }}</span>
               <span>{{ t(item.labelKey) }}</span>
               <em>{{ t(item.badge) }}</em>
             </button>
           </template>
-        </section>
+          </section>
+        </template>
       </nav>
 
       <div class="sidebar-bottom">
-        <div class="sync-pill"><span class="status-dot" /> {{ t('app.synced') }}</div>
-        <button class="sidebar-help" type="button" @click="notify(t('app.supportToast'))">
+        <div class="sync-pill"><span class="status-dot" /><span class="sync-copy">{{ t('app.synced') }}</span></div>
+        <button class="sidebar-help" type="button" :title="sidebarCollapsed ? t('app.help') : undefined" @click="notify(t('app.supportToast'))">
           <span class="help-icon">?</span>
-          <span><strong>{{ t('app.help') }}</strong><small>{{ t('app.learnStockflow') }}</small></span>
+          <span class="help-copy"><strong>{{ t('app.help') }}</strong><small>{{ t('app.learnStockflow') }}</small></span>
           <span class="arrow">↗</span>
         </button>
       </div>
@@ -152,7 +187,7 @@ onBeforeUnmount(() => {
             <img src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
             <strong>StockFlow</strong>
           </router-link>
-          <div class="breadcrumbs"><span>{{ t('app.workspaceName') }}</span><b>/</b><strong>{{ route.path === '/' ? t('app.dashboardBreadcrumb') : t('app.inventoryBreadcrumb') }}</strong></div>
+          <div class="breadcrumbs"><span>{{ t('app.workspaceName') }}</span><b>/</b><strong>{{ route.path === '/' ? t('app.dashboardBreadcrumb') : route.path.startsWith('/master-data') ? t('app.masterDataBreadcrumb') : t('app.inventoryBreadcrumb') }}</strong></div>
         </div>
         <div class="topbar-actions">
           <form class="global-search" @submit.prevent="handleSearch">

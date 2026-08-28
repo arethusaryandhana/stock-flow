@@ -31,6 +31,11 @@ public interface IProductUseCase
         ProductRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<UseCaseResult<ProductResponse>> UpdateAsync(
+        Guid id,
+        ProductRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<UseCaseResult<ProductResponse>> UpdateReorderLevelAsync(
         Guid id,
         ProductReorderLevelRequest request,
@@ -48,6 +53,16 @@ public interface ICategoryUseCase
 
     Task<UseCaseResult<CategoryResponse>> CreateAsync(
         CategoryRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<CategoryResponse>> UpdateAsync(
+        Guid id,
+        CategoryRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult> SetActiveAsync(
+        Guid id,
+        bool active,
         CancellationToken cancellationToken = default);
 }
 
@@ -69,8 +84,18 @@ public interface ISupplierUseCase
 {
     Task<IReadOnlyList<SupplierResponse>> GetAllAsync(CancellationToken cancellationToken = default);
 
-    Task<SupplierResponse> CreateAsync(
+    Task<UseCaseResult<SupplierResponse>> CreateAsync(
         MasterDataRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<SupplierResponse>> UpdateAsync(
+        Guid id,
+        MasterDataRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult> SetActiveAsync(
+        Guid id,
+        bool active,
         CancellationToken cancellationToken = default);
 }
 
@@ -78,8 +103,18 @@ public interface ICustomerUseCase
 {
     Task<IReadOnlyList<CustomerResponse>> GetAllAsync(CancellationToken cancellationToken = default);
 
-    Task<CustomerResponse> CreateAsync(
+    Task<UseCaseResult<CustomerResponse>> CreateAsync(
         MasterDataRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<CustomerResponse>> UpdateAsync(
+        Guid id,
+        MasterDataRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult> SetActiveAsync(
+        Guid id,
+        bool active,
         CancellationToken cancellationToken = default);
 }
 
