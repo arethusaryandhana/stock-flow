@@ -23,7 +23,13 @@ public interface IDashboardRepository
 
 public interface IProductRepository
 {
-    Task<IReadOnlyList<ProductResponse>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<PagedResponse<ProductResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        string? status = null,
+        Guid? categoryId = null,
+        CancellationToken cancellationToken = default);
 
     Task<ProductResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
@@ -43,7 +49,11 @@ public interface IProductRepository
 
 public interface ICategoryRepository
 {
-    Task<IReadOnlyList<CategoryResponse>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<PagedResponse<CategoryResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        CancellationToken cancellationToken = default);
 
     Task AddAsync(Category category, CancellationToken cancellationToken = default);
 
@@ -61,10 +71,18 @@ public interface ICategoryRepository
 
 public interface IInventoryRepository
 {
-    Task<IReadOnlyList<StockMovementResponse>> GetMovementsAsync(
+    Task<StockMovementPageResponse> GetMovementsAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        string? type = null,
+        int? periodDays = null,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<StockAdjustmentResponse>> GetAdjustmentsAsync(
+    Task<PagedResponse<StockAdjustmentResponse>> GetAdjustmentsAsync(
+        int page,
+        int pageSize,
+        string? search = null,
         CancellationToken cancellationToken = default);
 
     Task AddAdjustmentAsync(
@@ -80,7 +98,11 @@ public interface IInventoryRepository
 
 public interface ISupplierRepository
 {
-    Task<IReadOnlyList<SupplierResponse>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<PagedResponse<SupplierResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        CancellationToken cancellationToken = default);
 
     Task AddAsync(Supplier supplier, CancellationToken cancellationToken = default);
 
@@ -96,7 +118,11 @@ public interface ISupplierRepository
 
 public interface ICustomerRepository
 {
-    Task<IReadOnlyList<CustomerResponse>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<PagedResponse<CustomerResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        CancellationToken cancellationToken = default);
 
     Task AddAsync(Customer customer, CancellationToken cancellationToken = default);
 

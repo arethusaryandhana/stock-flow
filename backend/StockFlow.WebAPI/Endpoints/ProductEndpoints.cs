@@ -14,7 +14,7 @@ public sealed class ProductEndpoints : IEndpoint
             .WithTags("Products");
 
         group.MapGet("/", GetAllAsync)
-            .Produces<IReadOnlyList<ProductResponse>>(StatusCodes.Status200OK);
+            .Produces<PagedResponse<ProductResponse>>(StatusCodes.Status200OK);
 
         group.MapPost("/", CreateAsync)
             .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
@@ -46,8 +46,13 @@ public sealed class ProductEndpoints : IEndpoint
 
     private static async Task<IResult> GetAllAsync(
         IProductUseCase useCase,
-        CancellationToken cancellationToken) =>
-        Results.Ok(await useCase.GetAllAsync(cancellationToken));
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] Guid? categoryId = null) =>
+        Results.Ok(await useCase.GetAllAsync(page, pageSize, search, status, categoryId, cancellationToken));
 
     private static async Task<IResult> CreateAsync(
         ProductRequest request,

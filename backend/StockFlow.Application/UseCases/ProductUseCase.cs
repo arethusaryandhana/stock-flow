@@ -9,9 +9,14 @@ public sealed class ProductUseCase(
     IProductRepository products,
     ICategoryRepository categories) : IProductUseCase
 {
-    public Task<IReadOnlyList<ProductResponse>> GetAllAsync(
+    public Task<PagedResponse<ProductResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        string? status = null,
+        Guid? categoryId = null,
         CancellationToken cancellationToken = default) =>
-        products.GetAllAsync(cancellationToken);
+        products.GetAllAsync(page, pageSize, search, status, categoryId, cancellationToken);
 
     public async Task<UseCaseResult<ProductResponse>> CreateAsync(
         ProductRequest request,

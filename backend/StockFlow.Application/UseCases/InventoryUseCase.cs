@@ -9,13 +9,21 @@ public sealed class InventoryUseCase(
     IProductRepository products,
     IInventoryRepository inventory) : IInventoryUseCase
 {
-    public Task<IReadOnlyList<StockMovementResponse>> GetMovementsAsync(
+    public Task<StockMovementPageResponse> GetMovementsAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        string? type = null,
+        int? periodDays = null,
         CancellationToken cancellationToken = default) =>
-        inventory.GetMovementsAsync(cancellationToken);
+        inventory.GetMovementsAsync(page, pageSize, search, type, periodDays, cancellationToken);
 
-    public Task<IReadOnlyList<StockAdjustmentResponse>> GetAdjustmentsAsync(
+    public Task<PagedResponse<StockAdjustmentResponse>> GetAdjustmentsAsync(
+        int page,
+        int pageSize,
+        string? search = null,
         CancellationToken cancellationToken = default) =>
-        inventory.GetAdjustmentsAsync(cancellationToken);
+        inventory.GetAdjustmentsAsync(page, pageSize, search, cancellationToken);
 
     public async Task<UseCaseResult<StockAdjustmentResponse>> CreateAdjustmentAsync(
         StockAdjustmentRequest request,

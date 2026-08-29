@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using StockFlow.Application.Abstractions.UseCases;
 using StockFlow.Application.Models;
 
@@ -15,14 +16,14 @@ public sealed class InventoryEndpoints : IEndpoint
             .WithTags("Inventory");
 
         movements.MapGet("/", GetMovementsAsync)
-            .Produces<IReadOnlyList<StockMovementResponse>>(StatusCodes.Status200OK);
+            .Produces<StockMovementPageResponse>(StatusCodes.Status200OK);
 
         var adjustments = app.MapGroup("/api/stock-adjustments")
             .RequireAuthorization()
             .WithTags("Inventory");
 
         adjustments.MapGet("/", GetAdjustmentsAsync)
-            .Produces<IReadOnlyList<StockAdjustmentResponse>>(StatusCodes.Status200OK);
+            .Produces<PagedResponse<StockAdjustmentResponse>>(StatusCodes.Status200OK);
 
         adjustments.MapPost("/", CreateAdjustmentAsync)
             .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin,Manager" })
@@ -33,13 +34,21 @@ public sealed class InventoryEndpoints : IEndpoint
 
     private static async Task<IResult> GetMovementsAsync(
         IInventoryUseCase useCase,
-        CancellationToken cancellationToken) =>
-        Results.Ok(await useCase.GetMovementsAsync(cancellationToken));
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] string? type = null,
+        [FromQuery] int? periodDays = null) =>
+        Results.Ok(await useCase.GetMovementsAsync(page, pageSize, search, type, periodDays, cancellationToken));
 
     private static async Task<IResult> GetAdjustmentsAsync(
         IInventoryUseCase useCase,
-        CancellationToken cancellationToken) =>
-        Results.Ok(await useCase.GetAdjustmentsAsync(cancellationToken));
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null) =>
+        Results.Ok(await useCase.GetAdjustmentsAsync(page, pageSize, search, cancellationToken));
 
     private static async Task<IResult> CreateAdjustmentAsync(
         StockAdjustmentRequest request,

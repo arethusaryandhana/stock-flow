@@ -7,12 +7,32 @@ namespace StockFlow.Infrastructure.Repositories;
 
 public sealed class SupplierRepository(StockFlowDbContext db) : ISupplierRepository
 {
-    public async Task<IReadOnlyList<SupplierResponse>> GetAllAsync(
+    public async Task<PagedResponse<SupplierResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
         CancellationToken cancellationToken = default)
     {
-        return await db.SuppliersSet
+        var pagination = Pagination.Normalize(page, pageSize);
+        var query = db.SuppliersSet.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+            query = query.Where(supplier =>
+                supplier.Code.ToLower().Contains(term) ||
+                supplier.Name.ToLower().Contains(term) ||
+                (supplier.Email != null && supplier.Email.ToLower().Contains(term)) ||
+                (supplier.Phone != null && supplier.Phone.ToLower().Contains(term)));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
             .AsNoTracking()
             .OrderBy(supplier => supplier.Name)
+            .ThenBy(supplier => supplier.Id)
+            .Skip(pagination.Skip)
+            .Take(pagination.PageSize)
             .Select(supplier => new SupplierResponse(
                 supplier.Id,
                 supplier.Code,
@@ -24,6 +44,8 @@ public sealed class SupplierRepository(StockFlowDbContext db) : ISupplierReposit
                 supplier.CreatedAt,
                 supplier.UpdatedAt))
             .ToListAsync(cancellationToken);
+
+        return new PagedResponse<SupplierResponse>(items, pagination.Page, pagination.PageSize, totalCount);
     }
 
     public Task AddAsync(Supplier supplier, CancellationToken cancellationToken = default) =>

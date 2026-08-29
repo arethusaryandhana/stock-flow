@@ -1,5 +1,13 @@
 import axios from 'axios'
 
+export type PagedResponse<T> = {
+  items: T[]
+  page: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+}
+
 const sessionKeys = ['stockflow_token', 'stockflow_name', 'stockflow_role']
 
 export const api = axios.create({

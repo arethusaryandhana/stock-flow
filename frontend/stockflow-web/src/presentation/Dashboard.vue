@@ -1,37 +1,45 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../infrastructure/api'
+import type { PagedResponse } from '../infrastructure/api'
 import { useI18n } from '../i18n'
+import PaginationControls from '../components/PaginationControls.vue'
 
 type DashboardData = {
   products: number
   lowStock: number
   purchases: number
   salesToday: number
-  attention: LowStockProduct[]
+  healthyProducts: number
+  outOfStockProducts: number
+  totalUnits: number
 }
 type LowStockProduct = { id: string; sku: string; name: string; category: string; stockOnHand: number; reorderLevel: number; unit: string }
-type Product = { id: string; sku: string; name: string; category: string; stockOnHand: number; reorderLevel: number; unit: string; isActive: boolean }
 type Movement = { id: string; productName: string; productSku: string; unit: string; type: string; quantity: number; reason: string | null; createdAt: string }
+type MovementPageResponse = PagedResponse<Movement> & { summary: { todayCount: number; inboundQuantity: number; outboundQuantity: number } }
 
-const data = ref<DashboardData>({ products: 0, lowStock: 0, purchases: 0, salesToday: 0, attention: [] })
-const products = ref<Product[]>([])
+const data = ref<DashboardData>({ products: 0, lowStock: 0, purchases: 0, salesToday: 0, healthyProducts: 0, outOfStockProducts: 0, totalUnits: 0 })
 const movements = ref<Movement[]>([])
+const attention = ref<LowStockProduct[]>([])
 const loading = ref(true)
+const attentionLoading = ref(true)
 const error = ref('')
+const attentionPage = ref(1)
+const attentionPageSize = ref(10)
+const attentionTotalCount = ref(0)
+const attentionTotalPages = ref(0)
 const { locale, t } = useI18n()
 
 const money = (value: number) => new Intl.NumberFormat(locale.value, { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value)
 const date = (value: string) => new Intl.DateTimeFormat(locale.value, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 const shortName = (value: string) => value.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase()
-const activeProducts = computed(() => products.value.filter((product) => product.isActive))
-const outOfStock = computed(() => activeProducts.value.filter((product) => product.stockOnHand <= 0).length)
-const lowStock = computed(() => activeProducts.value.filter((product) => product.stockOnHand > 0 && product.stockOnHand <= product.reorderLevel).length)
-const healthyStock = computed(() => Math.max(activeProducts.value.length - outOfStock.value - lowStock.value, 0))
-const totalUnits = computed(() => activeProducts.value.reduce((sum, product) => sum + product.stockOnHand, 0))
-const healthPercent = computed(() => activeProducts.value.length ? Math.round((healthyStock.value / activeProducts.value.length) * 100) : 0)
+const healthyStock = computed(() => data.value.healthyProducts)
+const lowStock = computed(() => data.value.lowStock)
+const outOfStock = computed(() => data.value.outOfStockProducts)
+const totalUnits = computed(() => data.value.totalUnits)
+const healthPercent = computed(() => data.value.products ? Math.round((healthyStock.value / data.value.products) * 100) : 0)
 const healthGradient = computed(() => {
-  const total = Math.max(activeProducts.value.length, 1)
+  const total = Math.max(data.value.products, 1)
   const healthy = healthyStock.value / total * 100
   const low = lowStock.value / total * 100
   return `conic-gradient(#129a88 0 ${healthy}%, #f2b258 ${healthy}% ${healthy + low}%, #dd6c76 ${healthy + low}% 100%)`
@@ -52,21 +60,53 @@ const chartLabels = ['01', '03', '05', '07', '09', '11', '13', '15', '17', '19',
 const latestMovements = computed(() => movements.value.slice(0, 4))
 const isInbound = (movement: Movement) => movement.type === 'GoodsReceipt' || movement.type === 'AdjustmentIn'
 
+async function loadAttention() {
+  attentionLoading.value = true
+  try {
+    const response = await api.get<PagedResponse<LowStockProduct>>('/products', { params: { page: attentionPage.value, pageSize: attentionPageSize.value, status: 'attention' } })
+    attention.value = response.data.items
+    attentionPage.value = response.data.page
+    attentionTotalCount.value = response.data.totalCount
+    attentionTotalPages.value = response.data.totalPages
+  } catch (requestError) {
+    error.value = (requestError as Error)?.message || t('dashboard.loadError')
+  } finally {
+    attentionLoading.value = false
+  }
+}
+function changeAttentionPageSize(nextPageSize: number) {
+  attentionPageSize.value = nextPageSize
+  attentionPage.value = 1
+}
+
 async function load() {
   loading.value = true
   error.value = ''
-  const [dashboardResult, productsResult, movementsResult] = await Promise.allSettled([
+  const [dashboardResult, movementsResult, attentionResult] = await Promise.allSettled([
     api.get<DashboardData>('/dashboard'),
-    api.get<Product[]>('/products'),
-    api.get<Movement[]>('/stock-movements'),
+    api.get<MovementPageResponse>('/stock-movements', { params: { page: 1, pageSize: 100, periodDays: 30 } }),
+    api.get<PagedResponse<LowStockProduct>>('/products', { params: { page: 1, pageSize: attentionPageSize.value, status: 'attention' } }),
   ])
   if (dashboardResult.status === 'fulfilled') data.value = dashboardResult.value.data
   else error.value = (dashboardResult.reason as Error)?.message || t('dashboard.loadError')
-  if (productsResult.status === 'fulfilled') products.value = productsResult.value.data
-  if (movementsResult.status === 'fulfilled') movements.value = movementsResult.value.data
+  if (movementsResult.status === 'fulfilled') movements.value = movementsResult.value.data.items
+  if (attentionResult.status === 'fulfilled') {
+    attention.value = attentionResult.value.data.items
+    attentionPage.value = attentionResult.value.data.page
+    attentionTotalCount.value = attentionResult.value.data.totalCount
+    attentionTotalPages.value = attentionResult.value.data.totalPages
+    attentionLoading.value = false
+  } else {
+    attentionLoading.value = false
+    if (!error.value) error.value = (attentionResult.reason as Error)?.message || t('dashboard.loadError')
+  }
   loading.value = false
 }
 
+watch(attentionPage, (nextPage, previousPage) => {
+  if (nextPage !== previousPage) void loadAttention()
+})
+watch(attentionPageSize, () => void loadAttention())
 onMounted(load)
 </script>
 
@@ -142,9 +182,10 @@ onMounted(load)
     <div class="two-column">
       <router-link class="surface-card dashboard-link" to="/products" :aria-label="t('dashboard.openAttention')">
         <div class="surface-card-head"><div><h2>{{ t('dashboard.attention') }}</h2><p>{{ t('dashboard.attentionSubtitle') }}</p></div><span class="dashboard-link-arrow" aria-hidden="true">↗</span></div>
-        <div v-if="loading" class="empty">{{ t('dashboard.loadingProducts') }}</div>
-        <div v-else-if="!data.attention.length" class="empty"><strong>{{ t('dashboard.allSafe') }}</strong>{{ t('dashboard.noRestock') }}</div>
-        <div v-else class="table-wrap"><table><thead><tr><th>{{ t('products.product') }}</th><th>{{ t('dashboard.remainingStock') }}</th><th>{{ t('dashboard.status') }}</th></tr></thead><tbody><tr v-for="product in data.attention.slice(0, 5)" :key="product.id"><td><div class="product-cell"><span class="product-avatar amber">{{ shortName(product.name) }}</span><span><strong>{{ product.name }}</strong><small>{{ product.sku }} · {{ product.category }}</small></span></div></td><td><span class="stock-value" :class="product.stockOnHand <= 0 ? 'out' : 'low'">{{ product.stockOnHand }} {{ product.unit }}</span><small>{{ t('products.min') }} {{ product.reorderLevel }}</small></td><td><span class="badge" :class="product.stockOnHand <= 0 ? 'danger' : 'warn'">{{ product.stockOnHand <= 0 ? t('products.out') : t('products.low') }}</span></td></tr></tbody></table></div>
+        <div v-if="loading || attentionLoading" class="empty">{{ t('dashboard.loadingProducts') }}</div>
+        <div v-else-if="!attention.length" class="empty"><strong>{{ t('dashboard.allSafe') }}</strong>{{ t('dashboard.noRestock') }}</div>
+        <div v-else class="table-wrap"><table><thead><tr><th>{{ t('products.product') }}</th><th>{{ t('dashboard.remainingStock') }}</th><th>{{ t('dashboard.status') }}</th></tr></thead><tbody><tr v-for="product in attention" :key="product.id"><td><div class="product-cell"><span class="product-avatar amber">{{ shortName(product.name) }}</span><span><strong>{{ product.name }}</strong><small>{{ product.sku }} · {{ product.category }}</small></span></div></td><td><span class="stock-value" :class="product.stockOnHand <= 0 ? 'out' : 'low'">{{ product.stockOnHand }} {{ product.unit }}</span><small>{{ t('products.min') }} {{ product.reorderLevel }}</small></td><td><span class="badge" :class="product.stockOnHand <= 0 ? 'danger' : 'warn'">{{ product.stockOnHand <= 0 ? t('products.out') : t('products.low') }}</span></td></tr></tbody></table></div>
+        <PaginationControls v-if="!loading && !attentionLoading && attention.length" @click.stop :page="attentionPage" :page-size="attentionPageSize" :total-count="attentionTotalCount" :total-pages="attentionTotalPages" @page-change="attentionPage = $event" @page-size-change="changeAttentionPageSize" />
       </router-link>
 
       <router-link class="surface-card dashboard-link" to="/inventory/movements" :aria-label="t('dashboard.openLatest')">

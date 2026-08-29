@@ -14,7 +14,7 @@ public sealed class SupplierEndpoints : IEndpoint
             .WithTags("Suppliers");
 
         group.MapGet("/", GetAllAsync)
-            .Produces<IReadOnlyList<SupplierResponse>>(StatusCodes.Status200OK);
+            .Produces<PagedResponse<SupplierResponse>>(StatusCodes.Status200OK);
 
         group.MapPost("/", CreateAsync)
             .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
@@ -40,8 +40,11 @@ public sealed class SupplierEndpoints : IEndpoint
 
     private static async Task<IResult> GetAllAsync(
         ISupplierUseCase useCase,
-        CancellationToken cancellationToken) =>
-        Results.Ok(await useCase.GetAllAsync(cancellationToken));
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null) =>
+        Results.Ok(await useCase.GetAllAsync(page, pageSize, search, cancellationToken));
 
     private static async Task<IResult> CreateAsync(
         MasterDataRequest request,

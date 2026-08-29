@@ -11,7 +11,9 @@ public sealed record DashboardResponse(
     int LowStock,
     int Purchases,
     decimal SalesToday,
-    IReadOnlyList<LowStockProductResponse> Attention);
+    int HealthyProducts,
+    int OutOfStockProducts,
+    decimal TotalUnits);
 
 public sealed record LowStockProductResponse(
     Guid Id,
@@ -77,6 +79,23 @@ public sealed record StockMovementResponse(
     string ReferenceNumber,
     string? Reason,
     DateTime CreatedAt);
+
+public sealed record StockMovementSummaryResponse(
+    int TodayCount,
+    decimal InboundQuantity,
+    decimal OutboundQuantity);
+
+public sealed record StockMovementPageResponse(
+    IReadOnlyList<StockMovementResponse> Items,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    StockMovementSummaryResponse Summary)
+{
+    public int TotalPages => TotalCount == 0
+        ? 0
+        : (int)Math.Ceiling(TotalCount / (double)PageSize);
+}
 
 public sealed record StockAdjustmentResponse(
     Guid Id,
