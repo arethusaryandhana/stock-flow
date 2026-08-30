@@ -9,6 +9,18 @@ export type PagedResponse<T> = {
 }
 
 const sessionKeys = ['stockflow_token', 'stockflow_name', 'stockflow_role']
+export const SESSION_REDIRECT_EVENT = 'stockflow:session-redirect'
+
+const loginRedirectDelayMs = 900
+let loginRedirectPending = false
+
+export function redirectToLoginWithLoading() {
+  if (window.location.pathname === '/login' || loginRedirectPending) return
+
+  loginRedirectPending = true
+  window.dispatchEvent(new Event(SESSION_REDIRECT_EVENT))
+  window.setTimeout(() => window.location.replace('/login'), loginRedirectDelayMs)
+}
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api',
@@ -30,10 +42,7 @@ api.interceptors.response.use(
     if (status === 401 && !isAuthRequest) {
       sessionKeys.forEach((key) => localStorage.removeItem(key))
       sessionStorage.clear()
-
-      if (window.location.pathname !== '/login') {
-        window.location.replace('/login')
-      }
+      redirectToLoginWithLoading()
     }
 
     return Promise.reject(new Error(error.response?.data?.message ?? 'Layanan belum dapat dihubungi.'))

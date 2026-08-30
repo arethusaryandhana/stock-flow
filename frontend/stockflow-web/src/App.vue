@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { SESSION_REDIRECT_EVENT } from './infrastructure/api'
 import { useAuthStore } from './stores/auth'
 import { useToastStore } from './stores/toast'
 import { useI18n } from './i18n'
@@ -14,6 +15,7 @@ const sidebarCollapsed = ref(localStorage.getItem('stockflow_sidebar_collapsed')
 const search = ref('')
 const profileOpen = ref(false)
 const profileWrap = ref<HTMLElement | null>(null)
+const sessionRedirecting = ref(false)
 
 const groups = [
   {
@@ -98,18 +100,37 @@ function closeProfileOnEscape(event: KeyboardEvent) {
   if (event.key === 'Escape') profileOpen.value = false
 }
 
+function showSessionRedirectLoading() {
+  sessionRedirecting.value = true
+}
+
 onMounted(() => {
   document.addEventListener('click', closeProfileOnOutsideClick)
   document.addEventListener('keydown', closeProfileOnEscape)
+  window.addEventListener(SESSION_REDIRECT_EVENT, showSessionRedirectLoading)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeProfileOnOutsideClick)
   document.removeEventListener('keydown', closeProfileOnEscape)
+  window.removeEventListener(SESSION_REDIRECT_EVENT, showSessionRedirectLoading)
 })
 </script>
 
 <template>
+  <Transition name="session-redirect">
+    <div v-if="sessionRedirecting" class="session-redirect-overlay" role="alert" aria-live="assertive">
+      <div class="session-redirect-card">
+        <div class="session-redirect-mark" aria-hidden="true">
+          <span class="session-redirect-spinner" />
+          <img src="/stockflow-logo.svg?v=20260827" alt="">
+        </div>
+        <strong>{{ t('app.sessionExpiredTitle') }}</strong>
+        <p>{{ t('app.sessionExpiredMessage') }}</p>
+      </div>
+    </div>
+  </Transition>
+
   <router-view v-if="route.path === '/login'" />
 
   <div v-else class="app-shell">

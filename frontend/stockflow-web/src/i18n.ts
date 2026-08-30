@@ -58,6 +58,8 @@ const messages: Record<Language, Record<string, string>> = {
     'app.notificationToast': 'Tidak ada notifikasi baru.',
     'app.supportToast': 'Tim support akan segera tersedia di workspace ini.',
     'app.comingSoonToast': '{label} akan hadir di rilis berikutnya.',
+    'app.sessionExpiredTitle': 'Sesi Anda telah berakhir',
+    'app.sessionExpiredMessage': 'Mengarahkan kembali ke halaman login…',
 
     'dashboard.eyebrow': 'WORKSPACE OVERVIEW',
     'dashboard.greeting': 'Selamat pagi, Admin',
@@ -375,6 +377,8 @@ const messages: Record<Language, Record<string, string>> = {
     'app.notificationToast': 'There are no new notifications.',
     'app.supportToast': 'The support team will be available in this workspace soon.',
     'app.comingSoonToast': '{label} will arrive in a future release.',
+    'app.sessionExpiredTitle': 'Your session has expired',
+    'app.sessionExpiredMessage': 'Redirecting you to the login page…',
 
     'dashboard.eyebrow': 'WORKSPACE OVERVIEW',
     'dashboard.greeting': 'Good morning, Admin',

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { api } from '../infrastructure/api'
+import { api, redirectToLoginWithLoading } from '../infrastructure/api'
 
 const sessionKeys = ['stockflow_token', 'stockflow_name', 'stockflow_role']
 
@@ -28,7 +28,7 @@ export const useAuthStore = defineStore('auth', {
       this.token = null
       this.name = ''
       this.role = ''
-      window.location.replace('/login')
+      redirectToLoginWithLoading()
     },
   },
 })
