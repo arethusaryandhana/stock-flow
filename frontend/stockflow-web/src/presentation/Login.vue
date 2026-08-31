@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { api } from '../infrastructure/api'
 import { useAuthStore } from '../stores/auth'
 import { useI18n } from '../i18n'
+import ThemeSwitcher from '../components/ThemeSwitcher.vue'
 
 type AuthMode = 'login' | 'forgot' | 'reset'
 
@@ -83,7 +84,10 @@ async function submitReset() {
 <template>
   <main class="login">
     <section class="login-visual">
-      <button class="language-switcher login-language" type="button" :aria-label="language === 'id' ? t('app.switchToEnglish') : t('app.switchToIndonesian')" @click="toggleLanguage"><span :class="{ active: language === 'en' }">EN</span><span :class="{ active: language === 'id' }">ID</span></button>
+      <div class="login-preferences">
+        <ThemeSwitcher />
+        <button class="language-switcher login-language" type="button" :aria-label="language === 'id' ? t('app.switchToEnglish') : t('app.switchToIndonesian')" @click="toggleLanguage"><span :class="{ active: language === 'en' }">EN</span><span :class="{ active: language === 'id' }">ID</span></button>
+      </div>
       <div class="login-brand"><img class="brand-logo" src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true"><div><strong>StockFlow</strong><small>Inventory OS</small></div></div>
       <div class="login-copy"><p class="eyebrow">{{ t('login.operationsEyebrow') }}</p><h2 v-html="t('login.visualTitle')" /><p>{{ t('login.visualDescription') }}</p><div class="login-points"><span>{{ t('login.realTime') }}</span><span>{{ t('login.auditReady') }}</span><span>{{ t('login.multiWorkspace') }}</span></div></div>
       <p class="login-footer">{{ t('login.footer') }}</p>

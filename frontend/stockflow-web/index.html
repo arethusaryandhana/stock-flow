@@ -5,6 +5,19 @@
     <link rel="icon" type="image/svg+xml" href="/stockflow-logo.svg?v=20260827" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#3567d6" />
+    <script>
+      (() => {
+        const stored = localStorage.getItem('stockflow_theme')
+        const preference = stored === 'light' || stored === 'dark' ? stored : 'system'
+        const resolved = preference === 'system'
+          ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : preference
+        document.documentElement.dataset.theme = resolved
+        document.documentElement.dataset.themePreference = preference
+        document.documentElement.style.colorScheme = resolved
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolved === 'dark' ? '#111a28' : '#3567d6')
+      })()
+    </script>
     <title>StockFlow</title>
   </head>
   <body>

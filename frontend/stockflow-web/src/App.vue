@@ -5,6 +5,7 @@ import { SESSION_REDIRECT_EVENT } from './infrastructure/api'
 import { useAuthStore } from './stores/auth'
 import { useToastStore } from './stores/toast'
 import { useI18n } from './i18n'
+import ThemeSwitcher from './components/ThemeSwitcher.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -214,6 +215,7 @@ onBeforeUnmount(() => {
             <input v-model="search" :aria-label="t('app.searchAria')" :placeholder="t('app.searchPlaceholder')">
             <kbd>⌘ K</kbd>
           </form>
+          <ThemeSwitcher />
           <button class="language-switcher" type="button" :aria-label="language === 'id' ? t('app.switchToEnglish') : t('app.switchToIndonesian')" @click="toggleLanguage"><span :class="{ active: language === 'en' }">EN</span><span :class="{ active: language === 'id' }">ID</span></button>
           <button class="topbar-icon help-button" type="button" :aria-label="t('app.helpAria')" @click="notify(t('app.helpToast'))">?</button>
           <button class="topbar-icon notification-button" type="button" :aria-label="t('app.notificationsAria')" @click="notify(t('app.notificationToast'))"><span />◔</button>
