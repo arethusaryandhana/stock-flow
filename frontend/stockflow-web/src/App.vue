@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { SESSION_REDIRECT_EVENT } from './infrastructure/api'
 import { useAuthStore } from './stores/auth'
@@ -13,6 +13,7 @@ const toast = useToastStore()
 const { language, t, toggleLanguage } = useI18n()
 const mobileOpen = ref(false)
 const sidebarCollapsed = ref(localStorage.getItem('stockflow_sidebar_collapsed') === 'true')
+const menuGroupsStorageKey = 'stockflow_open_menu_groups'
 const search = ref('')
 const profileOpen = ref(false)
 const profileWrap = ref<HTMLElement | null>(null)
@@ -62,6 +63,29 @@ const groups = [
   },
 ]
 
+function findActiveGroupKey() {
+  return groups.find((group) => group.items.some((item) => item.path === route.path))?.labelKey
+}
+
+function loadOpenMenuGroups() {
+  const activeGroupKey = findActiveGroupKey()
+
+  try {
+    const stored = JSON.parse(localStorage.getItem(menuGroupsStorageKey) ?? '[]')
+    const validKeys = new Set(groups.map((group) => group.labelKey))
+    const openKeys = Array.isArray(stored)
+      ? stored.filter((key): key is string => typeof key === 'string' && validKeys.has(key))
+      : []
+
+    if (activeGroupKey && !openKeys.includes(activeGroupKey)) openKeys.push(activeGroupKey)
+    return new Set(openKeys)
+  } catch {
+    return new Set(activeGroupKey ? [activeGroupKey] : [])
+  }
+}
+
+const openMenuGroups = ref(loadOpenMenuGroups())
+
 const initials = computed(() =>
   (auth.name || t('app.defaultName'))
     .split(' ')
@@ -83,6 +107,30 @@ function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
   localStorage.setItem('stockflow_sidebar_collapsed', String(sidebarCollapsed.value))
 }
+
+function isMenuGroupOpen(labelKey: string) {
+  return openMenuGroups.value.has(labelKey)
+}
+
+function toggleMenuGroup(labelKey: string) {
+  const nextOpenGroups = new Set(openMenuGroups.value)
+  if (nextOpenGroups.has(labelKey)) nextOpenGroups.delete(labelKey)
+  else nextOpenGroups.add(labelKey)
+
+  openMenuGroups.value = nextOpenGroups
+  localStorage.setItem(menuGroupsStorageKey, JSON.stringify([...nextOpenGroups]))
+}
+
+watch(
+  () => route.path,
+  () => {
+    const activeGroupKey = findActiveGroupKey()
+    if (!activeGroupKey || openMenuGroups.value.has(activeGroupKey)) return
+
+    openMenuGroups.value = new Set([...openMenuGroups.value, activeGroupKey])
+    localStorage.setItem(menuGroupsStorageKey, JSON.stringify([...openMenuGroups.value]))
+  },
+)
 
 function handleSearch() {
   if (search.value.trim()) notify(t('app.searchToast', { term: search.value.trim() }))
@@ -165,26 +213,42 @@ onBeforeUnmount(() => {
 
       <nav class="sidebar-nav" :aria-label="t('app.mainNav')">
         <template v-for="group in groups" :key="group.labelKey">
-          <section v-if="!group.adminOnly || auth.isAdmin" class="nav-group">
-          <p class="nav-group-label">{{ t(group.labelKey) }}</p>
-          <template v-for="item in group.items" :key="item.labelKey">
-            <router-link
-              v-if="item.path"
-              :to="item.path"
-              class="nav-link"
-              :class="{ active: route.path === item.path }"
-              :title="sidebarCollapsed ? t(item.labelKey) : undefined"
-              @click="closeMobileNav"
+          <section
+            v-if="!group.adminOnly || auth.isAdmin"
+            class="nav-group"
+            :class="{ 'nav-group-collapsed': !isMenuGroupOpen(group.labelKey) }"
+          >
+            <button
+              class="nav-group-toggle"
+              type="button"
+              :aria-expanded="isMenuGroupOpen(group.labelKey)"
+              :aria-label="t(isMenuGroupOpen(group.labelKey) ? 'app.collapseMenuGroup' : 'app.expandMenuGroup', { group: t(group.labelKey) })"
+              @click="toggleMenuGroup(group.labelKey)"
             >
-              <span class="nav-icon">{{ item.icon }}</span>
-              <span>{{ t(item.labelKey) }}</span>
-            </router-link>
-            <button v-else class="nav-link nav-placeholder" type="button" :title="sidebarCollapsed ? t(item.labelKey) : undefined" @click="notify(t('app.comingSoonToast', { label: t(item.labelKey) }))">
-              <span class="nav-icon">{{ item.icon }}</span>
-              <span>{{ t(item.labelKey) }}</span>
-              <em>{{ t(item.badge) }}</em>
+              <span class="nav-group-label">{{ t(group.labelKey) }}</span>
+              <span class="nav-group-chevron chevron-icon" aria-hidden="true" />
             </button>
-          </template>
+
+            <div class="nav-group-items">
+              <template v-for="item in group.items" :key="item.labelKey">
+                <router-link
+                  v-if="item.path"
+                  :to="item.path"
+                  class="nav-link"
+                  :class="{ active: route.path === item.path }"
+                  :title="sidebarCollapsed ? t(item.labelKey) : undefined"
+                  @click="closeMobileNav"
+                >
+                  <span class="nav-icon">{{ item.icon }}</span>
+                  <span>{{ t(item.labelKey) }}</span>
+                </router-link>
+                <button v-else class="nav-link nav-placeholder" type="button" :title="sidebarCollapsed ? t(item.labelKey) : undefined" @click="notify(t('app.comingSoonToast', { label: t(item.labelKey) }))">
+                  <span class="nav-icon">{{ item.icon }}</span>
+                  <span>{{ t(item.labelKey) }}</span>
+                  <em>{{ t(item.badge) }}</em>
+                </button>
+              </template>
+            </div>
           </section>
         </template>
       </nav>

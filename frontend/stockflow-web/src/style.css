@@ -76,8 +76,14 @@ h3 { font-size: .9rem; font-weight: 800; }
 .workspace-chevron { margin-left: auto; color: #8493ab; }
 .chevron-icon { display: inline-block; width: 7px; height: 7px; flex: 0 0 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translate(-1px, -1px); }
 .sidebar-nav { flex: 1; }
-.nav-group { margin-bottom: 22px; }
-.nav-group-label { margin: 0 10px 8px; color: #71819a; font-size: .62rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.nav-group { margin-bottom: 10px; }
+.nav-group-toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; border-radius: 8px; color: #71819a; background: transparent; text-align: left; transition: color .18s, background .18s; }
+.nav-group-toggle:hover { color: #a9b6ca; background: #ffffff08; }
+.nav-group-toggle:focus-visible { outline: 2px solid #6f92e4; outline-offset: 1px; }
+.nav-group-label { min-width: 0; overflow: hidden; font-size: .62rem; font-weight: 800; letter-spacing: .1em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.nav-group-chevron { flex: 0 0 7px; transform: rotate(225deg); transition: transform .18s ease; }
+.nav-group-collapsed .nav-group-chevron { transform: rotate(45deg) translate(-1px, -1px); }
+.nav-group-collapsed .nav-group-items { display: none; }
 .nav-link { display: flex; width: 100%; align-items: center; gap: 11px; margin: 3px 0; padding: 10px; border-radius: 10px; color: #a9b6ca; font-size: .78rem; font-weight: 600; text-align: left; transition: color .18s, background .18s, transform .18s; }
 .nav-link:hover { color: #f4f7fc; background: #ffffff0c; }
 .nav-link.active { color: #fff; background: linear-gradient(90deg, #2f5ebd, #2d559f); box-shadow: 0 7px 16px #09152c2e; }
@@ -458,7 +464,7 @@ td small { display: block; margin-top: 3px; color: #9aa6b5; font-family: 'DM Mon
   .sidebar.sidebar-collapsed .sidebar-head .brand-lockup > div,
   .sidebar.sidebar-collapsed .workspace-copy,
   .sidebar.sidebar-collapsed .workspace-chevron,
-  .sidebar.sidebar-collapsed .nav-group-label,
+  .sidebar.sidebar-collapsed .nav-group-toggle,
   .sidebar.sidebar-collapsed .nav-link > span:not(.nav-icon),
   .sidebar.sidebar-collapsed .nav-link em,
   .sidebar.sidebar-collapsed .sync-copy,
@@ -466,6 +472,8 @@ td small { display: block; margin-top: 3px; color: #9aa6b5; font-family: 'DM Mon
   .sidebar.sidebar-collapsed .sidebar-help .arrow { display: none; }
   .sidebar.sidebar-collapsed .workspace-switcher { justify-content: center; padding-right: 9px; padding-left: 9px; }
   .sidebar.sidebar-collapsed .workspace-symbol { display: grid; }
+  .sidebar.sidebar-collapsed .nav-group-items { display: block; }
+  .sidebar.sidebar-collapsed .nav-group { margin-bottom: 10px; }
   .sidebar.sidebar-collapsed .nav-link { justify-content: center; gap: 0; padding-right: 10px; padding-left: 10px; }
   .sidebar.sidebar-collapsed .sync-pill { justify-content: center; }
   .sidebar.sidebar-collapsed .sidebar-help { justify-content: center; padding-right: 9px; padding-left: 9px; }
