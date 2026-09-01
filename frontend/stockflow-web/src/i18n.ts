@@ -67,6 +67,7 @@ const messages: Record<Language, Record<string, string>> = {
     'app.comingSoonToast': '{label} akan hadir di rilis berikutnya.',
     'app.sessionExpiredTitle': 'Sesi Anda telah berakhir',
     'app.sessionExpiredMessage': 'Mengarahkan kembali ke halaman login…',
+    'app.processingRequest': 'Memproses data…',
 
     'dashboard.eyebrow': 'WORKSPACE OVERVIEW',
     'dashboard.greeting': 'Selamat pagi, Admin',
@@ -393,6 +394,7 @@ const messages: Record<Language, Record<string, string>> = {
     'app.comingSoonToast': '{label} will arrive in a future release.',
     'app.sessionExpiredTitle': 'Your session has expired',
     'app.sessionExpiredMessage': 'Redirecting you to the login page…',
+    'app.processingRequest': 'Processing data…',
 
     'dashboard.eyebrow': 'WORKSPACE OVERVIEW',
     'dashboard.greeting': 'Good morning, Admin',

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { beginRequest, endRequest } from './requestActivity'
 
 export type PagedResponse<T> = {
   items: T[]
@@ -27,14 +28,19 @@ export const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
+  beginRequest()
   const token = localStorage.getItem('stockflow_token')
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    endRequest()
+    return response
+  },
   (error) => {
+    endRequest()
     const status = error.response?.status
     const requestUrl = error.config?.url ?? ''
     const isAuthRequest = requestUrl.startsWith('/auth/')

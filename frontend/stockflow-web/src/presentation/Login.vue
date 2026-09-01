@@ -96,33 +96,33 @@ async function submitReset() {
       <div class="login-card">
         <template v-if="mode === 'login'">
           <p class="eyebrow">{{ t('login.welcome') }}</p><h1>{{ t('login.title') }}</h1><p class="subtitle">{{ t('login.subtitle') }}</p>
-          <form class="login-form" @submit.prevent="submitLogin">
-            <label class="login-label">{{ t('login.workEmail') }}<input v-model="email" type="email" autocomplete="username" required></label>
-            <label class="login-label">{{ t('login.password') }}<div class="password-field"><input v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required><button class="password-toggle" type="button" :aria-label="showPassword ? t('login.hidePassword') : t('login.showPassword')" :aria-pressed="showPassword" @click="showPassword = !showPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showPassword" d="m3 3 18 18" /></svg></button></div></label>
-            <div class="login-options"><label class="checkbox"><input type="checkbox"> {{ t('login.rememberMe') }}</label><button class="text-link" type="button" @click="showForgot">{{ t('login.forgotPassword') }}</button></div>
+          <form class="login-form" :aria-busy="busy" @submit.prevent="submitLogin">
+            <label class="login-label">{{ t('login.workEmail') }}<input v-model="email" type="email" autocomplete="username" required :disabled="busy"></label>
+            <label class="login-label">{{ t('login.password') }}<div class="password-field"><input v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required :disabled="busy"><button class="password-toggle" type="button" :disabled="busy" :aria-label="showPassword ? t('login.hidePassword') : t('login.showPassword')" :aria-pressed="showPassword" @click="showPassword = !showPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showPassword" d="m3 3 18 18" /></svg></button></div></label>
+            <div class="login-options"><label class="checkbox"><input type="checkbox" :disabled="busy"> {{ t('login.rememberMe') }}</label><button class="text-link" type="button" :disabled="busy" @click="showForgot">{{ t('login.forgotPassword') }}</button></div>
             <p v-if="error" class="alert">{{ error }}</p><p v-if="feedback" class="form-feedback">{{ feedback }}</p>
-            <button class="primary login-submit" :disabled="busy">{{ busy ? t('login.checkingAccess') : t('login.submit') }}</button>
+            <button class="primary login-submit" :disabled="busy"><span v-if="busy" class="button-spinner" aria-hidden="true" />{{ busy ? t('login.checkingAccess') : t('login.submit') }}</button>
           </form>
           <div class="demo-note"><strong>{{ t('login.demoWorkspace') }}</strong> {{ t('login.demoDescription') }}</div>
         </template>
 
         <template v-else-if="mode === 'forgot'">
-          <button class="back-link" type="button" @click="showLogin">{{ t('login.backToLogin') }}</button><p class="eyebrow flow-eyebrow">{{ t('login.recovery') }}</p><h1>{{ t('login.resetTitle') }}</h1><p class="subtitle">{{ t('login.resetSubtitle') }}</p>
-          <form class="login-form" @submit.prevent="submitForgot">
-            <label class="login-label">{{ t('login.workEmail') }}<input v-model="forgotEmail" type="email" autocomplete="email" required placeholder="nama@perusahaan.com"></label>
+          <button class="back-link" type="button" :disabled="busy" @click="showLogin">{{ t('login.backToLogin') }}</button><p class="eyebrow flow-eyebrow">{{ t('login.recovery') }}</p><h1>{{ t('login.resetTitle') }}</h1><p class="subtitle">{{ t('login.resetSubtitle') }}</p>
+          <form class="login-form" :aria-busy="busy" @submit.prevent="submitForgot">
+            <label class="login-label">{{ t('login.workEmail') }}<input v-model="forgotEmail" type="email" autocomplete="email" required placeholder="nama@perusahaan.com" :disabled="busy"></label>
             <p v-if="error" class="alert">{{ error }}</p><p v-if="feedback" class="form-feedback">{{ feedback }}</p>
-            <button class="primary login-submit" :disabled="busy">{{ busy ? t('login.preparingLink') : t('login.sendReset') }}</button>
+            <button class="primary login-submit" :disabled="busy"><span v-if="busy" class="button-spinner" aria-hidden="true" />{{ busy ? t('login.preparingLink') : t('login.sendReset') }}</button>
           </form>
           <div class="demo-note"><strong>{{ t('login.localDemo') }}</strong> {{ t('login.localDemoDescription') }}</div>
         </template>
 
         <template v-else>
-          <button class="back-link" type="button" @click="showLogin">{{ t('login.backToLogin') }}</button><p class="eyebrow flow-eyebrow">{{ t('login.recovery') }}</p><h1>{{ t('login.newPasswordTitle') }}</h1><p class="subtitle">{{ t('login.newPasswordSubtitle') }}</p>
-          <form class="login-form" @submit.prevent="submitReset">
-            <label class="login-label">{{ t('login.newPassword') }}<div class="password-field"><input v-model="newPassword" :type="showNewPassword ? 'text' : 'password'" autocomplete="new-password" minlength="8" required><button class="password-toggle" type="button" :aria-label="showNewPassword ? t('login.hideNewPassword') : t('login.showNewPassword')" :aria-pressed="showNewPassword" @click="showNewPassword = !showNewPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showNewPassword" d="m3 3 18 18" /></svg></button></div></label>
-            <label class="login-label">{{ t('login.confirmPassword') }}<div class="password-field"><input v-model="confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" autocomplete="new-password" minlength="8" required><button class="password-toggle" type="button" :aria-label="showConfirmPassword ? t('login.hideConfirmPassword') : t('login.showConfirmPassword')" :aria-pressed="showConfirmPassword" @click="showConfirmPassword = !showConfirmPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showConfirmPassword" d="m3 3 18 18" /></svg></button></div></label>
+          <button class="back-link" type="button" :disabled="busy" @click="showLogin">{{ t('login.backToLogin') }}</button><p class="eyebrow flow-eyebrow">{{ t('login.recovery') }}</p><h1>{{ t('login.newPasswordTitle') }}</h1><p class="subtitle">{{ t('login.newPasswordSubtitle') }}</p>
+          <form class="login-form" :aria-busy="busy" @submit.prevent="submitReset">
+            <label class="login-label">{{ t('login.newPassword') }}<div class="password-field"><input v-model="newPassword" :type="showNewPassword ? 'text' : 'password'" autocomplete="new-password" minlength="8" required :disabled="busy"><button class="password-toggle" type="button" :disabled="busy" :aria-label="showNewPassword ? t('login.hideNewPassword') : t('login.showNewPassword')" :aria-pressed="showNewPassword" @click="showNewPassword = !showNewPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showNewPassword" d="m3 3 18 18" /></svg></button></div></label>
+            <label class="login-label">{{ t('login.confirmPassword') }}<div class="password-field"><input v-model="confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" autocomplete="new-password" minlength="8" required :disabled="busy"><button class="password-toggle" type="button" :disabled="busy" :aria-label="showConfirmPassword ? t('login.hideConfirmPassword') : t('login.showConfirmPassword')" :aria-pressed="showConfirmPassword" @click="showConfirmPassword = !showConfirmPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showConfirmPassword" d="m3 3 18 18" /></svg></button></div></label>
             <p v-if="error" class="alert">{{ error }}</p><p v-if="feedback" class="form-feedback">{{ feedback }}</p>
-            <button class="primary login-submit" :disabled="busy">{{ busy ? t('login.savingPassword') : t('login.saveNewPassword') }}</button>
+            <button class="primary login-submit" :disabled="busy"><span v-if="busy" class="button-spinner" aria-hidden="true" />{{ busy ? t('login.savingPassword') : t('login.saveNewPassword') }}</button>
           </form>
         </template>
       </div>

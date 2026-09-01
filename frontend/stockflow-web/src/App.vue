@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { SESSION_REDIRECT_EVENT } from './infrastructure/api'
+import { isRequestPending } from './infrastructure/requestActivity'
 import { useAuthStore } from './stores/auth'
 import { useToastStore } from './stores/toast'
 import { useI18n } from './i18n'
@@ -167,6 +168,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <Transition name="request-loading">
+    <div v-if="isRequestPending && !sessionRedirecting" class="request-loading-indicator" role="status" aria-live="polite">
+      <span class="request-loading-spinner" aria-hidden="true"><i /><i /><i /></span>
+      <span>{{ t('app.processingRequest') }}</span>
+    </div>
+  </Transition>
+
   <Transition name="session-redirect">
     <div v-if="sessionRedirecting" class="session-redirect-overlay" role="alert" aria-live="assertive">
       <div class="session-redirect-card">
