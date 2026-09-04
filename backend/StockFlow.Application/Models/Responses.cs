@@ -108,6 +108,46 @@ public sealed record StockAdjustmentResponse(
     string Reason,
     DateTime CreatedAt);
 
+public sealed record PurchaseOrderItemResponse(
+    Guid Id,
+    Guid ProductId,
+    string ProductSku,
+    string ProductName,
+    string Unit,
+    decimal Quantity,
+    decimal ReceivedQuantity,
+    decimal UnitPrice);
+
+public sealed record PurchaseOrderResponse(
+    Guid Id,
+    string Number,
+    Guid SupplierId,
+    string SupplierCode,
+    string SupplierName,
+    string Status,
+    DateTime OrderDate,
+    DateTime? ExpectedDate,
+    string? Notes,
+    decimal TotalAmount,
+    IReadOnlyList<PurchaseOrderItemResponse> Items);
+
+public sealed record GoodsReceiptItemResponse(
+    Guid Id,
+    Guid ProductId,
+    string ProductSku,
+    string ProductName,
+    string Unit,
+    decimal Quantity);
+
+public sealed record GoodsReceiptResponse(
+    Guid Id,
+    string Number,
+    Guid PurchaseOrderId,
+    string PurchaseOrderNumber,
+    string SupplierName,
+    DateTime ReceivedAt,
+    IReadOnlyList<GoodsReceiptItemResponse> Items);
+
 public sealed record ReportProductRow(
     string Sku,
     string Name,

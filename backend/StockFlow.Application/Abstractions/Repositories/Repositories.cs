@@ -96,6 +96,56 @@ public interface IInventoryRepository
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
+public interface IPurchasingRepository
+{
+    Task<PagedResponse<PurchaseOrderResponse>> GetPurchaseOrdersAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        string? status = null,
+        CancellationToken cancellationToken = default);
+
+    Task<PurchaseOrderResponse?> GetPurchaseOrderAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
+
+    Task<PurchaseOrder?> FindPurchaseOrderAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
+
+    Task AddPurchaseOrderAsync(
+        PurchaseOrder purchaseOrder,
+        CancellationToken cancellationToken = default);
+
+    Task<PagedResponse<GoodsReceiptResponse>> GetGoodsReceiptsAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        CancellationToken cancellationToken = default);
+
+    Task<GoodsReceiptCreationResult> CreateGoodsReceiptAsync(
+        GoodsReceiptRequest request,
+        Guid receivedById,
+        CancellationToken cancellationToken = default);
+
+    Task SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public enum GoodsReceiptCreationStatus
+{
+    Created,
+    PurchaseOrderNotFound,
+    InvalidPurchaseOrderState,
+    InvalidItems,
+    QuantityExceedsOutstanding,
+    ProductNotFound,
+    ProductInactive
+}
+
+public sealed record GoodsReceiptCreationResult(
+    GoodsReceiptCreationStatus Status,
+    GoodsReceiptResponse? Data = null);
+
 public interface ISupplierRepository
 {
     Task<PagedResponse<SupplierResponse>> GetAllAsync(

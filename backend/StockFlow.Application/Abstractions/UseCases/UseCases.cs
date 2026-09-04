@@ -98,6 +98,40 @@ public interface IInventoryUseCase
         CancellationToken cancellationToken = default);
 }
 
+public interface IPurchasingUseCase
+{
+    Task<PagedResponse<PurchaseOrderResponse>> GetPurchaseOrdersAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        string? status = null,
+        CancellationToken cancellationToken = default);
+
+    Task<PurchaseOrderResponse?> GetPurchaseOrderAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<PurchaseOrderResponse>> CreatePurchaseOrderAsync(
+        PurchaseOrderRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<PurchaseOrderResponse>> UpdateStatusAsync(
+        Guid id,
+        string status,
+        CancellationToken cancellationToken = default);
+
+    Task<PagedResponse<GoodsReceiptResponse>> GetGoodsReceiptsAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<GoodsReceiptResponse>> CreateGoodsReceiptAsync(
+        GoodsReceiptRequest request,
+        Guid receivedById,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ISupplierUseCase
 {
     Task<PagedResponse<SupplierResponse>> GetAllAsync(

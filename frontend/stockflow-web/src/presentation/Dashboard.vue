@@ -137,11 +137,11 @@ onMounted(load)
         <strong class="metric-value">{{ loading ? '—' : data.lowStock }}</strong>
         <div class="metric-meta"><span class="metric-trend warn">{{ t('dashboard.needsAction') }}</span> {{ t('dashboard.belowMinimum') }}</div>
       </router-link>
-      <article class="metric-card">
+      <router-link class="metric-card dashboard-link" to="/operations/purchase-orders" :aria-label="t('dashboard.openPurchaseOrders')">
         <div class="metric-top"><span class="metric-label">{{ t('dashboard.purchaseOrder') }}</span><span class="metric-icon teal">▤</span></div>
         <strong class="metric-value">{{ loading ? '—' : data.purchases }}</strong>
         <div class="metric-meta"><span class="metric-trend up">{{ t('dashboard.active') }}</span> {{ t('dashboard.waitingToProcess') }}</div>
-      </article>
+      </router-link>
       <router-link class="metric-card dashboard-link" to="/inventory/movements" :aria-label="t('dashboard.openSales')">
         <div class="metric-top"><span class="metric-label">{{ t('dashboard.salesToday') }}</span><span class="metric-icon red" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.75h11v16.5l-2.75-1.75L12 20.25l-2.75-1.75L6.5 20.25V3.75Z" /><path d="M9.5 8h5M9.5 11.5h5M9.5 15h2.5" /></svg></span></div>
         <strong class="metric-value currency">{{ loading ? '—' : money(data.salesToday) }}</strong>

@@ -30,3 +30,24 @@ public sealed record StockAdjustmentRequest(
     Guid ProductId,
     decimal QuantityDelta,
     string Reason);
+
+public sealed record PurchaseOrderItemRequest(
+    Guid ProductId,
+    decimal Quantity,
+    decimal UnitPrice);
+
+public sealed record PurchaseOrderRequest(
+    Guid SupplierId,
+    DateTime? ExpectedDate,
+    string? Notes,
+    IReadOnlyList<PurchaseOrderItemRequest> Items);
+
+public sealed record PurchaseOrderStatusRequest(string Status);
+
+public sealed record GoodsReceiptItemRequest(
+    Guid ProductId,
+    decimal Quantity);
+
+public sealed record GoodsReceiptRequest(
+    Guid PurchaseOrderId,
+    IReadOnlyList<GoodsReceiptItemRequest> Items);
