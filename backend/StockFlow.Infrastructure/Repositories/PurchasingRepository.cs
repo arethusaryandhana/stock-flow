@@ -7,7 +7,7 @@ namespace StockFlow.Infrastructure.Repositories;
 
 public sealed class PurchasingRepository(StockFlowDbContext db) : IPurchasingRepository
 {
-    public async Task<PagedResponse<PurchaseOrderResponse>> GetPurchaseOrdersAsync(
+    public async Task<PurchaseOrderPageResponse> GetPurchaseOrdersAsync(
         int page,
         int pageSize,
         string? search = null,
@@ -15,12 +15,7 @@ public sealed class PurchasingRepository(StockFlowDbContext db) : IPurchasingRep
         CancellationToken cancellationToken = default)
     {
         var pagination = Pagination.Normalize(page, pageSize);
-        var query = db.PurchaseOrders
-            .AsNoTracking()
-            .Include(order => order.Supplier)
-            .Include(order => order.Items)
-            .ThenInclude(item => item.Product)
-            .AsQueryable();
+        var query = db.PurchaseOrders.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -31,14 +26,32 @@ public sealed class PurchasingRepository(StockFlowDbContext db) : IPurchasingRep
                 order.Supplier.Name.ToLower().Contains(term));
         }
 
-        if (!string.IsNullOrWhiteSpace(status) &&
-            Enum.TryParse<PurchaseOrderStatus>(status, true, out var parsedStatus))
+        var statusCounts = await query
+            .GroupBy(_ => 1)
+            .Select(group => new PurchaseOrderStatusCountsResponse(
+                group.Count(order => order.Status == PurchaseOrderStatus.Draft),
+                group.Count(order => order.Status == PurchaseOrderStatus.Submitted),
+                group.Count(order => order.Status == PurchaseOrderStatus.Approved),
+                group.Count(order => order.Status == PurchaseOrderStatus.Received),
+                group.Count(order => order.Status == PurchaseOrderStatus.Cancelled)))
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? new PurchaseOrderStatusCountsResponse(0, 0, 0, 0, 0);
+
+        var parsedStatus = default(PurchaseOrderStatus);
+        var hasStatusFilter = !string.IsNullOrWhiteSpace(status) &&
+            Enum.TryParse(status, true, out parsedStatus);
+        if (hasStatusFilter)
         {
             query = query.Where(order => order.Status == parsedStatus);
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
+        var totalCount = hasStatusFilter
+            ? GetStatusCount(statusCounts, parsedStatus)
+            : statusCounts.Draft + statusCounts.Submitted + statusCounts.Approved + statusCounts.Received + statusCounts.Cancelled;
         var orders = await query
+            .Include(order => order.Supplier)
+            .Include(order => order.Items)
+            .ThenInclude(item => item.Product)
             .OrderByDescending(order => order.OrderDate)
             .ThenByDescending(order => order.Id)
             .Skip(pagination.Skip)
@@ -46,11 +59,12 @@ public sealed class PurchasingRepository(StockFlowDbContext db) : IPurchasingRep
             .ToListAsync(cancellationToken);
         var receivedTotals = await GetReceivedTotalsAsync(orders.Select(order => order.Id), cancellationToken);
 
-        return new PagedResponse<PurchaseOrderResponse>(
+        return new PurchaseOrderPageResponse(
             orders.Select(order => ToResponse(order, receivedTotals)).ToList(),
             pagination.Page,
             pagination.PageSize,
-            totalCount);
+            totalCount,
+            statusCounts);
     }
 
     public async Task<PurchaseOrderResponse?> GetPurchaseOrderAsync(
@@ -250,6 +264,19 @@ public sealed class PurchasingRepository(StockFlowDbContext db) : IPurchasingRep
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
         db.SaveChangesAsync(cancellationToken);
+
+    private static int GetStatusCount(
+        PurchaseOrderStatusCountsResponse statusCounts,
+        PurchaseOrderStatus status) =>
+        status switch
+        {
+            PurchaseOrderStatus.Draft => statusCounts.Draft,
+            PurchaseOrderStatus.Submitted => statusCounts.Submitted,
+            PurchaseOrderStatus.Approved => statusCounts.Approved,
+            PurchaseOrderStatus.Received => statusCounts.Received,
+            PurchaseOrderStatus.Cancelled => statusCounts.Cancelled,
+            _ => 0
+        };
 
     private async Task<Dictionary<(Guid PurchaseOrderId, Guid ProductId), decimal>> GetReceivedTotalsAsync(
         IEnumerable<Guid> purchaseOrderIds,

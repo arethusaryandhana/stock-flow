@@ -98,7 +98,7 @@ public interface IInventoryRepository
 
 public interface IPurchasingRepository
 {
-    Task<PagedResponse<PurchaseOrderResponse>> GetPurchaseOrdersAsync(
+    Task<PurchaseOrderPageResponse> GetPurchaseOrdersAsync(
         int page,
         int pageSize,
         string? search = null,

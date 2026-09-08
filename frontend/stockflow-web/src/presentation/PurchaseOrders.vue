@@ -12,6 +12,8 @@ type Supplier = { id: string; code: string; name: string; isActive: boolean }
 type Product = { id: string; sku: string; name: string; unit: string; purchasePrice: number; isActive: boolean }
 type PurchaseOrderItem = { id: string; productId: string; productSku: string; productName: string; unit: string; quantity: number; receivedQuantity: number; unitPrice: number }
 type PurchaseOrder = { id: string; number: string; supplierId: string; supplierCode: string; supplierName: string; status: string; orderDate: string; expectedDate: string | null; notes: string | null; totalAmount: number; items: PurchaseOrderItem[] }
+type PurchaseOrderStatusCounts = { draft: number; submitted: number; approved: number; received: number; cancelled: number }
+type PurchaseOrderPageResponse = PagedResponse<PurchaseOrder> & { statusCounts: PurchaseOrderStatusCounts }
 type OrderLine = { productId: string; quantity: string; unitPrice: string }
 
 const orders = ref<PurchaseOrder[]>([])
@@ -31,7 +33,7 @@ const page = ref(1)
 const pageSize = ref(10)
 const totalCount = ref(0)
 const totalPages = ref(0)
-const statusCounts = ref({ draft: 0, submitted: 0, approved: 0, received: 0 })
+const statusCounts = ref<PurchaseOrderStatusCounts>({ draft: 0, submitted: 0, approved: 0, received: 0, cancelled: 0 })
 const { locale, t } = useI18n()
 const auth = useAuthStore()
 const toast = useToastStore()
@@ -56,13 +58,9 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const orderRequest = api.get<PagedResponse<PurchaseOrder>>('/purchase-orders', { params: { page: page.value, pageSize: pageSize.value, search: q.value.trim() || undefined, status: statusFilter.value === 'all' ? undefined : statusFilter.value } })
-    const [ordersResponse, draftResponse, submittedResponse, approvedResponse, receivedResponse, suppliersResponse, productsResponse] = await Promise.all([
+    const orderRequest = api.get<PurchaseOrderPageResponse>('/purchase-orders', { params: { page: page.value, pageSize: pageSize.value, search: q.value.trim() || undefined, status: statusFilter.value === 'all' ? undefined : statusFilter.value } })
+    const [ordersResponse, suppliersResponse, productsResponse] = await Promise.all([
       orderRequest,
-      api.get<PagedResponse<PurchaseOrder>>('/purchase-orders', { params: { page: 1, pageSize: 1, search: q.value.trim() || undefined, status: 'Draft' } }),
-      api.get<PagedResponse<PurchaseOrder>>('/purchase-orders', { params: { page: 1, pageSize: 1, search: q.value.trim() || undefined, status: 'Submitted' } }),
-      api.get<PagedResponse<PurchaseOrder>>('/purchase-orders', { params: { page: 1, pageSize: 1, search: q.value.trim() || undefined, status: 'Approved' } }),
-      api.get<PagedResponse<PurchaseOrder>>('/purchase-orders', { params: { page: 1, pageSize: 1, search: q.value.trim() || undefined, status: 'Received' } }),
       api.get<PagedResponse<Supplier>>('/suppliers', { params: { page: 1, pageSize: 100 } }),
       api.get<PagedResponse<Product>>('/products', { params: { page: 1, pageSize: 100 } }),
     ])
@@ -70,7 +68,7 @@ async function load() {
     page.value = ordersResponse.data.page
     totalCount.value = ordersResponse.data.totalCount
     totalPages.value = ordersResponse.data.totalPages
-    statusCounts.value = { draft: draftResponse.data.totalCount, submitted: submittedResponse.data.totalCount, approved: approvedResponse.data.totalCount, received: receivedResponse.data.totalCount }
+    statusCounts.value = ordersResponse.data.statusCounts
     suppliers.value = suppliersResponse.data.items
     products.value = productsResponse.data.items
     if (!newOrder.value.supplierId && activeSuppliers.value[0]) newOrder.value.supplierId = activeSuppliers.value[0].id

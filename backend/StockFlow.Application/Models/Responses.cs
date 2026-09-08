@@ -131,6 +131,25 @@ public sealed record PurchaseOrderResponse(
     decimal TotalAmount,
     IReadOnlyList<PurchaseOrderItemResponse> Items);
 
+public sealed record PurchaseOrderStatusCountsResponse(
+    int Draft,
+    int Submitted,
+    int Approved,
+    int Received,
+    int Cancelled);
+
+public sealed record PurchaseOrderPageResponse(
+    IReadOnlyList<PurchaseOrderResponse> Items,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    PurchaseOrderStatusCountsResponse StatusCounts)
+{
+    public int TotalPages => TotalCount == 0
+        ? 0
+        : (int)Math.Ceiling(TotalCount / (double)PageSize);
+}
+
 public sealed record GoodsReceiptItemResponse(
     Guid Id,
     Guid ProductId,

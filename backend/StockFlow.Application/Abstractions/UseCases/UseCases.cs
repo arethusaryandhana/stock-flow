@@ -100,7 +100,7 @@ public interface IInventoryUseCase
 
 public interface IPurchasingUseCase
 {
-    Task<PagedResponse<PurchaseOrderResponse>> GetPurchaseOrdersAsync(
+    Task<PurchaseOrderPageResponse> GetPurchaseOrdersAsync(
         int page,
         int pageSize,
         string? search = null,

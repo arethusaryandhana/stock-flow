@@ -18,7 +18,7 @@ public sealed class PurchasingEndpoints : IEndpoint
             .WithTags("Purchasing");
 
         purchaseOrders.MapGet("/", GetPurchaseOrdersAsync)
-            .Produces<PagedResponse<PurchaseOrderResponse>>(StatusCodes.Status200OK);
+            .Produces<PurchaseOrderPageResponse>(StatusCodes.Status200OK);
 
         purchaseOrders.MapGet("/{id:guid}", GetPurchaseOrderAsync)
             .Produces<PurchaseOrderResponse>(StatusCodes.Status200OK)

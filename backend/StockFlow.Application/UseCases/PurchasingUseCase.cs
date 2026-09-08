@@ -10,7 +10,7 @@ public sealed class PurchasingUseCase(
     ISupplierRepository suppliers,
     IProductRepository products) : IPurchasingUseCase
 {
-    public Task<PagedResponse<PurchaseOrderResponse>> GetPurchaseOrdersAsync(
+    public Task<PurchaseOrderPageResponse> GetPurchaseOrdersAsync(
         int page,
         int pageSize,
         string? search = null,
