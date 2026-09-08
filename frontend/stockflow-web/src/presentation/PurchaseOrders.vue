@@ -24,7 +24,6 @@ const saving = ref(false)
 const error = ref('')
 const formError = ref('')
 const showForm = ref(false)
-const openMenu = ref('')
 const expandedOrderId = ref('')
 const newOrder = ref({ supplierId: '', expectedDate: '', notes: '' })
 const lines = ref<OrderLine[]>([{ productId: '', quantity: '', unitPrice: '' }])
@@ -153,7 +152,6 @@ async function createOrder() {
 }
 
 async function updateStatus(order: PurchaseOrder, nextStatus: string) {
-  openMenu.value = ''
   if (nextStatus === 'Cancelled' && !window.confirm(t('operations.cancelConfirm', { number: order.number }))) return
   try {
     await api.patch(`/purchase-orders/${order.id}/status`, { status: nextStatus })
@@ -207,7 +205,46 @@ onMounted(load)
       <div class="toolbar"><label class="search-input"><span>⌕</span><input v-model="q" :aria-label="t('operations.searchAria')" :placeholder="t('operations.searchPlaceholder')"></label><div class="toolbar-actions"><select v-model="statusFilter" class="filter-select wide" :aria-label="t('operations.statusFilterAria')"><option value="all">{{ t('operations.allStatuses') }}</option><option value="Draft">{{ t('operations.draft') }}</option><option value="Submitted">{{ t('operations.submitted') }}</option><option value="Approved">{{ t('operations.approved') }}</option><option value="Received">{{ t('operations.received') }}</option><option value="Cancelled">{{ t('operations.cancelled') }}</option></select></div></div>
       <div v-if="loading" class="empty">{{ t('operations.loading') }}</div>
       <div v-else-if="!filtered.length" class="empty"><strong>{{ t('operations.emptyTitle') }}</strong>{{ t('operations.emptyHint') }}</div>
-      <div v-else class="table-wrap"><table><thead><tr><th>{{ t('operations.date') }}</th><th>{{ t('operations.number') }}</th><th>{{ t('operations.supplier') }}</th><th>{{ t('operations.items') }}</th><th>{{ t('operations.totalAmount') }}</th><th>{{ t('operations.status') }}</th><th><span class="sr-only">{{ t('operations.actions') }}</span></th></tr></thead><tbody><template v-for="order in filtered" :key="order.id"><tr><td class="date-cell">{{ date(order.orderDate) }}<small v-if="order.expectedDate">{{ t('operations.expectedDate') }}: {{ date(order.expectedDate) }}</small></td><td class="stock-value">{{ order.number }}</td><td><strong>{{ order.supplierName }}</strong><small>{{ order.supplierCode }}</small></td><td>{{ order.items.length }}</td><td class="stock-value">{{ money(order.totalAmount) }}</td><td><span class="badge" :class="statusClass(order.status)">{{ statusLabel(order.status) }}</span></td><td><div class="action-menu-wrap"><button class="action-button" type="button" :aria-label="t('operations.openMenu')" @click="openMenu = openMenu === order.id ? '' : order.id">•••</button><div v-if="openMenu === order.id" class="action-menu"><button type="button" @click="expandedOrderId = expandedOrderId === order.id ? '' : order.id; openMenu = ''">{{ t('operations.viewDetails') }}</button><button v-if="canManage && order.status === 'Draft'" type="button" @click="updateStatus(order, 'Submitted')">{{ t('operations.submit') }}</button><button v-if="canManage && order.status === 'Submitted'" type="button" @click="updateStatus(order, 'Approved')">{{ t('operations.approve') }}</button><router-link v-if="order.status === 'Approved'" class="action-menu-link" :to="{ path: '/operations/receiving', query: { purchaseOrderId: order.id } }" @click="openMenu = ''">{{ t('operations.receive') }}</router-link><button v-if="canManage && ['Draft', 'Submitted', 'Approved'].includes(order.status)" type="button" @click="updateStatus(order, 'Cancelled')">{{ t('operations.cancel') }}</button></div></div></td></tr><tr v-if="expandedOrderId === order.id" class="detail-row"><td colspan="7"><div class="order-detail"><div class="detail-head"><div><strong>{{ t('operations.detailTitle') }}</strong><p>{{ t('operations.detailDescription') }}</p></div><span class="badge" :class="statusClass(order.status)">{{ statusLabel(order.status) }}</span></div><div class="table-wrap"><table><thead><tr><th>{{ t('operations.product') }}</th><th>{{ t('operations.quantity') }}</th><th>{{ t('operations.receivedQuantity') }}</th><th>{{ t('operations.unitPrice') }}</th><th>{{ t('operations.subtotal') }}</th></tr></thead><tbody><tr v-for="item in order.items" :key="item.id"><td><div class="product-cell"><span class="product-avatar">{{ item.productName.slice(0, 2).toUpperCase() }}</span><span><strong>{{ item.productName }}</strong><small>{{ item.productSku }}</small></span></div></td><td>{{ formatQuantity(item.quantity) }} {{ item.unit }}</td><td>{{ formatQuantity(item.receivedQuantity) }} {{ item.unit }}</td><td class="stock-value">{{ money(item.unitPrice) }}</td><td class="stock-value">{{ money(item.quantity * item.unitPrice) }}</td></tr></tbody></table></div><p v-if="order.notes" class="detail-note"><strong>{{ t('operations.notes') }}:</strong> {{ order.notes }}</p></div></td></tr></template></tbody></table></div>
+      <div v-else class="table-wrap">
+        <table>
+          <thead><tr><th class="purchase-order-expand-cell"><span class="sr-only">{{ t('operations.viewDetails') }}</span></th><th>{{ t('operations.date') }}</th><th>{{ t('operations.number') }}</th><th>{{ t('operations.supplier') }}</th><th>{{ t('operations.items') }}</th><th>{{ t('operations.totalAmount') }}</th><th>{{ t('operations.status') }}</th><th class="purchase-order-actions-head">{{ t('operations.actions') }}</th></tr></thead>
+          <tbody>
+            <template v-for="order in filtered" :key="order.id">
+              <tr>
+                <td class="purchase-order-expand-cell">
+                  <button
+                    class="purchase-order-expand-button"
+                    :class="{ expanded: expandedOrderId === order.id }"
+                    type="button"
+                    :aria-label="t('operations.viewDetails')"
+                    :aria-expanded="expandedOrderId === order.id"
+                    :aria-controls="`purchase-order-details-${order.id}`"
+                    @click="expandedOrderId = expandedOrderId === order.id ? '' : order.id"
+                  ><span aria-hidden="true">›</span></button>
+                </td>
+                <td class="date-cell">{{ date(order.orderDate) }}<small v-if="order.expectedDate">{{ t('operations.expectedDate') }}: {{ date(order.expectedDate) }}</small></td>
+                <td class="stock-value purchase-order-number">{{ order.number }}</td>
+                <td><strong>{{ order.supplierName }}</strong><small>{{ order.supplierCode }}</small></td>
+                <td>{{ order.items.length }}</td>
+                <td class="stock-value">{{ money(order.totalAmount) }}</td>
+                <td><span class="badge" :class="statusClass(order.status)">{{ statusLabel(order.status) }}</span></td>
+                <td class="purchase-order-actions-cell">
+                  <div class="purchase-order-actions">
+                    <button v-if="canManage && order.status === 'Draft'" class="purchase-order-action primary-action" type="button" @click="updateStatus(order, 'Submitted')">{{ t('operations.submit') }}</button>
+                    <button v-if="canManage && order.status === 'Submitted'" class="purchase-order-action primary-action" type="button" @click="updateStatus(order, 'Approved')">{{ t('operations.approve') }}</button>
+                    <router-link v-if="order.status === 'Approved'" class="purchase-order-action primary-action" :aria-label="t('operations.receive')" :to="{ path: '/operations/receiving', query: { purchaseOrderId: order.id } }">{{ t('operations.receiveAction') }}</router-link>
+                    <button v-if="canManage && ['Draft', 'Submitted', 'Approved'].includes(order.status)" class="purchase-order-action cancel-action" type="button" @click="updateStatus(order, 'Cancelled')">{{ t('operations.cancel') }}</button>
+                    <span v-if="(!canManage && order.status !== 'Approved') || ['Received', 'Cancelled'].includes(order.status)" class="purchase-order-no-action" aria-hidden="true">—</span>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="expandedOrderId === order.id" :id="`purchase-order-details-${order.id}`" class="detail-row">
+                <td colspan="8"><div class="order-detail"><div class="detail-head"><div><strong>{{ t('operations.detailTitle') }}</strong><p>{{ t('operations.detailDescription') }}</p></div><span class="badge" :class="statusClass(order.status)">{{ statusLabel(order.status) }}</span></div><div class="table-wrap"><table><thead><tr><th>{{ t('operations.product') }}</th><th>{{ t('operations.quantity') }}</th><th>{{ t('operations.receivedQuantity') }}</th><th>{{ t('operations.unitPrice') }}</th><th>{{ t('operations.subtotal') }}</th></tr></thead><tbody><tr v-for="item in order.items" :key="item.id"><td><div class="product-cell"><span class="product-avatar">{{ item.productName.slice(0, 2).toUpperCase() }}</span><span><strong>{{ item.productName }}</strong><small>{{ item.productSku }}</small></span></div></td><td>{{ formatQuantity(item.quantity) }} {{ item.unit }}</td><td>{{ formatQuantity(item.receivedQuantity) }} {{ item.unit }}</td><td class="stock-value">{{ money(item.unitPrice) }}</td><td class="stock-value">{{ money(item.quantity * item.unitPrice) }}</td></tr></tbody></table></div><p v-if="order.notes" class="detail-note"><strong>{{ t('operations.notes') }}:</strong> {{ order.notes }}</p></div></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
       <PaginationControls v-if="!loading && filtered.length" :page="page" :page-size="pageSize" :total-count="totalCount" :total-pages="totalPages" @page-change="page = $event" @page-size-change="changePageSize" />
     </section>
 

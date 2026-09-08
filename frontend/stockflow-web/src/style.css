@@ -325,6 +325,23 @@ td small { display: block; margin-top: 3px; color: #9aa6b5; font-family: 'DM Mon
 .action-menu { position: absolute; z-index: 5; top: 32px; right: 0; min-width: 125px; padding: 5px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-raised); box-shadow: var(--shadow-md); }
 .action-menu button { display: block; width: 100%; padding: 7px 8px; border-radius: 5px; color: var(--control-text); background: transparent; font-size: .65rem; text-align: left; }
 .action-menu button:hover { color: var(--blue); background: var(--blue-soft); }
+.purchase-order-expand-cell { position: sticky; z-index: 2; left: 0; width: 42px; padding-right: 4px; padding-left: 12px; background: var(--surface); text-align: center; }
+th.purchase-order-expand-cell { z-index: 3; background: var(--surface-subtle); }
+.purchase-order-expand-button { display: grid; width: 27px; height: 27px; place-items: center; border: 1px solid var(--control-border); border-radius: 7px; color: var(--control-icon); background: var(--surface-raised); transition: color .15s, background .15s, border-color .15s; }
+.purchase-order-expand-button span { display: block; font-size: 1.05rem; line-height: 1; transition: transform .15s ease; }
+.purchase-order-expand-button:hover, .purchase-order-expand-button.expanded { border-color: color-mix(in srgb, var(--blue) 32%, var(--control-border)); color: var(--blue); background: var(--blue-soft); }
+.purchase-order-expand-button.expanded span { transform: rotate(90deg); }
+.purchase-order-expand-button:focus-visible, .purchase-order-action:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.purchase-order-actions-head { position: sticky; z-index: 3; right: 0; background: var(--surface-subtle); box-shadow: -9px 0 14px -13px rgba(20, 35, 58, .45); text-align: right; }
+.purchase-order-number { white-space: nowrap; }
+.purchase-order-actions-cell { position: sticky; z-index: 2; right: 0; background: var(--surface); box-shadow: -9px 0 14px -13px rgba(20, 35, 58, .45); }
+.table-wrap tbody tr:hover > .purchase-order-expand-cell, .table-wrap tbody tr:hover > .purchase-order-actions-cell { background: var(--row-hover); }
+.purchase-order-actions { display: flex; min-width: 118px; align-items: center; justify-content: flex-end; gap: 5px; }
+.purchase-order-action { display: inline-flex; min-height: 29px; align-items: center; justify-content: center; padding: 0 10px; border: 1px solid transparent; border-radius: 7px; font-size: .6rem; font-weight: 800; white-space: nowrap; transition: transform .15s, box-shadow .15s, background .15s; }
+.purchase-order-action:hover { transform: translateY(-1px); }
+.purchase-order-action.primary-action { color: var(--on-accent); background: var(--blue); box-shadow: 0 4px 10px #3567d620; }
+.purchase-order-action.cancel-action { border-color: color-mix(in srgb, var(--red) 18%, var(--line)); color: var(--red); background: var(--red-soft); }
+.purchase-order-no-action { color: var(--muted-2); }
 .master-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; min-width: 210px; }
 .master-actions button { padding: 6px 8px; border-radius: 6px; color: #627188; background: #f7f9fc; font-size: .6rem; font-weight: 700; }
 .master-actions button:hover { color: var(--blue); background: var(--blue-soft); }
