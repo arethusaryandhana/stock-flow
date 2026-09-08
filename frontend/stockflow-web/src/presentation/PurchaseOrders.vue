@@ -31,7 +31,7 @@ const page = ref(1)
 const pageSize = ref(10)
 const totalCount = ref(0)
 const totalPages = ref(0)
-const statusCounts = ref({ submitted: 0, approved: 0 })
+const statusCounts = ref({ draft: 0, submitted: 0, approved: 0, received: 0 })
 const { locale, t } = useI18n()
 const auth = useAuthStore()
 const toast = useToastStore()
@@ -57,10 +57,12 @@ async function load() {
   error.value = ''
   try {
     const orderRequest = api.get<PagedResponse<PurchaseOrder>>('/purchase-orders', { params: { page: page.value, pageSize: pageSize.value, search: q.value.trim() || undefined, status: statusFilter.value === 'all' ? undefined : statusFilter.value } })
-    const [ordersResponse, submittedResponse, approvedResponse, suppliersResponse, productsResponse] = await Promise.all([
+    const [ordersResponse, draftResponse, submittedResponse, approvedResponse, receivedResponse, suppliersResponse, productsResponse] = await Promise.all([
       orderRequest,
+      api.get<PagedResponse<PurchaseOrder>>('/purchase-orders', { params: { page: 1, pageSize: 1, search: q.value.trim() || undefined, status: 'Draft' } }),
       api.get<PagedResponse<PurchaseOrder>>('/purchase-orders', { params: { page: 1, pageSize: 1, search: q.value.trim() || undefined, status: 'Submitted' } }),
       api.get<PagedResponse<PurchaseOrder>>('/purchase-orders', { params: { page: 1, pageSize: 1, search: q.value.trim() || undefined, status: 'Approved' } }),
+      api.get<PagedResponse<PurchaseOrder>>('/purchase-orders', { params: { page: 1, pageSize: 1, search: q.value.trim() || undefined, status: 'Received' } }),
       api.get<PagedResponse<Supplier>>('/suppliers', { params: { page: 1, pageSize: 100 } }),
       api.get<PagedResponse<Product>>('/products', { params: { page: 1, pageSize: 100 } }),
     ])
@@ -68,7 +70,7 @@ async function load() {
     page.value = ordersResponse.data.page
     totalCount.value = ordersResponse.data.totalCount
     totalPages.value = ordersResponse.data.totalPages
-    statusCounts.value = { submitted: submittedResponse.data.totalCount, approved: approvedResponse.data.totalCount }
+    statusCounts.value = { draft: draftResponse.data.totalCount, submitted: submittedResponse.data.totalCount, approved: approvedResponse.data.totalCount, received: receivedResponse.data.totalCount }
     suppliers.value = suppliersResponse.data.items
     products.value = productsResponse.data.items
     if (!newOrder.value.supplierId && activeSuppliers.value[0]) newOrder.value.supplierId = activeSuppliers.value[0].id
@@ -201,7 +203,7 @@ onMounted(load)
     <div class="summary-grid"><div class="mini-stat"><span class="mini-stat-icon">▤</span><span><small>{{ t('operations.total') }}</small><strong>{{ loading ? '—' : totalCount }}</strong></span></div><div class="mini-stat"><span class="mini-stat-icon amber">◷</span><span><small>{{ t('operations.awaitingApproval') }}</small><strong>{{ loading ? '—' : statusCounts.submitted }}</strong></span></div><div class="mini-stat"><span class="mini-stat-icon in">↓</span><span><small>{{ t('operations.readyToReceive') }}</small><strong>{{ loading ? '—' : statusCounts.approved }}</strong></span></div></div>
 
     <section class="surface-card page-panel">
-      <div class="tab-row"><button class="tab-button" :class="{ active: statusFilter === 'all' }" type="button" @click="statusFilter = 'all'">{{ t('operations.allStatuses') }}</button><button class="tab-button" :class="{ active: statusFilter === 'Draft' }" type="button" @click="statusFilter = 'Draft'">{{ t('operations.draft') }}</button><button class="tab-button" :class="{ active: statusFilter === 'Submitted' }" type="button" @click="statusFilter = 'Submitted'">{{ t('operations.submitted') }} <span class="count">{{ statusCounts.submitted }}</span></button><button class="tab-button" :class="{ active: statusFilter === 'Approved' }" type="button" @click="statusFilter = 'Approved'">{{ t('operations.approved') }} <span class="count">{{ statusCounts.approved }}</span></button><button class="tab-button" :class="{ active: statusFilter === 'Received' }" type="button" @click="statusFilter = 'Received'">{{ t('operations.received') }}</button></div>
+      <div class="tab-row"><button class="tab-button" :class="{ active: statusFilter === 'all' }" type="button" @click="statusFilter = 'all'">{{ t('operations.allStatuses') }}</button><button class="tab-button" :class="{ active: statusFilter === 'Draft' }" type="button" @click="statusFilter = 'Draft'">{{ t('operations.draft') }} <span class="count">{{ statusCounts.draft }}</span></button><button class="tab-button" :class="{ active: statusFilter === 'Submitted' }" type="button" @click="statusFilter = 'Submitted'">{{ t('operations.submitted') }} <span class="count">{{ statusCounts.submitted }}</span></button><button class="tab-button" :class="{ active: statusFilter === 'Approved' }" type="button" @click="statusFilter = 'Approved'">{{ t('operations.approved') }} <span class="count">{{ statusCounts.approved }}</span></button><button class="tab-button" :class="{ active: statusFilter === 'Received' }" type="button" @click="statusFilter = 'Received'">{{ t('operations.received') }} <span class="count">{{ statusCounts.received }}</span></button></div>
       <div class="toolbar"><label class="search-input"><span>⌕</span><input v-model="q" :aria-label="t('operations.searchAria')" :placeholder="t('operations.searchPlaceholder')"></label><div class="toolbar-actions"><select v-model="statusFilter" class="filter-select wide" :aria-label="t('operations.statusFilterAria')"><option value="all">{{ t('operations.allStatuses') }}</option><option value="Draft">{{ t('operations.draft') }}</option><option value="Submitted">{{ t('operations.submitted') }}</option><option value="Approved">{{ t('operations.approved') }}</option><option value="Received">{{ t('operations.received') }}</option><option value="Cancelled">{{ t('operations.cancelled') }}</option></select></div></div>
       <div v-if="loading" class="empty">{{ t('operations.loading') }}</div>
       <div v-else-if="!filtered.length" class="empty"><strong>{{ t('operations.emptyTitle') }}</strong>{{ t('operations.emptyHint') }}</div>
