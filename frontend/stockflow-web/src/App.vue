@@ -7,6 +7,7 @@ import { useAuthStore } from './stores/auth'
 import { useToastStore } from './stores/toast'
 import { useI18n } from './i18n'
 import ThemeSwitcher from './components/ThemeSwitcher.vue'
+import ChangePasswordModal from './components/ChangePasswordModal.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -17,6 +18,7 @@ const sidebarCollapsed = ref(localStorage.getItem('stockflow_sidebar_collapsed')
 const menuGroupsStorageKey = 'stockflow_open_menu_groups'
 const search = ref('')
 const profileOpen = ref(false)
+const changePasswordOpen = ref(false)
 const profileWrap = ref<HTMLElement | null>(null)
 const sessionRedirecting = ref(false)
 
@@ -140,6 +142,11 @@ function handleSearch() {
 function logout() {
   profileOpen.value = false
   auth.logout()
+}
+
+function openChangePassword() {
+  profileOpen.value = false
+  changePasswordOpen.value = true
 }
 
 function closeProfileOnOutsideClick(event: MouseEvent) {
@@ -299,6 +306,7 @@ onBeforeUnmount(() => {
             </button>
             <div v-if="profileOpen" class="profile-dropdown">
               <div class="profile-dropdown-meta"><span class="profile-dropdown-label">{{ t('app.signedInAs') }}</span><strong>{{ auth.name || t('app.defaultName') }}</strong><small>{{ auth.role || t('app.defaultRole') }}</small></div>
+              <button class="profile-action" type="button" @click="openChangePassword"><svg class="profile-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg> {{ t('app.changePassword') }}</button>
               <button class="profile-logout" type="button" @click="logout"><span>↪</span> {{ t('app.logout') }}</button>
             </div>
           </div>
@@ -318,5 +326,7 @@ onBeforeUnmount(() => {
         <button type="button" :aria-label="t('toast.dismiss')" @click="toast.dismiss(item.id)">×</button>
       </div>
     </TransitionGroup>
+
+    <ChangePasswordModal v-if="changePasswordOpen" @close="changePasswordOpen = false" />
   </div>
 </template>

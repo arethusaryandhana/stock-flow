@@ -7,6 +7,8 @@ public interface IUserRepository
 {
     Task<User?> GetActiveByEmailAsync(string email, CancellationToken cancellationToken = default);
 
+    Task<User?> GetActiveByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
     Task<PasswordResetToken?> GetPasswordResetTokenAsync(string tokenHash, CancellationToken cancellationToken = default);
 
     Task InvalidatePasswordResetTokensAsync(Guid userId, CancellationToken cancellationToken = default);

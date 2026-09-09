@@ -43,9 +43,11 @@ api.interceptors.response.use(
     endRequest()
     const status = error.response?.status
     const requestUrl = error.config?.url ?? ''
-    const isAuthRequest = requestUrl.startsWith('/auth/')
+    const requestPath = requestUrl.split('?')[0]
+    const isPublicAuthRequest = ['/auth/login', '/auth/forgot-password', '/auth/reset-password']
+      .includes(requestPath)
 
-    if (status === 401 && !isAuthRequest) {
+    if (status === 401 && !isPublicAuthRequest) {
       sessionKeys.forEach((key) => localStorage.removeItem(key))
       sessionStorage.clear()
       redirectToLoginWithLoading()

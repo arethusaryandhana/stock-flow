@@ -16,6 +16,10 @@ public interface IAuthUseCase
     Task<UseCaseResult<MessageResponse>> ResetPasswordAsync(
         ResetPasswordRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<MessageResponse>> ChangePasswordAsync(
+        ChangePasswordRequest request,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IDashboardUseCase

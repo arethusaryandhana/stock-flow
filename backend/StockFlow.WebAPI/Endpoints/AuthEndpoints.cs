@@ -24,6 +24,12 @@ public sealed class AuthEndpoints : IEndpoint
             .AllowAnonymous()
             .Produces<MessageResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest);
+
+        group.MapPost("/change-password", ChangePasswordAsync)
+            .RequireAuthorization()
+            .Produces<MessageResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status401Unauthorized);
     }
 
     private static async Task<IResult> LoginAsync(
@@ -47,4 +53,10 @@ public sealed class AuthEndpoints : IEndpoint
         IAuthUseCase useCase,
         CancellationToken cancellationToken) =>
         (await useCase.ResetPasswordAsync(request, cancellationToken)).ToHttpResult();
+
+    private static async Task<IResult> ChangePasswordAsync(
+        ChangePasswordRequest request,
+        IAuthUseCase useCase,
+        CancellationToken cancellationToken) =>
+        (await useCase.ChangePasswordAsync(request, cancellationToken)).ToHttpResult();
 }

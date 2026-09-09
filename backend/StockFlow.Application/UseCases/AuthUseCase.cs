@@ -10,7 +10,8 @@ public sealed class AuthUseCase(
     IUserRepository users,
     IPasswordService passwords,
     ITokenService tokens,
-    IPasswordResetTokenService resetTokens) : IAuthUseCase
+    IPasswordResetTokenService resetTokens,
+    ICurrentUserService currentUser) : IAuthUseCase
 {
     public async Task<UseCaseResult<LoginResponse>> LoginAsync(
         LoginRequest request,
@@ -79,5 +80,32 @@ public sealed class AuthUseCase(
         await users.SaveChangesAsync(cancellationToken);
 
         return UseCaseResult<MessageResponse>.Ok(new MessageResponse("Password berhasil diperbarui. Silakan login kembali."));
+    }
+
+    public async Task<UseCaseResult<MessageResponse>> ChangePasswordAsync(
+        ChangePasswordRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword))
+            return UseCaseResult<MessageResponse>.BadRequest("Password saat ini dan password baru wajib diisi.");
+
+        if (request.NewPassword.Length < 8)
+            return UseCaseResult<MessageResponse>.BadRequest("Password baru minimal 8 karakter.");
+
+        if (currentUser.UserId is not Guid userId)
+            return UseCaseResult<MessageResponse>.Unauthorized("Sesi tidak valid. Silakan login kembali.");
+
+        var user = await users.GetActiveByIdAsync(userId, cancellationToken);
+        if (user is null)
+            return UseCaseResult<MessageResponse>.Unauthorized("Sesi tidak valid. Silakan login kembali.");
+
+        if (!passwords.Verify(request.CurrentPassword, user.PasswordHash))
+            return UseCaseResult<MessageResponse>.BadRequest("Password saat ini tidak sesuai.");
+
+        user.PasswordHash = passwords.Hash(request.NewPassword);
+        await users.InvalidatePasswordResetTokensAsync(user.Id, cancellationToken);
+        await users.SaveChangesAsync(cancellationToken);
+
+        return UseCaseResult<MessageResponse>.Ok(new MessageResponse("Password berhasil diubah."));
     }
 }

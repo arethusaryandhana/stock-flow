@@ -165,9 +165,13 @@ kbd { padding: 3px 5px; border: 1px solid var(--control-border); border-radius: 
 .profile-dropdown-meta strong, .profile-dropdown-meta small { display: block; }
 .profile-dropdown-meta strong { margin-top: 6px; overflow: hidden; color: var(--ink); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
 .profile-dropdown-meta small { margin-top: 3px; color: var(--muted); font-size: .59rem; }
-.profile-logout { display: flex; width: 100%; align-items: center; gap: 8px; margin-top: 6px; padding: 9px 8px; border-radius: 7px; color: #bb4c59; background: transparent; font-size: .67rem; font-weight: 800; text-align: left; }
+.profile-action, .profile-logout { display: flex; width: 100%; align-items: center; gap: 8px; padding: 9px 8px; border-radius: 7px; background: transparent; font-size: .67rem; font-weight: 800; text-align: left; }
+.profile-action { margin-top: 6px; color: var(--control-text); }
+.profile-action:hover { color: var(--blue); background: var(--blue-soft); }
+.profile-logout { margin-top: 2px; color: #bb4c59; }
 .profile-logout:hover { background: var(--red-soft); }
-.profile-logout span { font-size: 1rem; }
+.profile-action-icon { display: block; width: 16px; height: 16px; flex: 0 0 16px; }
+.profile-logout span { display: grid; width: 16px; place-items: center; font-size: 1rem; }
 .mobile-menu { display: none; width: 34px; height: 34px; margin-right: 9px; border-radius: 8px; color: var(--ink); background: var(--blue-soft); font-size: 1.1rem; }
 .mobile-backdrop { display: none; }
 .page { max-width: 1600px; margin: 0 auto; padding: 32px 34px 48px; }
