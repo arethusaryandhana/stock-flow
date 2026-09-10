@@ -5,9 +5,7 @@ using StockFlow.Core;
 
 namespace StockFlow.Application.UseCases;
 
-public sealed class InventoryUseCase(
-    IProductRepository products,
-    IInventoryRepository inventory) : IInventoryUseCase
+public sealed class InventoryUseCase(IInventoryRepository inventory) : IInventoryUseCase
 {
     public Task<StockMovementPageResponse> GetMovementsAsync(
         int page,
@@ -49,70 +47,24 @@ public sealed class InventoryUseCase(
                 "Alasan penyesuaian wajib diisi.");
         }
 
-        var product = await products.FindAsync(request.ProductId, cancellationToken);
-        if (product is null)
-        {
-            return UseCaseResult<StockAdjustmentResponse>.NotFound("Produk tidak ditemukan.");
-        }
+        if (reason.Length > 300)
+            return UseCaseResult<StockAdjustmentResponse>.BadRequest("Alasan penyesuaian maksimal 300 karakter.");
 
-        if (!product.IsActive)
-        {
-            return UseCaseResult<StockAdjustmentResponse>.BadRequest(
-                "Produk tidak aktif tidak dapat disesuaikan.");
-        }
+        var result = await inventory.CreateAdjustmentAsync(
+            request with { Reason = reason }, createdById, cancellationToken);
 
-        var balanceAfter = decimal.Round(product.StockOnHand + request.QuantityDelta, 2);
-        if (balanceAfter < 0)
+        return result.Status switch
         {
-            return UseCaseResult<StockAdjustmentResponse>.BadRequest(
-                "Penyesuaian tidak boleh membuat stok menjadi negatif.");
-        }
-
-        var now = DateTime.UtcNow;
-        var number = $"ADJ-{now:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
-        var adjustment = new StockAdjustment
-        {
-            Number = number,
-            ProductId = product.Id,
-            QuantityDelta = request.QuantityDelta,
-            Reason = reason,
-            CreatedById = createdById,
-            CreatedAt = now
+            StockAdjustmentCreationStatus.Created when result.Data is not null =>
+                UseCaseResult<StockAdjustmentResponse>.Created(
+                    result.Data, $"/api/stock-adjustments/{result.Data.Id}"),
+            StockAdjustmentCreationStatus.ProductNotFound =>
+                UseCaseResult<StockAdjustmentResponse>.NotFound("Produk tidak ditemukan."),
+            StockAdjustmentCreationStatus.ProductInactive =>
+                UseCaseResult<StockAdjustmentResponse>.BadRequest("Produk tidak aktif tidak dapat disesuaikan."),
+            StockAdjustmentCreationStatus.NegativeBalance =>
+                UseCaseResult<StockAdjustmentResponse>.BadRequest("Penyesuaian tidak boleh membuat stok menjadi negatif."),
+            _ => UseCaseResult<StockAdjustmentResponse>.BadRequest("Penyesuaian stok tidak valid.")
         };
-
-        var movement = new StockMovement
-        {
-            ProductId = product.Id,
-            Type = request.QuantityDelta > 0
-                ? StockMovementType.AdjustmentIn
-                : StockMovementType.AdjustmentOut,
-            Quantity = decimal.Abs(request.QuantityDelta),
-            BalanceAfter = balanceAfter,
-            ReferenceNumber = number,
-            Reason = reason,
-            CreatedById = createdById,
-            CreatedAt = now
-        };
-
-        product.StockOnHand = balanceAfter;
-        product.UpdatedAt = now;
-        await inventory.AddAdjustmentAsync(adjustment, cancellationToken);
-        await inventory.AddMovementAsync(movement, cancellationToken);
-        await inventory.SaveChangesAsync(cancellationToken);
-
-        var response = new StockAdjustmentResponse(
-            adjustment.Id,
-            adjustment.Number,
-            product.Id,
-            product.Sku,
-            product.Name,
-            product.Unit,
-            adjustment.QuantityDelta,
-            adjustment.Reason,
-            adjustment.CreatedAt);
-
-        return UseCaseResult<StockAdjustmentResponse>.Created(
-            response,
-            $"/api/stock-adjustments/{adjustment.Id}");
     }
 }

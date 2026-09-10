@@ -8,9 +8,9 @@ import ThemeSwitcher from '../components/ThemeSwitcher.vue'
 
 type AuthMode = 'login' | 'forgot' | 'reset'
 
-const email = ref('admin@stockflow.local')
-const password = ref('StockFlow123!')
-const forgotEmail = ref('admin@stockflow.local')
+const email = ref('')
+const password = ref('')
+const forgotEmail = ref('')
 const resetToken = ref(new URLSearchParams(window.location.search).get('resetToken') ?? '')
 const newPassword = ref('')
 const confirmPassword = ref('')
@@ -66,7 +66,7 @@ async function submitForgot() {
 
 async function submitReset() {
   clearMessages()
-  if (newPassword.value.length < 8) { error.value = t('login.passwordMinLength'); return }
+  if (newPassword.value.length < 12 || !/[A-Z]/.test(newPassword.value) || !/[a-z]/.test(newPassword.value) || !/\d/.test(newPassword.value) || !/[^A-Za-z0-9]/.test(newPassword.value)) { error.value = t('login.passwordMinLength'); return }
   if (newPassword.value !== confirmPassword.value) { error.value = t('login.passwordMismatch'); return }
   busy.value = true
   try {
@@ -119,8 +119,8 @@ async function submitReset() {
         <template v-else>
           <button class="back-link" type="button" :disabled="busy" @click="showLogin">{{ t('login.backToLogin') }}</button><p class="eyebrow flow-eyebrow">{{ t('login.recovery') }}</p><h1>{{ t('login.newPasswordTitle') }}</h1><p class="subtitle">{{ t('login.newPasswordSubtitle') }}</p>
           <form class="login-form" :aria-busy="busy" @submit.prevent="submitReset">
-            <label class="login-label">{{ t('login.newPassword') }}<div class="password-field"><input v-model="newPassword" :type="showNewPassword ? 'text' : 'password'" autocomplete="new-password" minlength="8" required :disabled="busy"><button class="password-toggle" type="button" :disabled="busy" :aria-label="showNewPassword ? t('login.hideNewPassword') : t('login.showNewPassword')" :aria-pressed="showNewPassword" @click="showNewPassword = !showNewPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showNewPassword" d="m3 3 18 18" /></svg></button></div></label>
-            <label class="login-label">{{ t('login.confirmPassword') }}<div class="password-field"><input v-model="confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" autocomplete="new-password" minlength="8" required :disabled="busy"><button class="password-toggle" type="button" :disabled="busy" :aria-label="showConfirmPassword ? t('login.hideConfirmPassword') : t('login.showConfirmPassword')" :aria-pressed="showConfirmPassword" @click="showConfirmPassword = !showConfirmPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showConfirmPassword" d="m3 3 18 18" /></svg></button></div></label>
+            <label class="login-label">{{ t('login.newPassword') }}<div class="password-field"><input v-model="newPassword" :type="showNewPassword ? 'text' : 'password'" autocomplete="new-password" minlength="12" required :disabled="busy"><button class="password-toggle" type="button" :disabled="busy" :aria-label="showNewPassword ? t('login.hideNewPassword') : t('login.showNewPassword')" :aria-pressed="showNewPassword" @click="showNewPassword = !showNewPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showNewPassword" d="m3 3 18 18" /></svg></button></div></label>
+            <label class="login-label">{{ t('login.confirmPassword') }}<div class="password-field"><input v-model="confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" autocomplete="new-password" minlength="12" required :disabled="busy"><button class="password-toggle" type="button" :disabled="busy" :aria-label="showConfirmPassword ? t('login.hideConfirmPassword') : t('login.showConfirmPassword')" :aria-pressed="showConfirmPassword" @click="showConfirmPassword = !showConfirmPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showConfirmPassword" d="m3 3 18 18" /></svg></button></div></label>
             <p v-if="error" class="alert">{{ error }}</p><p v-if="feedback" class="form-feedback">{{ feedback }}</p>
             <button class="primary login-submit" :disabled="busy"><span v-if="busy" class="button-spinner" aria-hidden="true" />{{ busy ? t('login.savingPassword') : t('login.saveNewPassword') }}</button>
           </form>

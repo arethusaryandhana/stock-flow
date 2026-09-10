@@ -17,7 +17,11 @@ public sealed class AuthUseCase(
         LoginRequest request,
         CancellationToken cancellationToken = default)
     {
-        var user = await users.GetActiveByEmailAsync(request.Email, cancellationToken);
+        var email = request.Email?.Trim().ToLowerInvariant() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(email) || email.Length > 254 || string.IsNullOrWhiteSpace(request.Password))
+            return UseCaseResult<LoginResponse>.Unauthorized("Email atau kata sandi tidak sesuai.");
+
+        var user = await users.GetActiveByEmailAsync(email, cancellationToken);
 
         if (user is null || !passwords.Verify(request.Password, user.PasswordHash))
         {
@@ -35,7 +39,7 @@ public sealed class AuthUseCase(
         CancellationToken cancellationToken = default)
     {
         const string message = "Jika email terdaftar, instruksi reset password sudah disiapkan.";
-        if (string.IsNullOrWhiteSpace(request.Email))
+        if (string.IsNullOrWhiteSpace(request.Email) || request.Email.Trim().Length > 254)
             return UseCaseResult<PasswordResetRequestResponse>.BadRequest("Email wajib diisi.");
 
         var email = request.Email.Trim().ToLowerInvariant();
@@ -65,8 +69,9 @@ public sealed class AuthUseCase(
         if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.NewPassword))
             return UseCaseResult<MessageResponse>.BadRequest("Link reset password tidak valid atau sudah kedaluwarsa.");
 
-        if (request.NewPassword.Length < 8)
-            return UseCaseResult<MessageResponse>.BadRequest("Password baru minimal 8 karakter.");
+        var passwordError = PasswordPolicy.Validate(request.NewPassword);
+        if (passwordError is not null)
+            return UseCaseResult<MessageResponse>.BadRequest(passwordError);
 
         var resetToken = await users.GetPasswordResetTokenAsync(
             resetTokens.Hash(request.Token), cancellationToken);
@@ -75,6 +80,7 @@ public sealed class AuthUseCase(
             return UseCaseResult<MessageResponse>.BadRequest("Link reset password tidak valid atau sudah kedaluwarsa.");
 
         resetToken.User.PasswordHash = passwords.Hash(request.NewPassword);
+        resetToken.User.TokenVersion++;
         resetToken.UsedAt = DateTime.UtcNow;
         await users.InvalidatePasswordResetTokensAsync(resetToken.UserId, cancellationToken);
         await users.SaveChangesAsync(cancellationToken);
@@ -89,8 +95,9 @@ public sealed class AuthUseCase(
         if (string.IsNullOrWhiteSpace(request.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword))
             return UseCaseResult<MessageResponse>.BadRequest("Password saat ini dan password baru wajib diisi.");
 
-        if (request.NewPassword.Length < 8)
-            return UseCaseResult<MessageResponse>.BadRequest("Password baru minimal 8 karakter.");
+        var passwordError = PasswordPolicy.Validate(request.NewPassword);
+        if (passwordError is not null)
+            return UseCaseResult<MessageResponse>.BadRequest(passwordError);
 
         if (currentUser.UserId is not Guid userId)
             return UseCaseResult<MessageResponse>.Unauthorized("Sesi tidak valid. Silakan login kembali.");
@@ -102,7 +109,11 @@ public sealed class AuthUseCase(
         if (!passwords.Verify(request.CurrentPassword, user.PasswordHash))
             return UseCaseResult<MessageResponse>.BadRequest("Password saat ini tidak sesuai.");
 
+        if (passwords.Verify(request.NewPassword, user.PasswordHash))
+            return UseCaseResult<MessageResponse>.BadRequest("Password baru harus berbeda dari password saat ini.");
+
         user.PasswordHash = passwords.Hash(request.NewPassword);
+        user.TokenVersion++;
         await users.InvalidatePasswordResetTokensAsync(user.Id, cancellationToken);
         await users.SaveChangesAsync(cancellationToken);
 

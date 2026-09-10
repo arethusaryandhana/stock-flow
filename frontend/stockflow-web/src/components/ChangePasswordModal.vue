@@ -3,10 +3,12 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { api } from '../infrastructure/api'
 import { useI18n } from '../i18n'
 import { useToastStore } from '../stores/toast'
+import { useAuthStore } from '../stores/auth'
 
 const emit = defineEmits<{ close: [] }>()
 const { t } = useI18n()
 const toast = useToastStore()
+const auth = useAuthStore()
 const currentPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
@@ -27,7 +29,11 @@ function closeOnEscape(event: KeyboardEvent) {
 async function submit() {
   error.value = ''
 
-  if (newPassword.value.length < 8) {
+  if (newPassword.value.length < 12 ||
+    !/[A-Z]/.test(newPassword.value) ||
+    !/[a-z]/.test(newPassword.value) ||
+    !/\d/.test(newPassword.value) ||
+    !/[^A-Za-z0-9]/.test(newPassword.value)) {
     error.value = t('changePassword.passwordMinLength')
     return
   }
@@ -44,6 +50,7 @@ async function submit() {
       newPassword: newPassword.value,
     })
     toast.success(data.message)
+    await auth.logout()
     emit('close')
   } catch (requestError) {
     error.value = (requestError as Error).message
@@ -90,7 +97,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', closeOnEscape))
           <label class="login-label">
             {{ t('changePassword.newPassword') }}
             <div class="password-field">
-              <input v-model="newPassword" :type="showNewPassword ? 'text' : 'password'" autocomplete="new-password" minlength="8" required :disabled="saving">
+              <input v-model="newPassword" :type="showNewPassword ? 'text' : 'password'" autocomplete="new-password" minlength="12" required :disabled="saving">
               <button class="password-toggle" type="button" :disabled="saving" :aria-label="showNewPassword ? t('changePassword.hideNewPassword') : t('changePassword.showNewPassword')" :aria-pressed="showNewPassword" @click="showNewPassword = !showNewPassword">
                 <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showNewPassword" d="m3 3 18 18" /></svg>
               </button>
@@ -100,7 +107,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', closeOnEscape))
           <label class="login-label">
             {{ t('changePassword.confirmPassword') }}
             <div class="password-field">
-              <input v-model="confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" autocomplete="new-password" minlength="8" required :disabled="saving">
+              <input v-model="confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" autocomplete="new-password" minlength="12" required :disabled="saving">
               <button class="password-toggle" type="button" :disabled="saving" :aria-label="showConfirmPassword ? t('changePassword.hideConfirmPassword') : t('changePassword.showConfirmPassword')" :aria-pressed="showConfirmPassword" @click="showConfirmPassword = !showConfirmPassword">
                 <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showConfirmPassword" d="m3 3 18 18" /></svg>
               </button>

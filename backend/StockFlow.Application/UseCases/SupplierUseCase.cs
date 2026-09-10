@@ -23,6 +23,13 @@ public sealed class SupplierUseCase(ISupplierRepository suppliers) : ISupplierUs
         if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
             return UseCaseResult<SupplierResponse>.BadRequest("Kode dan nama supplier wajib diisi.");
 
+        var validationError = ValidateLengths(request, code, name);
+        if (validationError is not null)
+            return UseCaseResult<SupplierResponse>.BadRequest(validationError);
+
+        if (Clean(request.Email) is { } email && !System.Net.Mail.MailAddress.TryCreate(email, out _))
+            return UseCaseResult<SupplierResponse>.BadRequest("Format email supplier tidak valid.");
+
         if (await suppliers.ExistsByCodeAsync(code, cancellationToken: cancellationToken))
             return UseCaseResult<SupplierResponse>.BadRequest("Kode supplier tersebut sudah digunakan.");
 
@@ -50,6 +57,13 @@ public sealed class SupplierUseCase(ISupplierRepository suppliers) : ISupplierUs
         var name = request.Name?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
             return UseCaseResult<SupplierResponse>.BadRequest("Kode dan nama supplier wajib diisi.");
+
+        var validationError = ValidateLengths(request, code, name);
+        if (validationError is not null)
+            return UseCaseResult<SupplierResponse>.BadRequest(validationError);
+
+        if (Clean(request.Email) is { } email && !System.Net.Mail.MailAddress.TryCreate(email, out _))
+            return UseCaseResult<SupplierResponse>.BadRequest("Format email supplier tidak valid.");
 
         var supplier = await suppliers.FindAsync(id, cancellationToken);
         if (supplier is null)
@@ -84,6 +98,12 @@ public sealed class SupplierUseCase(ISupplierRepository suppliers) : ISupplierUs
 
     private static string? Clean(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string? ValidateLengths(MasterDataRequest request, string code, string name) =>
+        code.Length > 80 || name.Length > 160 || request.Email?.Trim().Length > 254 ||
+        request.Phone?.Trim().Length > 40 || request.Address?.Trim().Length > 300
+            ? "Kode maksimal 80 karakter, nama 160, email 254, telepon 40, dan alamat 300 karakter."
+            : null;
 
     private static SupplierResponse ToResponse(Supplier supplier) => new(
         supplier.Id, supplier.Code, supplier.Name, supplier.Email, supplier.Phone,

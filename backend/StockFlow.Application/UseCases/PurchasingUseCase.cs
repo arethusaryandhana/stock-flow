@@ -27,6 +27,12 @@ public sealed class PurchasingUseCase(
         PurchaseOrderRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (request.SupplierId == Guid.Empty)
+            return UseCaseResult<PurchaseOrderResponse>.BadRequest("Supplier wajib dipilih.");
+
+        if (request.Notes?.Trim().Length > 500)
+            return UseCaseResult<PurchaseOrderResponse>.BadRequest("Catatan maksimal 500 karakter.");
+
         var supplier = await suppliers.FindAsync(request.SupplierId, cancellationToken);
         if (supplier is null)
             return UseCaseResult<PurchaseOrderResponse>.NotFound("Supplier tidak ditemukan.");
@@ -43,7 +49,7 @@ public sealed class PurchasingUseCase(
 
         var purchaseOrder = new PurchaseOrder
         {
-            Number = $"PO-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
+            Number = $"PO-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()}",
             SupplierId = supplier.Id,
             Supplier = supplier,
             Status = PurchaseOrderStatus.Draft,
@@ -58,6 +64,9 @@ public sealed class PurchasingUseCase(
         {
             if (requestedItem.Quantity <= 0 || decimal.Round(requestedItem.Quantity, 2) != requestedItem.Quantity)
                 return UseCaseResult<PurchaseOrderResponse>.BadRequest("Jumlah produk harus lebih dari nol dan maksimal 2 angka desimal.");
+
+            if (requestedItem.ProductId == Guid.Empty)
+                return UseCaseResult<PurchaseOrderResponse>.BadRequest("Produk wajib dipilih.");
 
             if (requestedItem.UnitPrice < 0 || decimal.Round(requestedItem.UnitPrice, 2) != requestedItem.UnitPrice)
                 return UseCaseResult<PurchaseOrderResponse>.BadRequest("Harga beli tidak boleh negatif dan maksimal 2 angka desimal.");

@@ -12,6 +12,7 @@ internal static class ModelBuilderExtensions
         ConfigureIndexes(modelBuilder);
         ConfigureRelationships(modelBuilder);
         ConfigureDecimalPrecision(modelBuilder);
+        ConfigureDataRules(modelBuilder);
     }
 
     private static void ConfigureTables(ModelBuilder modelBuilder)
@@ -42,6 +43,7 @@ internal static class ModelBuilderExtensions
 
     private static void ConfigureIndexes(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Role>().HasIndex(entity => entity.Name).IsUnique();
         modelBuilder.Entity<Category>().HasIndex(entity => entity.Name).IsUnique();
         modelBuilder.Entity<Product>().HasIndex(entity => entity.Sku).IsUnique();
         modelBuilder.Entity<Product>().HasIndex(entity => new { entity.CategoryId, entity.IsActive });
@@ -51,8 +53,12 @@ internal static class ModelBuilderExtensions
         modelBuilder.Entity<PasswordResetToken>().HasIndex(entity => entity.TokenHash).IsUnique();
         modelBuilder.Entity<PasswordResetToken>().HasIndex(entity => new { entity.UserId, entity.ExpiresAt });
         modelBuilder.Entity<PurchaseOrder>().HasIndex(entity => new { entity.Status, entity.OrderDate });
+        modelBuilder.Entity<PurchaseOrder>().HasIndex(entity => entity.Number).IsUnique();
         modelBuilder.Entity<SalesOrder>().HasIndex(entity => new { entity.Status, entity.OrderDate });
+        modelBuilder.Entity<SalesOrder>().HasIndex(entity => entity.Number).IsUnique();
+        modelBuilder.Entity<GoodsReceipt>().HasIndex(entity => entity.Number).IsUnique();
         modelBuilder.Entity<StockMovement>().HasIndex(entity => new { entity.ProductId, entity.CreatedAt });
+        modelBuilder.Entity<StockAdjustment>().HasIndex(entity => entity.Number).IsUnique();
         modelBuilder.Entity<ReportExportJob>().HasIndex(entity => new { entity.Status, entity.RequestedAt });
         modelBuilder.Entity<ReportExportJob>().HasIndex(entity => entity.JobNumber).IsUnique();
     }
@@ -144,6 +150,75 @@ internal static class ModelBuilderExtensions
                 property.SetScale(2);
             }
         }
+    }
+
+    private static void ConfigureDataRules(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Role>().Property(entity => entity.Name).HasMaxLength(64);
+
+        modelBuilder.Entity<User>().Property(entity => entity.Email).HasMaxLength(254);
+        modelBuilder.Entity<User>().Property(entity => entity.FullName).HasMaxLength(160);
+        modelBuilder.Entity<User>().Property(entity => entity.PasswordHash).HasMaxLength(255);
+
+        modelBuilder.Entity<PasswordResetToken>().Property(entity => entity.TokenHash).HasMaxLength(128);
+
+        modelBuilder.Entity<Notification>().Property(entity => entity.Title).HasMaxLength(160);
+        modelBuilder.Entity<Notification>().Property(entity => entity.Message).HasMaxLength(1000);
+
+        modelBuilder.Entity<Category>().Property(entity => entity.Name).HasMaxLength(160);
+        modelBuilder.Entity<Category>().Property(entity => entity.Description).HasMaxLength(500);
+
+        modelBuilder.Entity<Product>().Property(entity => entity.Sku).HasMaxLength(80);
+        modelBuilder.Entity<Product>().Property(entity => entity.Name).HasMaxLength(160);
+        modelBuilder.Entity<Product>().Property(entity => entity.Unit).HasMaxLength(24);
+
+        ConfigurePartyLengths(modelBuilder.Entity<Supplier>());
+        ConfigurePartyLengths(modelBuilder.Entity<Customer>());
+
+        modelBuilder.Entity<PurchaseOrder>().Property(entity => entity.Number).HasMaxLength(50);
+        modelBuilder.Entity<PurchaseOrder>().Property(entity => entity.Notes).HasMaxLength(500);
+        modelBuilder.Entity<GoodsReceipt>().Property(entity => entity.Number).HasMaxLength(50);
+        modelBuilder.Entity<SalesOrder>().Property(entity => entity.Number).HasMaxLength(50);
+        modelBuilder.Entity<SalesOrder>().Property(entity => entity.Notes).HasMaxLength(500);
+        modelBuilder.Entity<StockMovement>().Property(entity => entity.ReferenceNumber).HasMaxLength(50);
+        modelBuilder.Entity<StockMovement>().Property(entity => entity.Reason).HasMaxLength(500);
+        modelBuilder.Entity<StockAdjustment>().Property(entity => entity.Number).HasMaxLength(50);
+        modelBuilder.Entity<StockAdjustment>().Property(entity => entity.Reason).HasMaxLength(300);
+
+        modelBuilder.Entity<ReportExportJob>().Property(entity => entity.JobNumber).HasMaxLength(50);
+        modelBuilder.Entity<ReportExportJob>().Property(entity => entity.ReportType).HasMaxLength(80);
+        modelBuilder.Entity<ReportExportJob>().Property(entity => entity.Parameters).HasMaxLength(4000);
+        modelBuilder.Entity<ReportExportJob>().Property(entity => entity.Format).HasMaxLength(16);
+        modelBuilder.Entity<ReportExportJob>().Property(entity => entity.FilePath).HasMaxLength(1000);
+        modelBuilder.Entity<ReportExportJob>().Property(entity => entity.ErrorMessage).HasMaxLength(1000);
+
+        modelBuilder.Entity<Product>().ToTable(table =>
+        {
+            table.HasCheckConstraint("ck_products_non_negative_prices", "purchase_price >= 0 AND selling_price >= 0");
+            table.HasCheckConstraint("ck_products_non_negative_stock", "stock_on_hand >= 0 AND reorder_level >= 0");
+        });
+        modelBuilder.Entity<PurchaseOrderItem>().ToTable(table =>
+            table.HasCheckConstraint("ck_purchase_order_items_values", "quantity > 0 AND unit_price >= 0"));
+        modelBuilder.Entity<SalesOrderItem>().ToTable(table =>
+            table.HasCheckConstraint("ck_sales_order_items_values", "quantity > 0 AND unit_price >= 0"));
+        modelBuilder.Entity<GoodsReceiptItem>().ToTable(table =>
+            table.HasCheckConstraint("ck_goods_receipt_items_quantity", "quantity > 0"));
+        modelBuilder.Entity<StockMovement>().ToTable(table =>
+            table.HasCheckConstraint("ck_stock_movements_values", "quantity > 0 AND balance_after >= 0"));
+        modelBuilder.Entity<StockAdjustment>().ToTable(table =>
+            table.HasCheckConstraint("ck_stock_adjustments_quantity", "quantity_delta <> 0"));
+        modelBuilder.Entity<ReportExportJob>().ToTable(table =>
+            table.HasCheckConstraint("ck_report_export_jobs_progress", "progress >= 0 AND progress <= 100"));
+    }
+
+    private static void ConfigurePartyLengths<TEntity>(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<TEntity> entity)
+        where TEntity : ActivatableEntity
+    {
+        entity.Property("Code").HasMaxLength(80);
+        entity.Property("Name").HasMaxLength(160);
+        entity.Property("Email").HasMaxLength(254);
+        entity.Property("Phone").HasMaxLength(40);
+        entity.Property("Address").HasMaxLength(300);
     }
 
     private static void ApplySnakeCaseNaming(ModelBuilder modelBuilder)

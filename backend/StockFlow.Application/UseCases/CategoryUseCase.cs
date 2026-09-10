@@ -24,6 +24,9 @@ public sealed class CategoryUseCase(ICategoryRepository categories) : ICategoryU
             return UseCaseResult<CategoryResponse>.BadRequest("Nama kategori wajib diisi.");
         }
 
+        if (name.Length > 160 || request.Description?.Trim().Length > 500)
+            return UseCaseResult<CategoryResponse>.BadRequest("Nama kategori maksimal 160 karakter dan deskripsi 500 karakter.");
+
         if (await categories.ExistsByNameAsync(name, cancellationToken: cancellationToken))
         {
             return UseCaseResult<CategoryResponse>.BadRequest("Nama kategori tersebut sudah digunakan.");
@@ -57,6 +60,9 @@ public sealed class CategoryUseCase(ICategoryRepository categories) : ICategoryU
         var name = request.Name?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(name))
             return UseCaseResult<CategoryResponse>.BadRequest("Nama kategori wajib diisi.");
+
+        if (name.Length > 160 || request.Description?.Trim().Length > 500)
+            return UseCaseResult<CategoryResponse>.BadRequest("Nama kategori maksimal 160 karakter dan deskripsi 500 karakter.");
 
         var category = await categories.FindAsync(id, cancellationToken);
         if (category is null)

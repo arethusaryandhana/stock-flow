@@ -87,16 +87,23 @@ public interface IInventoryRepository
         string? search = null,
         CancellationToken cancellationToken = default);
 
-    Task AddAdjustmentAsync(
-        StockAdjustment adjustment,
+    Task<StockAdjustmentCreationResult> CreateAdjustmentAsync(
+        StockAdjustmentRequest request,
+        Guid createdById,
         CancellationToken cancellationToken = default);
-
-    Task AddMovementAsync(
-        StockMovement movement,
-        CancellationToken cancellationToken = default);
-
-    Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
+
+public enum StockAdjustmentCreationStatus
+{
+    Created,
+    ProductNotFound,
+    ProductInactive,
+    NegativeBalance
+}
+
+public sealed record StockAdjustmentCreationResult(
+    StockAdjustmentCreationStatus Status,
+    StockAdjustmentResponse? Data = null);
 
 public interface IPurchasingRepository
 {

@@ -4,18 +4,63 @@ using StockFlow.Core;
 using StockFlow.Infrastructure;
 public static class SeedData
 {
-    public static async Task Run(StockFlowDbContext db, IPasswordService passwords)
+    public static async Task Run(
+        StockFlowDbContext db,
+        IPasswordService passwords,
+        bool seedDemo)
     {
-        if (await db.Roles.AnyAsync())
+        var roles = await db.Roles.ToDictionaryAsync(role => role.Name);
+        foreach (var roleName in new[] { "Admin", "Manager", "Staff" })
+        {
+            if (roles.ContainsKey(roleName))
+                continue;
+
+            var role = new Role { Name = roleName };
+            roles.Add(roleName, role);
+            db.Roles.Add(role);
+        }
+
+        await db.SaveChangesAsync();
+
+        if (!seedDemo)
             return;
-        var admin = new Role { Name = "Admin" };
-        var manager = new Role { Name = "Manager" };
-        var staff = new Role { Name = "Staff" };
-        db.AddRange(admin, manager, staff);
-        db.Add(new User { Email = "admin@stockflow.local", FullName = "Demo Administrator", PasswordHash = passwords.Hash("StockFlow123!"), Role = admin });
-        var cat = new Category { Name = "General", Description = "Produk umum" };
-        db.Add(cat);
-        db.AddRange(new Product { Sku = "SKU-001", Name = "Sample Product", Category = cat, PurchasePrice = 50000, SellingPrice = 75000, StockOnHand = 12, ReorderLevel = 5 }, new Product { Sku = "SKU-002", Name = "Low Stock Item", Category = cat, PurchasePrice = 25000, SellingPrice = 40000, StockOnHand = 2, ReorderLevel = 5 });
+
+        if (!await db.UsersSet.AnyAsync(user => user.Email == "admin@stockflow.local"))
+        {
+            db.UsersSet.Add(new User
+            {
+                Email = "admin@stockflow.local",
+                FullName = "Demo Administrator",
+                PasswordHash = passwords.Hash("StockFlow123!"),
+                Role = roles["Admin"]
+            });
+        }
+
+        var category = await db.CategoriesSet.SingleOrDefaultAsync(item => item.Name == "General");
+        if (category is null)
+        {
+            category = new Category { Name = "General", Description = "Produk umum" };
+            db.CategoriesSet.Add(category);
+        }
+
+        if (!await db.ProductsSet.AnyAsync(product => product.Sku == "SKU-001"))
+        {
+            db.ProductsSet.Add(new Product
+            {
+                Sku = "SKU-001", Name = "Sample Product", Category = category,
+                PurchasePrice = 50000, SellingPrice = 75000, StockOnHand = 12, ReorderLevel = 5
+            });
+        }
+
+        if (!await db.ProductsSet.AnyAsync(product => product.Sku == "SKU-002"))
+        {
+            db.ProductsSet.Add(new Product
+            {
+                Sku = "SKU-002", Name = "Low Stock Item", Category = category,
+                PurchasePrice = 25000, SellingPrice = 40000, StockOnHand = 2, ReorderLevel = 5
+            });
+        }
+
         await db.SaveChangesAsync();
     }
 }

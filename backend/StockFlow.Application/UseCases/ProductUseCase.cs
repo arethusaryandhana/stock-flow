@@ -36,8 +36,14 @@ public sealed class ProductUseCase(
             return UseCaseResult<ProductResponse>.BadRequest("Satuan produk wajib diisi.");
         }
 
+        if (sku.Length > 80 || name.Length > 160 || unit.Length > 24)
+            return UseCaseResult<ProductResponse>.BadRequest("SKU maksimal 80 karakter, nama 160 karakter, dan satuan 24 karakter.");
+
         if (request.PurchasePrice < 0 || request.SellingPrice < 0 ||
-            request.ReorderLevel < 0 || decimal.Round(request.ReorderLevel, 2) != request.ReorderLevel)
+            request.ReorderLevel < 0 ||
+            decimal.Round(request.PurchasePrice, 2) != request.PurchasePrice ||
+            decimal.Round(request.SellingPrice, 2) != request.SellingPrice ||
+            decimal.Round(request.ReorderLevel, 2) != request.ReorderLevel)
         {
             return UseCaseResult<ProductResponse>.BadRequest(
                 "Harga tidak boleh negatif; minimum stok harus 0 atau lebih dan maksimal 2 angka desimal.");
@@ -88,8 +94,14 @@ public sealed class ProductUseCase(
         if (string.IsNullOrWhiteSpace(unit))
             return UseCaseResult<ProductResponse>.BadRequest("Satuan produk wajib diisi.");
 
+        if (sku.Length > 80 || name.Length > 160 || unit.Length > 24)
+            return UseCaseResult<ProductResponse>.BadRequest("SKU maksimal 80 karakter, nama 160 karakter, dan satuan 24 karakter.");
+
         if (request.PurchasePrice < 0 || request.SellingPrice < 0 ||
-            request.ReorderLevel < 0 || decimal.Round(request.ReorderLevel, 2) != request.ReorderLevel)
+            request.ReorderLevel < 0 ||
+            decimal.Round(request.PurchasePrice, 2) != request.PurchasePrice ||
+            decimal.Round(request.SellingPrice, 2) != request.SellingPrice ||
+            decimal.Round(request.ReorderLevel, 2) != request.ReorderLevel)
         {
             return UseCaseResult<ProductResponse>.BadRequest(
                 "Harga tidak boleh negatif; minimum stok harus 0 atau lebih dan maksimal 2 angka desimal.");

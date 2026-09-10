@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using StockFlow.Infrastructure;
@@ -11,9 +12,11 @@ using StockFlow.Infrastructure;
 namespace StockFlow.Infrastructure.Migrations
 {
     [DbContext(typeof(StockFlowDbContext))]
-    partial class StockFlowDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260910104745_HardenDataIntegrityAndSessions")]
+    partial class HardenDataIntegrityAndSessions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -664,9 +667,6 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnName("updated_by");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
 
                     b.ToTable("roles", "identity");
                 });

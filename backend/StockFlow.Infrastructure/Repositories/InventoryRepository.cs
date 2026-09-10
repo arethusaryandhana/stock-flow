@@ -114,16 +114,71 @@ public sealed class InventoryRepository(StockFlowDbContext db) : IInventoryRepos
         return new PagedResponse<StockAdjustmentResponse>(items, pagination.Page, pagination.PageSize, totalCount);
     }
 
-    public Task AddAdjustmentAsync(
-        StockAdjustment adjustment,
-        CancellationToken cancellationToken = default) =>
-        db.StockAdjustments.AddAsync(adjustment, cancellationToken).AsTask();
+    public async Task<StockAdjustmentCreationResult> CreateAdjustmentAsync(
+        StockAdjustmentRequest request,
+        Guid createdById,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
 
-    public Task AddMovementAsync(
-        StockMovement movement,
-        CancellationToken cancellationToken = default) =>
-        db.StockMovements.AddAsync(movement, cancellationToken).AsTask();
+        var product = await db.ProductsSet
+            .FromSqlInterpolated($"SELECT * FROM master.products_set WHERE id = {request.ProductId} FOR UPDATE")
+            .SingleOrDefaultAsync(cancellationToken);
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
-        db.SaveChangesAsync(cancellationToken);
+        if (product is null)
+            return new StockAdjustmentCreationResult(StockAdjustmentCreationStatus.ProductNotFound);
+
+        if (!product.IsActive)
+            return new StockAdjustmentCreationResult(StockAdjustmentCreationStatus.ProductInactive);
+
+        var balanceAfter = decimal.Round(product.StockOnHand + request.QuantityDelta, 2);
+        if (balanceAfter < 0)
+            return new StockAdjustmentCreationResult(StockAdjustmentCreationStatus.NegativeBalance);
+
+        var now = DateTime.UtcNow;
+        var number = $"ADJ-{now:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()}";
+        var adjustment = new StockAdjustment
+        {
+            Number = number,
+            ProductId = product.Id,
+            Product = product,
+            QuantityDelta = request.QuantityDelta,
+            Reason = request.Reason.Trim(),
+            CreatedById = createdById,
+            CreatedAt = now
+        };
+
+        product.StockOnHand = balanceAfter;
+        db.StockAdjustments.Add(adjustment);
+        db.StockMovements.Add(new StockMovement
+        {
+            ProductId = product.Id,
+            Product = product,
+            Type = request.QuantityDelta > 0
+                ? StockMovementType.AdjustmentIn
+                : StockMovementType.AdjustmentOut,
+            Quantity = decimal.Abs(request.QuantityDelta),
+            BalanceAfter = balanceAfter,
+            ReferenceNumber = number,
+            Reason = request.Reason.Trim(),
+            CreatedById = createdById,
+            CreatedAt = now
+        });
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return new StockAdjustmentCreationResult(
+            StockAdjustmentCreationStatus.Created,
+            new StockAdjustmentResponse(
+                adjustment.Id,
+                adjustment.Number,
+                product.Id,
+                product.Sku,
+                product.Name,
+                product.Unit,
+                adjustment.QuantityDelta,
+                adjustment.Reason,
+                adjustment.CreatedAt));
+    }
 }

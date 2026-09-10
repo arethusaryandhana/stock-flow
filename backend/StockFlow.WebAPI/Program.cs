@@ -1,7 +1,9 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
@@ -13,6 +15,16 @@ Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
 
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
+    throw new InvalidOperationException("Jwt:Key wajib diisi dengan secret minimal 32 byte.");
+
+if (!builder.Environment.IsDevelopment() &&
+    jwtKey.Contains("development", StringComparison.OrdinalIgnoreCase))
+{
+    throw new InvalidOperationException("Development JWT key tidak boleh digunakan di production.");
+}
+
 builder.Host.UseSerilog();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -21,16 +33,31 @@ builder.Services.AddStockFlowEndpoints();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks().AddDbContextCheck<StockFlowDbContext>();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
+});
 builder.Services.AddCors(options =>
     options.AddPolicy(
         "web",
         policy => policy
             .WithOrigins(builder.Configuration["WebOrigin"] ?? "http://localhost:5173")
             .AllowAnyHeader()
-            .AllowAnyMethod()));
+            .AllowAnyMethod()
+            .AllowCredentials()));
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
+    {
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -41,8 +68,43 @@ builder.Services
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
-        });
+                Encoding.UTF8.GetBytes(jwtKey))
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                if (string.IsNullOrWhiteSpace(context.Token) &&
+                    context.Request.Cookies.TryGetValue("stockflow_access_token", out var cookieToken))
+                {
+                    context.Token = cookieToken;
+                }
+
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = async context =>
+            {
+                var rawUserId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.Principal?.FindFirstValue(JwtRegisteredClaimNames.Sub);
+                var rawTokenVersion = context.Principal?.FindFirstValue("token_version");
+
+                if (!Guid.TryParse(rawUserId, out var userId) ||
+                    !int.TryParse(rawTokenVersion, out var tokenVersion))
+                {
+                    context.Fail("Token tidak memiliki identitas sesi yang valid.");
+                    return;
+                }
+
+                var db = context.HttpContext.RequestServices.GetRequiredService<StockFlowDbContext>();
+                var sessionIsValid = await db.UsersSet.AsNoTracking().AnyAsync(
+                    user => user.Id == userId && user.IsActive && user.TokenVersion == tokenVersion,
+                    context.HttpContext.RequestAborted);
+
+                if (!sessionIsValid)
+                    context.Fail("Sesi sudah tidak berlaku.");
+            }
+        };
+    });
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
@@ -56,14 +118,17 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseRouting();
 app.UseCors("web");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapStockFlowEndpoints();
 app.MapHealthChecks("/health");
 
-using (var scope = app.Services.CreateScope())
+if (builder.Configuration.GetValue<bool>("Database:ApplyMigrations"))
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<StockFlowDbContext>();
     var passwords = scope.ServiceProvider.GetRequiredService<IPasswordService>();
 
@@ -73,7 +138,10 @@ using (var scope = app.Services.CreateScope())
         "CREATE SCHEMA IF NOT EXISTS \"identity\"; " +
         "ALTER TABLE IF EXISTS \"public\".\"__EFMigrationsHistory\" SET SCHEMA \"identity\";");
     await db.Database.MigrateAsync();
-    await SeedData.Run(db, passwords);
+    await SeedData.Run(
+        db,
+        passwords,
+        builder.Configuration.GetValue<bool>("SeedData:Demo"));
 }
 
 app.Run();

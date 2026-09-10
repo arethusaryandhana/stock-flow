@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: stockflow_tests
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d stockflow_tests"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      STOCKFLOW_TEST_CONNECTION: Host=localhost;Port=5432;Database=stockflow_tests;Username=postgres;Password=postgres;Pooling=false
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore backend
+        run: dotnet restore StockFlow.sln
+        working-directory: backend
+      - name: Build backend
+        run: dotnet build StockFlow.sln --configuration Release --no-restore --warnaserror
+        working-directory: backend
+      - name: Test backend
+        run: dotnet test StockFlow.sln --configuration Release --no-build --collect:"XPlat Code Coverage"
+        working-directory: backend
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/stockflow-web/pnpm-lock.yaml
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend/stockflow-web
+      - name: Build frontend
+        run: pnpm build
+        working-directory: frontend/stockflow-web

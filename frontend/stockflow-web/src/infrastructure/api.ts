@@ -9,7 +9,7 @@ export type PagedResponse<T> = {
   totalPages: number
 }
 
-const sessionKeys = ['stockflow_token', 'stockflow_name', 'stockflow_role']
+const sessionKeys = ['stockflow_authenticated', 'stockflow_name', 'stockflow_role']
 export const SESSION_REDIRECT_EVENT = 'stockflow:session-redirect'
 
 const loginRedirectDelayMs = 900
@@ -25,12 +25,11 @@ export function redirectToLoginWithLoading() {
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api',
+  withCredentials: true,
 })
 
 api.interceptors.request.use((config) => {
   beginRequest()
-  const token = localStorage.getItem('stockflow_token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
@@ -46,10 +45,11 @@ api.interceptors.response.use(
     const requestPath = requestUrl.split('?')[0]
     const isPublicAuthRequest = ['/auth/login', '/auth/forgot-password', '/auth/reset-password']
       .includes(requestPath)
+    const isSessionProbe = requestPath === '/auth/session'
 
-    if (status === 401 && !isPublicAuthRequest) {
-      sessionKeys.forEach((key) => localStorage.removeItem(key))
-      sessionStorage.clear()
+    if (status === 401 && !isPublicAuthRequest && !isSessionProbe) {
+      sessionKeys.forEach((key) => sessionStorage.removeItem(key))
+      localStorage.removeItem('stockflow_token')
       redirectToLoginWithLoading()
     }
 

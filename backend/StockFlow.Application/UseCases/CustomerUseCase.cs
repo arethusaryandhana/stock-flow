@@ -23,6 +23,13 @@ public sealed class CustomerUseCase(ICustomerRepository customers) : ICustomerUs
         if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
             return UseCaseResult<CustomerResponse>.BadRequest("Kode dan nama customer wajib diisi.");
 
+        var validationError = ValidateLengths(request, code, name);
+        if (validationError is not null)
+            return UseCaseResult<CustomerResponse>.BadRequest(validationError);
+
+        if (Clean(request.Email) is { } email && !System.Net.Mail.MailAddress.TryCreate(email, out _))
+            return UseCaseResult<CustomerResponse>.BadRequest("Format email customer tidak valid.");
+
         if (await customers.ExistsByCodeAsync(code, cancellationToken: cancellationToken))
             return UseCaseResult<CustomerResponse>.BadRequest("Kode customer tersebut sudah digunakan.");
 
@@ -50,6 +57,13 @@ public sealed class CustomerUseCase(ICustomerRepository customers) : ICustomerUs
         var name = request.Name?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
             return UseCaseResult<CustomerResponse>.BadRequest("Kode dan nama customer wajib diisi.");
+
+        var validationError = ValidateLengths(request, code, name);
+        if (validationError is not null)
+            return UseCaseResult<CustomerResponse>.BadRequest(validationError);
+
+        if (Clean(request.Email) is { } email && !System.Net.Mail.MailAddress.TryCreate(email, out _))
+            return UseCaseResult<CustomerResponse>.BadRequest("Format email customer tidak valid.");
 
         var customer = await customers.FindAsync(id, cancellationToken);
         if (customer is null)
@@ -84,6 +98,12 @@ public sealed class CustomerUseCase(ICustomerRepository customers) : ICustomerUs
 
     private static string? Clean(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string? ValidateLengths(MasterDataRequest request, string code, string name) =>
+        code.Length > 80 || name.Length > 160 || request.Email?.Trim().Length > 254 ||
+        request.Phone?.Trim().Length > 40 || request.Address?.Trim().Length > 300
+            ? "Kode maksimal 80 karakter, nama 160, email 254, telepon 40, dan alamat 300 karakter."
+            : null;
 
     private static CustomerResponse ToResponse(Customer customer) => new(
         customer.Id, customer.Code, customer.Name, customer.Email, customer.Phone,

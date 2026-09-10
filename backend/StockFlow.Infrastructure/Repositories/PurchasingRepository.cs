@@ -201,7 +201,7 @@ public sealed class PurchasingRepository(StockFlowDbContext db) : IPurchasingRep
         var receivedAt = DateTime.UtcNow;
         var receipt = new GoodsReceipt
         {
-            Number = $"GRN-{receivedAt:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
+            Number = $"GRN-{receivedAt:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()}",
             PurchaseOrderId = purchaseOrder.Id,
             PurchaseOrder = purchaseOrder,
             ReceivedAt = receivedAt,

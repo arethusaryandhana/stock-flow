@@ -8,6 +8,7 @@ import MasterData from '../presentation/MasterData.vue'
 import PurchaseOrders from '../presentation/PurchaseOrders.vue'
 import Receiving from '../presentation/Receiving.vue'
 import OperationalSuppliers from '../presentation/OperationalSuppliers.vue'
+import { api } from '../infrastructure/api'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -28,35 +29,26 @@ const router = createRouter({
   ],
 })
 
-function isTokenExpired(token: string) {
+async function restoreSession() {
+  if (sessionStorage.getItem('stockflow_authenticated') === 'true') return true
+
   try {
-    const payload = token.split('.')[1]
-    if (!payload) return true
-
-    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
-    const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=')
-    const { exp } = JSON.parse(atob(padded)) as { exp?: number }
-
-    return typeof exp !== 'number' || exp * 1000 <= Date.now()
-  } catch {
+    const { data } = await api.get<{ fullName: string; role: string }>('/auth/session')
+    sessionStorage.setItem('stockflow_authenticated', 'true')
+    sessionStorage.setItem('stockflow_name', data.fullName)
+    sessionStorage.setItem('stockflow_role', data.role)
     return true
+  } catch {
+    return false
   }
 }
 
-function clearExpiredSession() {
-  for (const key of ['stockflow_token', 'stockflow_name', 'stockflow_role']) {
-    localStorage.removeItem(key)
-  }
-  sessionStorage.clear()
-}
+router.beforeEach(async (to) => {
+  const hasSession = to.meta.auth ? await restoreSession() :
+    sessionStorage.getItem('stockflow_authenticated') === 'true'
 
-router.beforeEach((to) => {
-  const token = localStorage.getItem('stockflow_token')
-  const hasValidToken = Boolean(token && !isTokenExpired(token))
-
-  if (token && !hasValidToken) clearExpiredSession()
-  if (to.meta.auth && !hasValidToken) return '/login'
-  if (to.meta.admin && localStorage.getItem('stockflow_role')?.trim().toLowerCase() !== 'admin') return hasValidToken ? '/' : '/login'
+  if (to.meta.auth && !hasSession) return '/login'
+  if (to.meta.admin && sessionStorage.getItem('stockflow_role')?.trim().toLowerCase() !== 'admin') return hasSession ? '/' : '/login'
   return true
 })
 

@@ -2,6 +2,8 @@ namespace StockFlow.Application.Models;
 
 public sealed record LoginResponse(string Token, string FullName, string Role);
 
+public sealed record SessionResponse(string FullName, string Role);
+
 public sealed record PasswordResetRequestResponse(string Message, string? ResetToken = null);
 
 public sealed record MessageResponse(string Message);
