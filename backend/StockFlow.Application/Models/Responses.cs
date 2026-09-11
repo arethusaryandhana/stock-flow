@@ -252,3 +252,37 @@ public sealed record ReportDownloadResponse(
     string FilePath,
     string FileName,
     string ContentType);
+
+public sealed record NotificationResponse(
+    Guid Id,
+    string Type,
+    string Title,
+    string Message,
+    string? Link,
+    bool IsRead,
+    DateTime? ReadAt,
+    DateTime CreatedAt);
+
+public sealed record NotificationPageResponse(
+    IReadOnlyList<NotificationResponse> Items,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    int UnreadCount)
+{
+    public int TotalPages => TotalCount == 0
+        ? 0
+        : (int)Math.Ceiling(TotalCount / (double)PageSize);
+}
+
+public sealed record AuditLogResponse(
+    Guid Id,
+    Guid? ActorId,
+    string ActorName,
+    string? ActorEmail,
+    string Action,
+    string EntityType,
+    Guid EntityId,
+    string Summary,
+    string Changes,
+    DateTime CreatedAt);

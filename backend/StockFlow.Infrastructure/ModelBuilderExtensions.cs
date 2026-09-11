@@ -21,6 +21,7 @@ internal static class ModelBuilderExtensions
         modelBuilder.Entity<User>().ToTable("users", StockFlowDbContext.Schemas.Identity);
         modelBuilder.Entity<PasswordResetToken>().ToTable("password_reset_tokens", StockFlowDbContext.Schemas.Identity);
         modelBuilder.Entity<Notification>().ToTable("notifications", StockFlowDbContext.Schemas.Identity);
+        modelBuilder.Entity<AuditLog>().ToTable("audit_logs", StockFlowDbContext.Schemas.Identity);
 
         modelBuilder.Entity<Category>().ToTable("categories_set", StockFlowDbContext.Schemas.Master);
         modelBuilder.Entity<Product>().ToTable("products_set", StockFlowDbContext.Schemas.Master);
@@ -52,6 +53,14 @@ internal static class ModelBuilderExtensions
         modelBuilder.Entity<User>().HasIndex(entity => entity.Email).IsUnique();
         modelBuilder.Entity<PasswordResetToken>().HasIndex(entity => entity.TokenHash).IsUnique();
         modelBuilder.Entity<PasswordResetToken>().HasIndex(entity => new { entity.UserId, entity.ExpiresAt });
+        modelBuilder.Entity<Notification>().HasIndex(entity => new { entity.UserId, entity.IsRead, entity.CreatedAt });
+        modelBuilder.Entity<Notification>()
+            .HasIndex(entity => entity.DeduplicationKey)
+            .IsUnique()
+            .HasFilter("deduplication_key IS NOT NULL");
+        modelBuilder.Entity<AuditLog>().HasIndex(entity => entity.CreatedAt);
+        modelBuilder.Entity<AuditLog>().HasIndex(entity => new { entity.EntityType, entity.EntityId });
+        modelBuilder.Entity<AuditLog>().HasIndex(entity => new { entity.ActorId, entity.CreatedAt });
         modelBuilder.Entity<PurchaseOrder>().HasIndex(entity => new { entity.Status, entity.OrderDate });
         modelBuilder.Entity<PurchaseOrder>().HasIndex(entity => entity.Number).IsUnique();
         modelBuilder.Entity<SalesOrder>().HasIndex(entity => new { entity.Status, entity.OrderDate });
@@ -128,6 +137,18 @@ internal static class ModelBuilderExtensions
             .WithMany()
             .HasForeignKey(entity => entity.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Notification>()
+            .HasOne(entity => entity.User)
+            .WithMany()
+            .HasForeignKey(entity => entity.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<AuditLog>()
+            .HasOne(entity => entity.Actor)
+            .WithMany()
+            .HasForeignKey(entity => entity.ActorId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 
     private static void ConfigureDecimalPrecision(ModelBuilder modelBuilder)
@@ -168,6 +189,13 @@ internal static class ModelBuilderExtensions
 
         modelBuilder.Entity<Notification>().Property(entity => entity.Title).HasMaxLength(160);
         modelBuilder.Entity<Notification>().Property(entity => entity.Message).HasMaxLength(1000);
+        modelBuilder.Entity<Notification>().Property(entity => entity.Link).HasMaxLength(500);
+        modelBuilder.Entity<Notification>().Property(entity => entity.DeduplicationKey).HasMaxLength(200);
+
+        modelBuilder.Entity<AuditLog>().Property(entity => entity.Action).HasMaxLength(24);
+        modelBuilder.Entity<AuditLog>().Property(entity => entity.EntityType).HasMaxLength(100);
+        modelBuilder.Entity<AuditLog>().Property(entity => entity.Summary).HasMaxLength(300);
+        modelBuilder.Entity<AuditLog>().Property(entity => entity.Changes).HasMaxLength(8000);
 
         modelBuilder.Entity<Category>().Property(entity => entity.Name).HasMaxLength(160);
         modelBuilder.Entity<Category>().Property(entity => entity.Description).HasMaxLength(500);

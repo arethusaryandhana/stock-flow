@@ -3,4 +3,5 @@ using StockFlow.Worker;
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<ReportWorker>();
+builder.Services.AddHostedService<LowStockNotificationWorker>();
 await builder.Build().RunAsync();

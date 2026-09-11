@@ -56,6 +56,8 @@ public static class DependencyInjection
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IReportExportRepository, ReportExportRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IAuditLogRepository, AuditLogRepository>();
     }
 
     private static void AddUseCases(this IServiceCollection services)
@@ -70,5 +72,7 @@ public static class DependencyInjection
         services.AddScoped<ISupplierUseCase, SupplierUseCase>();
         services.AddScoped<ICustomerUseCase, CustomerUseCase>();
         services.AddScoped<IReportExportUseCase, ReportExportUseCase>();
+        services.AddScoped<INotificationUseCase, NotificationUseCase>();
+        services.AddScoped<IAuditLogUseCase, AuditLogUseCase>();
     }
 }

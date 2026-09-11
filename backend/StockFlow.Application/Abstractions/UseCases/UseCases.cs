@@ -228,3 +228,34 @@ public interface IReportExportUseCase
 
     Task ProcessNextAsync(string reportStoragePath, CancellationToken cancellationToken = default);
 }
+
+public interface INotificationUseCase
+{
+    Task<NotificationPageResponse> GetAllAsync(
+        Guid userId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult> MarkReadAsync(
+        Guid id,
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult> MarkAllReadAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
+    Task ProcessLowStockAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IAuditLogUseCase
+{
+    Task<PagedResponse<AuditLogResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        string? entityType = null,
+        string? action = null,
+        CancellationToken cancellationToken = default);
+}

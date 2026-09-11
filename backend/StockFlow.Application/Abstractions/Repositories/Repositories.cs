@@ -279,3 +279,34 @@ public enum ReportExportCreationStatus
 public sealed record ReportExportCreationResult(
     ReportExportCreationStatus Status,
     ReportExportResponse? Data = null);
+
+public interface INotificationRepository
+{
+    Task<NotificationPageResponse> GetAllAsync(
+        Guid userId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> MarkReadAsync(
+        Guid id,
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
+    Task MarkAllReadAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
+    Task CreateLowStockNotificationsAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IAuditLogRepository
+{
+    Task<PagedResponse<AuditLogResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        string? entityType = null,
+        string? action = null,
+        CancellationToken cancellationToken = default);
+}

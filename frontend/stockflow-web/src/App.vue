@@ -8,6 +8,7 @@ import { useToastStore } from './stores/toast'
 import { useI18n } from './i18n'
 import ThemeSwitcher from './components/ThemeSwitcher.vue'
 import ChangePasswordModal from './components/ChangePasswordModal.vue'
+import NotificationCenter from './components/NotificationCenter.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -36,6 +37,7 @@ const groups = [
       { labelKey: 'app.masterProducts', path: '/master-data/products', icon: '▦', badge: '' },
       { labelKey: 'app.masterSuppliers', path: '/master-data/suppliers', icon: '◎', badge: '' },
       { labelKey: 'app.masterCustomers', path: '/master-data/customers', icon: '◌', badge: '' },
+      { labelKey: 'app.auditHistory', path: '/admin/audit-history', icon: '≡', badge: '' },
     ],
   },
   {
@@ -287,7 +289,7 @@ onBeforeUnmount(() => {
             <img src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
             <strong>StockFlow</strong>
           </router-link>
-          <div class="breadcrumbs"><span>{{ t('app.workspaceName') }}</span><b>/</b><strong>{{ route.path === '/' ? t('app.dashboardBreadcrumb') : route.path.startsWith('/master-data') ? t('app.masterDataBreadcrumb') : route.path.startsWith('/operations') ? t('app.operationsBreadcrumb') : route.path.startsWith('/reports') ? t('app.insight') : t('app.inventoryBreadcrumb') }}</strong></div>
+          <div class="breadcrumbs"><span>{{ t('app.workspaceName') }}</span><b>/</b><strong>{{ route.path === '/' ? t('app.dashboardBreadcrumb') : route.path.startsWith('/master-data') || route.path.startsWith('/admin') ? t('app.masterDataBreadcrumb') : route.path.startsWith('/operations') ? t('app.operationsBreadcrumb') : route.path.startsWith('/reports') ? t('app.insight') : t('app.inventoryBreadcrumb') }}</strong></div>
         </div>
         <div class="topbar-actions">
           <form class="global-search" @submit.prevent="handleSearch">
@@ -298,7 +300,7 @@ onBeforeUnmount(() => {
           <ThemeSwitcher />
           <button class="language-switcher" type="button" :aria-label="language === 'id' ? t('app.switchToEnglish') : t('app.switchToIndonesian')" @click="toggleLanguage"><span :class="{ active: language === 'en' }">EN</span><span :class="{ active: language === 'id' }">ID</span></button>
           <button class="topbar-icon help-button" type="button" :aria-label="t('app.helpAria')" @click="notify(t('app.helpToast'))">?</button>
-          <button class="topbar-icon notification-button" type="button" :aria-label="t('app.notificationsAria')" @click="notify(t('app.notificationToast'))"><span />◔</button>
+          <NotificationCenter />
           <div ref="profileWrap" class="profile-wrap">
             <button class="profile-menu profile-trigger" type="button" :aria-expanded="profileOpen" :aria-label="t('app.profileAria')" @click="profileOpen = !profileOpen">
               <div class="profile-avatar">{{ initials }}</div>

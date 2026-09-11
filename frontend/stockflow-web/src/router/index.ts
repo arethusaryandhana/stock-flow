@@ -10,6 +10,7 @@ import SalesOrders from '../presentation/SalesOrders.vue'
 import Reports from '../presentation/Reports.vue'
 import Receiving from '../presentation/Receiving.vue'
 import OperationalSuppliers from '../presentation/OperationalSuppliers.vue'
+import AuditHistory from '../presentation/AuditHistory.vue'
 import { api } from '../infrastructure/api'
 
 const router = createRouter({
@@ -30,6 +31,7 @@ const router = createRouter({
     { path: '/master-data/products', component: MasterData, props: { entity: 'products' }, meta: { auth: true, admin: true } },
     { path: '/master-data/suppliers', component: MasterData, props: { entity: 'suppliers' }, meta: { auth: true, admin: true } },
     { path: '/master-data/customers', component: MasterData, props: { entity: 'customers' }, meta: { auth: true, admin: true } },
+    { path: '/admin/audit-history', component: AuditHistory, meta: { auth: true, admin: true } },
   ],
 })
 

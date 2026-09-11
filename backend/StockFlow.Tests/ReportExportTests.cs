@@ -141,6 +141,13 @@ public sealed class ReportExportTests
                     Guid.NewGuid(),
                     storagePath);
                 Assert.Equal(404, otherUser.StatusCode);
+
+                var notification = await downloadDb.Notifications
+                    .AsNoTracking()
+                    .SingleAsync(item => item.UserId == userId);
+                Assert.Equal(NotificationType.ReportReady, notification.Type);
+                Assert.Equal("/reports", notification.Link);
+                Assert.Equal($"report-ready:{jobId:N}", notification.DeduplicationKey);
             }
         }
         finally

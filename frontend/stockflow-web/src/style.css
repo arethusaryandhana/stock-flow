@@ -148,8 +148,6 @@ kbd { padding: 3px 5px; border: 1px solid var(--control-border); border-radius: 
 .login-preferences .theme-option.active { color: #d8f7f1; background: #ffffff18; }
 .login-language span.active { color: #173057; background: #ccefeb; }
 .login-language:hover, .login-preferences .theme-switcher:hover { border-color: #ffffff42; }
-.notification-button { font-size: 1.15rem; }
-.notification-button span { position: absolute; top: 7px; right: 7px; width: 5px; height: 5px; border: 1px solid #fff; border-radius: 50%; background: #dc6672; }
 .profile-wrap { position: relative; }
 .profile-menu { gap: 8px; margin-left: 6px; padding: 0 0 0 13px; border: 0; border-left: 1px solid var(--line); background: transparent; text-align: left; }
 .profile-trigger { cursor: pointer; }
