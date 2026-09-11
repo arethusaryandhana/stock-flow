@@ -25,7 +25,9 @@ public sealed class DashboardRepository(StockFlowDbContext db) : IDashboardRepos
                 order.Status == PurchaseOrderStatus.Approved,
             cancellationToken);
         var salesToday = await db.SalesOrders
-            .Where(order => order.OrderDate.Date == DateTime.UtcNow.Date)
+            .Where(order => order.Status == SalesOrderStatus.Completed &&
+                order.CompletedAt != null &&
+                order.CompletedAt.Value.Date == DateTime.UtcNow.Date)
             .SumAsync(order => order.Items.Sum(item => item.Quantity * item.UnitPrice), cancellationToken);
         return new DashboardResponse(
             products,

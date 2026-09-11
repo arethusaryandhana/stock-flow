@@ -169,6 +169,48 @@ public sealed record GoodsReceiptResponse(
     DateTime ReceivedAt,
     IReadOnlyList<GoodsReceiptItemResponse> Items);
 
+public sealed record SalesOrderItemResponse(
+    Guid Id,
+    Guid ProductId,
+    string ProductSku,
+    string ProductName,
+    string Unit,
+    decimal StockOnHand,
+    decimal Quantity,
+    decimal UnitPrice);
+
+public sealed record SalesOrderResponse(
+    Guid Id,
+    string Number,
+    Guid CustomerId,
+    string CustomerCode,
+    string CustomerName,
+    string Status,
+    DateTime OrderDate,
+    DateTime? CompletedAt,
+    string? Notes,
+    decimal TotalAmount,
+    IReadOnlyList<SalesOrderItemResponse> Items);
+
+public sealed record SalesOrderStatusCountsResponse(
+    int Draft,
+    int Confirmed,
+    int Processing,
+    int Completed,
+    int Cancelled);
+
+public sealed record SalesOrderPageResponse(
+    IReadOnlyList<SalesOrderResponse> Items,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    SalesOrderStatusCountsResponse StatusCounts)
+{
+    public int TotalPages => TotalCount == 0
+        ? 0
+        : (int)Math.Ceiling(TotalCount / (double)PageSize);
+}
+
 public sealed record ReportProductRow(
     string Sku,
     string Name,

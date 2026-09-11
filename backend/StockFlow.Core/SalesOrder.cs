@@ -7,6 +7,7 @@ public sealed class SalesOrder : Entity
     public Customer Customer { get; set; } = null!;
     public SalesOrderStatus Status { get; set; }
     public DateTime OrderDate { get; set; } = DateTime.UtcNow;
+    public DateTime? CompletedAt { get; set; }
     public string? Notes { get; set; }
     public ICollection<SalesOrderItem> Items { get; set; } = [];
 }

@@ -136,6 +136,30 @@ public interface IPurchasingUseCase
         CancellationToken cancellationToken = default);
 }
 
+public interface ISalesUseCase
+{
+    Task<SalesOrderPageResponse> GetSalesOrdersAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        string? status = null,
+        CancellationToken cancellationToken = default);
+
+    Task<SalesOrderResponse?> GetSalesOrderAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<SalesOrderResponse>> CreateSalesOrderAsync(
+        SalesOrderRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<SalesOrderResponse>> UpdateStatusAsync(
+        Guid id,
+        string status,
+        Guid updatedById,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ISupplierUseCase
 {
     Task<PagedResponse<SupplierResponse>> GetAllAsync(

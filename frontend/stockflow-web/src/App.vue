@@ -52,6 +52,7 @@ const groups = [
     adminOnly: false,
     items: [
       { labelKey: 'app.purchaseOrders', path: '/operations/purchase-orders', icon: '▤', badge: '' },
+      { labelKey: 'app.salesOrders', path: '/operations/sales-orders', icon: '↑', badge: '' },
       { labelKey: 'app.receiving', path: '/operations/receiving', icon: '↓', badge: '' },
       { labelKey: 'app.suppliers', path: '/operations/suppliers', icon: '◎', badge: '' },
     ],

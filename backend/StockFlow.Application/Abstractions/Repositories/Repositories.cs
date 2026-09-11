@@ -155,6 +155,47 @@ public sealed record GoodsReceiptCreationResult(
     GoodsReceiptCreationStatus Status,
     GoodsReceiptResponse? Data = null);
 
+public interface ISalesRepository
+{
+    Task<SalesOrderPageResponse> GetSalesOrdersAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        string? status = null,
+        CancellationToken cancellationToken = default);
+
+    Task<SalesOrderResponse?> GetSalesOrderAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
+
+    Task AddSalesOrderAsync(
+        SalesOrder salesOrder,
+        CancellationToken cancellationToken = default);
+
+    Task<SalesOrderStatusUpdateResult> UpdateStatusAsync(
+        Guid id,
+        SalesOrderStatus nextStatus,
+        Guid updatedById,
+        CancellationToken cancellationToken = default);
+
+    Task SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public enum SalesOrderStatusUpdateStatus
+{
+    Updated,
+    SalesOrderNotFound,
+    InvalidTransition,
+    ProductNotFound,
+    ProductInactive,
+    InsufficientStock
+}
+
+public sealed record SalesOrderStatusUpdateResult(
+    SalesOrderStatusUpdateStatus Status,
+    SalesOrderResponse? Data = null,
+    IReadOnlyList<string>? InsufficientProducts = null);
+
 public interface ISupplierRepository
 {
     Task<PagedResponse<SupplierResponse>> GetAllAsync(

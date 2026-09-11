@@ -53,3 +53,15 @@ public sealed record GoodsReceiptItemRequest(
 public sealed record GoodsReceiptRequest(
     Guid PurchaseOrderId,
     IReadOnlyList<GoodsReceiptItemRequest> Items);
+
+public sealed record SalesOrderItemRequest(
+    Guid ProductId,
+    decimal Quantity,
+    decimal UnitPrice);
+
+public sealed record SalesOrderRequest(
+    Guid CustomerId,
+    string? Notes,
+    IReadOnlyList<SalesOrderItemRequest> Items);
+
+public sealed record SalesOrderStatusRequest(string Status);

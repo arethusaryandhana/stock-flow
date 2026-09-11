@@ -6,6 +6,7 @@ import StockMovements from '../presentation/StockMovements.vue'
 import StockAdjustments from '../presentation/StockAdjustments.vue'
 import MasterData from '../presentation/MasterData.vue'
 import PurchaseOrders from '../presentation/PurchaseOrders.vue'
+import SalesOrders from '../presentation/SalesOrders.vue'
 import Receiving from '../presentation/Receiving.vue'
 import OperationalSuppliers from '../presentation/OperationalSuppliers.vue'
 import { api } from '../infrastructure/api'
@@ -19,6 +20,7 @@ const router = createRouter({
     { path: '/inventory/movements', component: StockMovements, meta: { auth: true } },
     { path: '/inventory/adjustments', component: StockAdjustments, meta: { auth: true } },
     { path: '/operations/purchase-orders', component: PurchaseOrders, meta: { auth: true } },
+    { path: '/operations/sales-orders', component: SalesOrders, meta: { auth: true } },
     { path: '/operations/receiving', component: Receiving, meta: { auth: true } },
     { path: '/operations/suppliers', component: OperationalSuppliers, meta: { auth: true } },
     { path: '/master-data', redirect: '/master-data/categories', meta: { auth: true, admin: true } },
