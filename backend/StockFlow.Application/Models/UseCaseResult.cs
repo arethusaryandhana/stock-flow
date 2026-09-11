@@ -17,6 +17,9 @@ public sealed record UseCaseResult<T>(
     public static UseCaseResult<T> Unauthorized(string message) =>
         new(401, Message: message);
 
+    public static UseCaseResult<T> Conflict(string message) =>
+        new(409, Message: message);
+
     public static UseCaseResult<T> NotFound(string message) =>
         new(404, Message: message);
 }

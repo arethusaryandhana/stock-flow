@@ -17,6 +17,7 @@ public static class UseCaseResultExtensions
                     message = result.Message
                 },
                 statusCode: StatusCodes.Status401Unauthorized),
+            StatusCodes.Status409Conflict => Results.Conflict(new { message = result.Message }),
             StatusCodes.Status404NotFound => Results.NotFound(new { message = result.Message }),
             _ => Results.Json(
                 new

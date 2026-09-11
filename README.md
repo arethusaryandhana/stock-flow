@@ -24,14 +24,14 @@ Demo login: `admin@stockflow.local` / `StockFlow123!`
 - Responsive Vue 3 + TypeScript + Tailwind shell, login, actionable dashboard, product inventory table, operational purchasing and sales screens, plus separate Admin-only master-data menus
 - Purchase order lifecycle APIs (Draft, Submitted, Approved, Received, Cancelled) with paginated search/filtering and atomic goods receipt updates for inventory and movement audit
 - Sales order lifecycle APIs (Draft, Confirmed, Processing, Completed, Cancelled) with paginated search/filtering and atomic stock deduction on completion
-- Separate idle-friendly worker with PostgreSQL `FOR UPDATE SKIP LOCKED` queue claim and queued CSV export
+- Report page and authenticated request/status/download APIs backed by an idle-friendly worker and PostgreSQL `FOR UPDATE SKIP LOCKED` queue claims
 - Database constraints and row locking for concurrent inventory adjustments, goods receipts, and sales completion
 - Automated unit/integration tests and GitHub Actions CI for backend, PostgreSQL concurrency, and frontend builds
 - Separate Docker Compose containers for web, API, worker, and PostgreSQL
 
 ## Next slices
 
-Report job request/download endpoints, notification scheduler, audit history views, and broader end-to-end browser coverage.
+Notification scheduler, audit history views, additional report types, and broader end-to-end browser coverage.
 
 ## Run tests
 
@@ -53,7 +53,9 @@ dotnet test backend/StockFlow.sln
 ## Production configuration
 
 Production does not auto-migrate or seed demo data. Supply `ConnectionStrings__Database`, a unique
-`Jwt__Key` of at least 32 bytes, and `WebOrigin` through deployment secrets/environment variables.
+`Jwt__Key` of at least 32 bytes, `WebOrigin`, and a shared `ReportStorage` path through deployment
+secrets/environment variables. The worker needs write access to report storage while the API only
+needs read access for downloads.
 Run EF migrations as a controlled release step. `Database__ApplyMigrations`, `SeedData__Demo`, and
 `PasswordReset__ExposeResetToken` should remain `false` in production.
 

@@ -38,7 +38,7 @@ api.interceptors.response.use(
     endRequest()
     return response
   },
-  (error) => {
+  async (error) => {
     endRequest()
     const status = error.response?.status
     const requestUrl = error.config?.url ?? ''
@@ -53,6 +53,16 @@ api.interceptors.response.use(
       redirectToLoginWithLoading()
     }
 
-    return Promise.reject(new Error(error.response?.data?.message ?? 'Layanan belum dapat dihubungi.'))
+    let message = error.response?.data?.message as string | undefined
+    if (!message && error.response?.data instanceof Blob) {
+      try {
+        const payload = JSON.parse(await error.response.data.text()) as { message?: string }
+        message = payload.message
+      } catch {
+        // Keep the generic fallback when a binary response is not a JSON error.
+      }
+    }
+
+    return Promise.reject(new Error(message ?? 'Layanan belum dapat dihubungi.'))
   },
 )

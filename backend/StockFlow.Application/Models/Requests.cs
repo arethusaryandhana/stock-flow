@@ -65,3 +65,7 @@ public sealed record SalesOrderRequest(
     IReadOnlyList<SalesOrderItemRequest> Items);
 
 public sealed record SalesOrderStatusRequest(string Status);
+
+public sealed record ReportExportRequest(
+    string ReportType,
+    string Format);

@@ -238,6 +238,22 @@ public interface ICustomerRepository
 
 public interface IReportExportRepository
 {
+    Task<ReportExportPageResponse> GetAllAsync(
+        Guid requestedById,
+        int page,
+        int pageSize,
+        string? status = null,
+        CancellationToken cancellationToken = default);
+
+    Task<ReportExportJob?> GetAsync(
+        Guid id,
+        Guid requestedById,
+        CancellationToken cancellationToken = default);
+
+    Task<ReportExportCreationResult> CreateAsync(
+        ReportExportJob job,
+        CancellationToken cancellationToken = default);
+
     Task<ReportExportJob?> ClaimNextAsync(CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<ReportProductRow>> GetProductRowsAsync(CancellationToken cancellationToken = default);
@@ -253,3 +269,13 @@ public interface IReportExportRepository
         string errorMessage,
         CancellationToken cancellationToken = default);
 }
+
+public enum ReportExportCreationStatus
+{
+    Created,
+    ActiveJobAlreadyExists
+}
+
+public sealed record ReportExportCreationResult(
+    ReportExportCreationStatus Status,
+    ReportExportResponse? Data = null);

@@ -216,3 +216,39 @@ public sealed record ReportProductRow(
     string Name,
     decimal StockOnHand,
     decimal ReorderLevel);
+
+public sealed record ReportExportResponse(
+    Guid Id,
+    string JobNumber,
+    string ReportType,
+    string Format,
+    string Status,
+    int Progress,
+    long? FileSize,
+    DateTime RequestedAt,
+    DateTime? StartedAt,
+    DateTime? CompletedAt,
+    string? ErrorMessage);
+
+public sealed record ReportExportStatusCountsResponse(
+    int Queued,
+    int Processing,
+    int Completed,
+    int Failed);
+
+public sealed record ReportExportPageResponse(
+    IReadOnlyList<ReportExportResponse> Items,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    ReportExportStatusCountsResponse StatusCounts)
+{
+    public int TotalPages => TotalCount == 0
+        ? 0
+        : (int)Math.Ceiling(TotalCount / (double)PageSize);
+}
+
+public sealed record ReportDownloadResponse(
+    string FilePath,
+    string FileName,
+    string ContentType);

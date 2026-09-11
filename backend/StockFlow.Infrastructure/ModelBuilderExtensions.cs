@@ -61,6 +61,10 @@ internal static class ModelBuilderExtensions
         modelBuilder.Entity<StockAdjustment>().HasIndex(entity => entity.Number).IsUnique();
         modelBuilder.Entity<ReportExportJob>().HasIndex(entity => new { entity.Status, entity.RequestedAt });
         modelBuilder.Entity<ReportExportJob>().HasIndex(entity => entity.JobNumber).IsUnique();
+        modelBuilder.Entity<ReportExportJob>()
+            .HasIndex(entity => new { entity.RequestedById, entity.ReportType })
+            .IsUnique()
+            .HasFilter("status IN (0, 1)");
     }
 
     private static void ConfigureRelationships(ModelBuilder modelBuilder)

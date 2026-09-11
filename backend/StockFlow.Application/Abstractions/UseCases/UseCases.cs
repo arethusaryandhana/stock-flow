@@ -208,5 +208,23 @@ public interface ICustomerUseCase
 
 public interface IReportExportUseCase
 {
+    Task<ReportExportPageResponse> GetAllAsync(
+        Guid requestedById,
+        int page,
+        int pageSize,
+        string? status = null,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<ReportExportResponse>> RequestAsync(
+        ReportExportRequest request,
+        Guid requestedById,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<ReportDownloadResponse>> GetDownloadAsync(
+        Guid id,
+        Guid requestedById,
+        string reportStoragePath,
+        CancellationToken cancellationToken = default);
+
     Task ProcessNextAsync(string reportStoragePath, CancellationToken cancellationToken = default);
 }
