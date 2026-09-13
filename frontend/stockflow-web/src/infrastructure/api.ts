@@ -9,7 +9,7 @@ export type PagedResponse<T> = {
   totalPages: number
 }
 
-const sessionKeys = ['stockflow_authenticated', 'stockflow_name', 'stockflow_role']
+const sessionKeys = ['stockflow_authenticated', 'stockflow_name', 'stockflow_email', 'stockflow_role']
 export const SESSION_REDIRECT_EVENT = 'stockflow:session-redirect'
 
 const loginRedirectDelayMs = 900

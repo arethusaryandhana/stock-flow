@@ -4,8 +4,15 @@ namespace StockFlow.Application.Abstractions.UseCases;
 
 public interface IAuthUseCase
 {
+    Task<UseCaseResult<SessionResponse>> GetProfileAsync(
+        CancellationToken cancellationToken = default);
+
     Task<UseCaseResult<LoginResponse>> LoginAsync(
         LoginRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<SessionResponse>> UpdateProfileAsync(
+        UpdateAccountProfileRequest request,
         CancellationToken cancellationToken = default);
 
     Task<UseCaseResult<PasswordResetRequestResponse>> RequestPasswordResetAsync(
@@ -19,6 +26,9 @@ public interface IAuthUseCase
 
     Task<UseCaseResult<MessageResponse>> ChangePasswordAsync(
         ChangePasswordRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<MessageResponse>> RevokeAllSessionsAsync(
         CancellationToken cancellationToken = default);
 }
 

@@ -11,6 +11,7 @@ import Reports from '../presentation/Reports.vue'
 import Receiving from '../presentation/Receiving.vue'
 import OperationalSuppliers from '../presentation/OperationalSuppliers.vue'
 import AuditHistory from '../presentation/AuditHistory.vue'
+import Settings from '../presentation/Settings.vue'
 import { api } from '../infrastructure/api'
 
 const router = createRouter({
@@ -32,6 +33,7 @@ const router = createRouter({
     { path: '/master-data/suppliers', component: MasterData, props: { entity: 'suppliers' }, meta: { auth: true, admin: true } },
     { path: '/master-data/customers', component: MasterData, props: { entity: 'customers' }, meta: { auth: true, admin: true } },
     { path: '/admin/audit-history', component: AuditHistory, meta: { auth: true, admin: true } },
+    { path: '/settings', component: Settings, meta: { auth: true } },
   ],
 })
 
@@ -39,9 +41,10 @@ async function restoreSession() {
   if (sessionStorage.getItem('stockflow_authenticated') === 'true') return true
 
   try {
-    const { data } = await api.get<{ fullName: string; role: string }>('/auth/session')
+    const { data } = await api.get<{ fullName: string; email: string; role: string }>('/auth/session')
     sessionStorage.setItem('stockflow_authenticated', 'true')
     sessionStorage.setItem('stockflow_name', data.fullName)
+    sessionStorage.setItem('stockflow_email', data.email)
     sessionStorage.setItem('stockflow_role', data.role)
     return true
   } catch {

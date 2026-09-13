@@ -18,7 +18,15 @@ public sealed class UserRepository(StockFlowDbContext db) : IUserRepository
     public Task<User?> GetActiveByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default) =>
-        db.UsersSet.SingleOrDefaultAsync(user => user.Id == id && user.IsActive, cancellationToken);
+        db.UsersSet
+            .Include(user => user.Role)
+            .SingleOrDefaultAsync(user => user.Id == id && user.IsActive, cancellationToken);
+
+    public Task<bool> EmailExistsForOtherUserAsync(
+        string email,
+        Guid userId,
+        CancellationToken cancellationToken = default) =>
+        db.UsersSet.AnyAsync(user => user.Email == email && user.Id != userId, cancellationToken);
 
     public Task<PasswordResetToken?> GetPasswordResetTokenAsync(
         string tokenHash,

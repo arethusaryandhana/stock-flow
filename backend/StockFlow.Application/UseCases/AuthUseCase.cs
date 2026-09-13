@@ -13,6 +13,15 @@ public sealed class AuthUseCase(
     IPasswordResetTokenService resetTokens,
     ICurrentUserService currentUser) : IAuthUseCase
 {
+    public async Task<UseCaseResult<SessionResponse>> GetProfileAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var user = await GetCurrentUserAsync(cancellationToken);
+        return user is null
+            ? UseCaseResult<SessionResponse>.Unauthorized("Sesi tidak valid. Silakan login kembali.")
+            : UseCaseResult<SessionResponse>.Ok(ToSessionResponse(user));
+    }
+
     public async Task<UseCaseResult<LoginResponse>> LoginAsync(
         LoginRequest request,
         CancellationToken cancellationToken = default)
@@ -30,7 +39,48 @@ public sealed class AuthUseCase(
         }
 
         return UseCaseResult<LoginResponse>.Ok(
-            new LoginResponse(tokens.Create(user), user.FullName, user.Role.Name));
+            new LoginResponse(tokens.Create(user), user.FullName, user.Email, user.Role.Name));
+    }
+
+    public async Task<UseCaseResult<SessionResponse>> UpdateProfileAsync(
+        UpdateAccountProfileRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var fullName = NormalizeName(request.FullName);
+        var email = request.Email?.Trim().ToLowerInvariant() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(fullName) || string.IsNullOrWhiteSpace(email))
+            return UseCaseResult<SessionResponse>.BadRequest("Nama lengkap dan email wajib diisi.");
+
+        if (fullName.Length > 160 || email.Length > 254)
+            return UseCaseResult<SessionResponse>.BadRequest("Nama maksimal 160 karakter dan email maksimal 254 karakter.");
+
+        if (!System.Net.Mail.MailAddress.TryCreate(email, out var parsedEmail) ||
+            !string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase))
+        {
+            return UseCaseResult<SessionResponse>.BadRequest("Format email tidak valid.");
+        }
+
+        var user = await GetCurrentUserAsync(cancellationToken);
+        if (user is null)
+            return UseCaseResult<SessionResponse>.Unauthorized("Sesi tidak valid. Silakan login kembali.");
+
+        var emailChanged = !string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase);
+        if (emailChanged && (string.IsNullOrWhiteSpace(request.CurrentPassword) ||
+            !passwords.Verify(request.CurrentPassword, user.PasswordHash)))
+        {
+            return UseCaseResult<SessionResponse>.BadRequest(
+                "Password saat ini diperlukan untuk mengubah email.");
+        }
+
+        if (emailChanged && await users.EmailExistsForOtherUserAsync(email, user.Id, cancellationToken))
+            return UseCaseResult<SessionResponse>.Conflict("Email tersebut sudah digunakan oleh akun lain.");
+
+        user.FullName = fullName;
+        user.Email = email;
+        await users.SaveChangesAsync(cancellationToken);
+
+        return UseCaseResult<SessionResponse>.Ok(ToSessionResponse(user));
     }
 
     public async Task<UseCaseResult<PasswordResetRequestResponse>> RequestPasswordResetAsync(
@@ -119,4 +169,30 @@ public sealed class AuthUseCase(
 
         return UseCaseResult<MessageResponse>.Ok(new MessageResponse("Password berhasil diubah."));
     }
+
+    public async Task<UseCaseResult<MessageResponse>> RevokeAllSessionsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var user = await GetCurrentUserAsync(cancellationToken);
+        if (user is null)
+            return UseCaseResult<MessageResponse>.Unauthorized("Sesi tidak valid. Silakan login kembali.");
+
+        user.TokenVersion++;
+        await users.SaveChangesAsync(cancellationToken);
+
+        return UseCaseResult<MessageResponse>.Ok(
+            new MessageResponse("Semua sesi berhasil diakhiri."));
+    }
+
+    private async Task<User?> GetCurrentUserAsync(CancellationToken cancellationToken) =>
+        currentUser.UserId is Guid userId
+            ? await users.GetActiveByIdAsync(userId, cancellationToken)
+            : null;
+
+    private static string NormalizeName(string? value) =>
+        string.Join(' ', (value ?? string.Empty)
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    private static SessionResponse ToSessionResponse(User user) =>
+        new(user.FullName, user.Email, user.Role.Name);
 }

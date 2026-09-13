@@ -2,7 +2,6 @@ using StockFlow.Application.Abstractions.UseCases;
 using StockFlow.Application.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.RateLimiting;
-using System.Security.Claims;
 
 namespace StockFlow.WebAPI.Endpoints;
 
@@ -42,11 +41,23 @@ public sealed class AuthEndpoints : IEndpoint
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized);
 
+        group.MapPut("/profile", UpdateProfileAsync)
+            .RequireAuthorization()
+            .Produces<SessionResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status409Conflict);
+
+        group.MapPost("/logout-all", LogoutAllAsync)
+            .RequireAuthorization()
+            .Produces<MessageResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized);
+
         group.MapPost("/logout", Logout)
             .RequireAuthorization()
             .Produces(StatusCodes.Status204NoContent);
 
-        group.MapGet("/session", GetSession)
+        group.MapGet("/session", GetSessionAsync)
             .RequireAuthorization()
             .Produces<SessionResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized);
@@ -103,16 +114,32 @@ public sealed class AuthEndpoints : IEndpoint
         CancellationToken cancellationToken) =>
         (await useCase.ChangePasswordAsync(request, cancellationToken)).ToHttpResult();
 
+    private static async Task<IResult> UpdateProfileAsync(
+        UpdateAccountProfileRequest request,
+        IAuthUseCase useCase,
+        CancellationToken cancellationToken) =>
+        (await useCase.UpdateProfileAsync(request, cancellationToken)).ToHttpResult();
+
+    private static async Task<IResult> LogoutAllAsync(
+        IAuthUseCase useCase,
+        HttpResponse response,
+        CancellationToken cancellationToken)
+    {
+        var result = await useCase.RevokeAllSessionsAsync(cancellationToken);
+        if (result.Data is not null)
+            response.Cookies.Delete(AccessTokenCookie, new CookieOptions { Path = "/" });
+
+        return result.ToHttpResult();
+    }
+
     private static IResult Logout(HttpResponse response)
     {
         response.Cookies.Delete(AccessTokenCookie, new CookieOptions { Path = "/" });
         return Results.NoContent();
     }
 
-    private static IResult GetSession(ClaimsPrincipal user)
-    {
-        var fullName = user.FindFirstValue(ClaimTypes.Name) ?? string.Empty;
-        var role = user.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
-        return Results.Ok(new SessionResponse(fullName, role));
-    }
+    private static async Task<IResult> GetSessionAsync(
+        IAuthUseCase useCase,
+        CancellationToken cancellationToken) =>
+        (await useCase.GetProfileAsync(cancellationToken)).ToHttpResult();
 }

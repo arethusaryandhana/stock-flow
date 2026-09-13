@@ -9,6 +9,11 @@ public interface IUserRepository
 
     Task<User?> GetActiveByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
+    Task<bool> EmailExistsForOtherUserAsync(
+        string email,
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
     Task<PasswordResetToken?> GetPasswordResetTokenAsync(string tokenHash, CancellationToken cancellationToken = default);
 
     Task InvalidatePasswordResetTokensAsync(Guid userId, CancellationToken cancellationToken = default);

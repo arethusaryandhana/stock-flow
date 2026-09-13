@@ -8,6 +8,11 @@ public sealed record ResetPasswordRequest(string Token, string NewPassword);
 
 public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 
+public sealed record UpdateAccountProfileRequest(
+    string FullName,
+    string Email,
+    string? CurrentPassword);
+
 public sealed record ProductRequest(
     string Sku,
     string Name,

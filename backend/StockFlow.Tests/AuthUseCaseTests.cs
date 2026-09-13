@@ -9,6 +9,71 @@ namespace StockFlow.Tests;
 public sealed class AuthUseCaseTests
 {
     [Fact]
+    public async Task GetProfile_ReturnsCurrentAccountDetails()
+    {
+        var user = CreateUser("OldStockFlow123!");
+        var useCase = CreateUseCase(new StubUserRepository(user), user.Id);
+
+        var result = await useCase.GetProfileAsync(CancellationToken.None);
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal(user.FullName, result.Data?.FullName);
+        Assert.Equal(user.Email, result.Data?.Email);
+        Assert.Equal("Admin", result.Data?.Role);
+    }
+
+    [Fact]
+    public async Task UpdateProfile_NormalizesDetailsAndVerifiesEmailChange()
+    {
+        var user = CreateUser("OldStockFlow123!");
+        var users = new StubUserRepository(user);
+        var useCase = CreateUseCase(users, user.Id);
+
+        var result = await useCase.UpdateProfileAsync(
+            new UpdateAccountProfileRequest(
+                "  Demo   Administrator  ",
+                "NEW.ADMIN@STOCKFLOW.LOCAL ",
+                "OldStockFlow123!"),
+            CancellationToken.None);
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal("Demo Administrator", user.FullName);
+        Assert.Equal("new.admin@stockflow.local", user.Email);
+        Assert.Equal(1, users.SaveCalls);
+    }
+
+    [Fact]
+    public async Task UpdateProfile_RejectsEmailChangeWithoutValidPassword()
+    {
+        var user = CreateUser("OldStockFlow123!");
+        var users = new StubUserRepository(user);
+        var useCase = CreateUseCase(users, user.Id);
+
+        var result = await useCase.UpdateProfileAsync(
+            new UpdateAccountProfileRequest("Admin", "new@stockflow.local", "incorrect"),
+            CancellationToken.None);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("admin@stockflow.local", user.Email);
+        Assert.Equal(0, users.SaveCalls);
+    }
+
+    [Fact]
+    public async Task UpdateProfile_RejectsEmailOwnedByAnotherAccount()
+    {
+        var user = CreateUser("OldStockFlow123!");
+        var users = new StubUserRepository(user) { OtherUserEmail = "staff@stockflow.local" };
+        var useCase = CreateUseCase(users, user.Id);
+
+        var result = await useCase.UpdateProfileAsync(
+            new UpdateAccountProfileRequest("Admin", "staff@stockflow.local", "OldStockFlow123!"),
+            CancellationToken.None);
+
+        Assert.Equal(409, result.StatusCode);
+        Assert.Equal(0, users.SaveCalls);
+    }
+
+    [Fact]
     public async Task ChangePassword_IncrementsTokenVersionAndInvalidatesResetTokens()
     {
         var user = CreateUser("OldStockFlow123!");
@@ -42,6 +107,20 @@ public sealed class AuthUseCaseTests
         Assert.Equal(0, users.SaveCalls);
     }
 
+    [Fact]
+    public async Task RevokeAllSessions_IncrementsTokenVersion()
+    {
+        var user = CreateUser("OldStockFlow123!");
+        var users = new StubUserRepository(user);
+        var useCase = CreateUseCase(users, user.Id);
+
+        var result = await useCase.RevokeAllSessionsAsync(CancellationToken.None);
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal(1, user.TokenVersion);
+        Assert.Equal(1, users.SaveCalls);
+    }
+
     private static AuthUseCase CreateUseCase(StubUserRepository users, Guid currentUserId) =>
         new(
             users,
@@ -60,6 +139,7 @@ public sealed class AuthUseCaseTests
 
     private sealed class StubUserRepository(User user) : IUserRepository
     {
+        public string? OtherUserEmail { get; init; }
         public int InvalidateCalls { get; private set; }
         public int SaveCalls { get; private set; }
 
@@ -68,6 +148,12 @@ public sealed class AuthUseCaseTests
 
         public Task<User?> GetActiveByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult<User?>(user.Id == id ? user : null);
+
+        public Task<bool> EmailExistsForOtherUserAsync(
+            string email,
+            Guid userId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(string.Equals(email, OtherUserEmail, StringComparison.OrdinalIgnoreCase));
 
         public Task<PasswordResetToken?> GetPasswordResetTokenAsync(
             string tokenHash, CancellationToken cancellationToken = default) =>

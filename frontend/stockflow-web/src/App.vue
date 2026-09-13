@@ -64,7 +64,7 @@ const groups = [
     adminOnly: false,
     items: [
       { labelKey: 'app.reports', path: '/reports', icon: '◷', badge: '' },
-      { labelKey: 'app.settings', path: null, icon: '⚙', badge: 'app.soon' },
+      { labelKey: 'app.settings', path: '/settings', icon: '⚙', badge: '' },
     ],
   },
 ]
@@ -289,7 +289,7 @@ onBeforeUnmount(() => {
             <img src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
             <strong>StockFlow</strong>
           </router-link>
-          <div class="breadcrumbs"><span>{{ t('app.workspaceName') }}</span><b>/</b><strong>{{ route.path === '/' ? t('app.dashboardBreadcrumb') : route.path.startsWith('/master-data') || route.path.startsWith('/admin') ? t('app.masterDataBreadcrumb') : route.path.startsWith('/operations') ? t('app.operationsBreadcrumb') : route.path.startsWith('/reports') ? t('app.insight') : t('app.inventoryBreadcrumb') }}</strong></div>
+          <div class="breadcrumbs"><span>{{ t('app.workspaceName') }}</span><b>/</b><strong>{{ route.path === '/' ? t('app.dashboardBreadcrumb') : route.path.startsWith('/settings') ? t('app.settings') : route.path.startsWith('/master-data') || route.path.startsWith('/admin') ? t('app.masterDataBreadcrumb') : route.path.startsWith('/operations') ? t('app.operationsBreadcrumb') : route.path.startsWith('/reports') ? t('app.insight') : t('app.inventoryBreadcrumb') }}</strong></div>
         </div>
         <div class="topbar-actions">
           <form class="global-search" @submit.prevent="handleSearch">
