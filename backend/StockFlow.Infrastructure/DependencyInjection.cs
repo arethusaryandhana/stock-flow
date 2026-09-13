@@ -52,6 +52,7 @@ public static class DependencyInjection
         services.AddScoped<IInventoryRepository, InventoryRepository>();
         services.AddScoped<IInventorySettingsRepository, InventorySettingsRepository>();
         services.AddScoped<ICompanyProfileRepository, CompanyProfileRepository>();
+        services.AddScoped<IUserManagementRepository, UserManagementRepository>();
         services.AddScoped<IPurchasingRepository, PurchasingRepository>();
         services.AddScoped<ISalesRepository, SalesRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
@@ -70,6 +71,7 @@ public static class DependencyInjection
         services.AddScoped<IInventoryUseCase, InventoryUseCase>();
         services.AddScoped<IInventorySettingsUseCase, InventorySettingsUseCase>();
         services.AddScoped<ICompanyProfileUseCase, CompanyProfileUseCase>();
+        services.AddScoped<IUserManagementUseCase, UserManagementUseCase>();
         services.AddScoped<IPurchasingUseCase, PurchasingUseCase>();
         services.AddScoped<ISalesUseCase, SalesUseCase>();
         services.AddScoped<ICategoryUseCase, CategoryUseCase>();

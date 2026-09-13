@@ -72,6 +72,31 @@ public interface ICompanyProfileRepository
         CancellationToken cancellationToken = default);
 }
 
+public interface IUserManagementRepository
+{
+    Task<PagedResponse<ManagedUserResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        string? role = null,
+        string? status = null,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<RoleOptionResponse>> GetRolesAsync(CancellationToken cancellationToken = default);
+
+    Task<User?> FindAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<Role?> FindRoleAsync(string name, CancellationToken cancellationToken = default);
+
+    Task<bool> ExistsByEmailAsync(string email, Guid? exceptId = null, CancellationToken cancellationToken = default);
+
+    Task<bool> HasAnotherActiveAdminAsync(Guid exceptId, CancellationToken cancellationToken = default);
+
+    Task AddAsync(User user, CancellationToken cancellationToken = default);
+
+    Task SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
 public interface ICategoryRepository
 {
     Task<PagedResponse<CategoryResponse>> GetAllAsync(

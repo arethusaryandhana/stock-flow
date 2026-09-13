@@ -96,3 +96,10 @@ public sealed record CompanyProfileRequest(
     string? Phone,
     string Currency,
     string? LogoUrl);
+
+public sealed record ManagedUserRequest(
+    string FullName,
+    string Email,
+    string? Password,
+    string Role,
+    bool IsActive = true);

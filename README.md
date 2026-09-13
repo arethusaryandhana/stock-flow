@@ -30,6 +30,7 @@ Demo login: `admin@stockflow.local` / `StockFlow123!`
 - Display and regional settings for language, theme, time zone, date and number formats, and a shared default table page size
 - Admin-only inventory settings for product defaults, effective global low-stock warnings, and optional negative-stock transactions
 - Admin-only company profile for business identity, contacts, primary currency, and report/document branding
+- Admin-only user management for account creation, role assignment, active status, password reset, and last-admin protection
 - Immutable Admin audit history for business entities, including actor and safe before/after field values without authentication secrets
 - Database constraints and row locking for concurrent inventory adjustments, goods receipts, and sales completion
 - Automated unit/integration tests and GitHub Actions CI for backend, PostgreSQL concurrency, and frontend builds

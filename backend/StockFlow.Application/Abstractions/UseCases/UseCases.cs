@@ -85,6 +85,29 @@ public interface ICompanyProfileUseCase
         CancellationToken cancellationToken = default);
 }
 
+public interface IUserManagementUseCase
+{
+    Task<PagedResponse<ManagedUserResponse>> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        string? role = null,
+        string? status = null,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<RoleOptionResponse>> GetRolesAsync(CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<ManagedUserResponse>> CreateAsync(
+        ManagedUserRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<ManagedUserResponse>> UpdateAsync(
+        Guid id,
+        ManagedUserRequest request,
+        Guid actorId,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ICategoryUseCase
 {
     Task<PagedResponse<CategoryResponse>> GetAllAsync(

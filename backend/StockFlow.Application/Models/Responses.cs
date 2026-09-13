@@ -238,6 +238,17 @@ public sealed record CompanyProfileResponse(
     string? LogoUrl,
     DateTime? UpdatedAt);
 
+public sealed record ManagedUserResponse(
+    Guid Id,
+    string FullName,
+    string Email,
+    string Role,
+    bool IsActive,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
+
+public sealed record RoleOptionResponse(string Name);
+
 public sealed record ReportExportResponse(
     Guid Id,
     string JobNumber,

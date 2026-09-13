@@ -133,7 +133,11 @@ public sealed class StockFlowDbContext(
         bool isModified)
     {
         if (propertyName is nameof(Entity.CreatedAt) or nameof(Entity.CreatedById) or
-            nameof(Entity.UpdatedAt) or nameof(Entity.UpdatedById))
+            nameof(Entity.UpdatedAt) or nameof(Entity.UpdatedById) or
+            nameof(User.PasswordHash) or nameof(User.TokenVersion) or
+            nameof(User.InAppNotificationsEnabled) or nameof(User.LowStockNotificationsEnabled) or
+            nameof(User.ReportReadyNotificationsEnabled) or nameof(User.SystemNotificationsEnabled) or
+            nameof(User.NotificationSoundEnabled) or nameof(User.NotificationPollingIntervalSeconds))
         {
             return false;
         }
