@@ -19,8 +19,8 @@ public sealed record ProductRequest(
     Guid CategoryId,
     decimal PurchasePrice,
     decimal SellingPrice,
-    decimal ReorderLevel,
-    string Unit);
+    decimal? ReorderLevel,
+    string? Unit);
 
 public sealed record ProductReorderLevelRequest(decimal ReorderLevel);
 
@@ -82,3 +82,9 @@ public sealed record NotificationPreferencesRequest(
     bool SystemEnabled,
     bool SoundEnabled,
     int PollingIntervalSeconds);
+
+public sealed record InventorySettingsRequest(
+    decimal DefaultReorderLevel,
+    string DefaultUnit,
+    bool AllowNegativeStock,
+    decimal GlobalLowStockThreshold);

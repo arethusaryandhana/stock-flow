@@ -138,16 +138,24 @@ public sealed class SalesRepository(StockFlowDbContext db) : ISalesRepository
 
         if (nextStatus == SalesOrderStatus.Completed)
         {
-            var insufficientProducts = order.Items
-                .Where(item => productsById[item.ProductId].StockOnHand < item.Quantity)
-                .Select(item => $"{productsById[item.ProductId].Sku} ({productsById[item.ProductId].Name})")
-                .OrderBy(name => name)
-                .ToList();
-            if (insufficientProducts.Count > 0)
+            var allowNegativeStock = await db.InventorySettingsSet
+                .AsNoTracking()
+                .Where(settings => settings.Id == InventorySettings.DefaultId)
+                .Select(settings => settings.AllowNegativeStock)
+                .SingleOrDefaultAsync(cancellationToken);
+            if (!allowNegativeStock)
             {
-                return new SalesOrderStatusUpdateResult(
-                    SalesOrderStatusUpdateStatus.InsufficientStock,
-                    InsufficientProducts: insufficientProducts);
+                var insufficientProducts = order.Items
+                    .Where(item => productsById[item.ProductId].StockOnHand < item.Quantity)
+                    .Select(item => $"{productsById[item.ProductId].Sku} ({productsById[item.ProductId].Name})")
+                    .OrderBy(name => name)
+                    .ToList();
+                if (insufficientProducts.Count > 0)
+                {
+                    return new SalesOrderStatusUpdateResult(
+                        SalesOrderStatusUpdateStatus.InsufficientStock,
+                        InsufficientProducts: insufficientProducts);
+                }
             }
 
             var completedAt = DateTime.UtcNow;

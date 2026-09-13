@@ -157,16 +157,22 @@ public sealed class NotificationRepository(StockFlowDbContext db) : INotificatio
         if (recipients.Count == 0)
             return;
 
+        var globalThreshold = await db.InventorySettingsSet
+            .AsNoTracking()
+            .Where(settings => settings.Id == InventorySettings.DefaultId)
+            .Select(settings => settings.GlobalLowStockThreshold)
+            .SingleOrDefaultAsync(cancellationToken);
         var products = await db.ProductsSet
             .AsNoTracking()
-            .Where(product => product.IsActive && product.StockOnHand <= product.ReorderLevel)
+            .Where(product => product.IsActive &&
+                product.StockOnHand <= (product.ReorderLevel >= globalThreshold ? product.ReorderLevel : globalThreshold))
             .Select(product => new
             {
                 product.Id,
                 product.Sku,
                 product.Name,
                 product.StockOnHand,
-                product.ReorderLevel,
+                Threshold = product.ReorderLevel >= globalThreshold ? product.ReorderLevel : globalThreshold,
                 product.Unit
             })
             .ToListAsync(cancellationToken);
@@ -180,7 +186,7 @@ public sealed class NotificationRepository(StockFlowDbContext db) : INotificatio
             foreach (var product in products)
             {
                 var balance = product.StockOnHand.ToString("0.##", CultureInfo.InvariantCulture);
-                var threshold = product.ReorderLevel.ToString("0.##", CultureInfo.InvariantCulture);
+                var threshold = product.Threshold.ToString("0.##", CultureInfo.InvariantCulture);
                 var deduplicationKey = $"low-stock:{userId:N}:{product.Id:N}:{dateKey}";
                 var message = $"{product.Sku} - {product.Name} tersisa {balance} {product.Unit} (minimum {threshold}).";
 

@@ -8,6 +8,7 @@ public static class EndpointRegistration
         services.AddSingleton<IEndpoint, DashboardEndpoints>();
         services.AddSingleton<IEndpoint, ProductEndpoints>();
         services.AddSingleton<IEndpoint, InventoryEndpoints>();
+        services.AddSingleton<IEndpoint, InventorySettingsEndpoints>();
         services.AddSingleton<IEndpoint, PurchasingEndpoints>();
         services.AddSingleton<IEndpoint, SalesEndpoints>();
         services.AddSingleton<IEndpoint, ReportEndpoints>();

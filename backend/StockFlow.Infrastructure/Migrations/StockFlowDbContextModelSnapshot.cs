@@ -312,6 +312,59 @@ namespace StockFlow.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("StockFlow.Core.InventorySettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AllowNegativeStock")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_negative_stock");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<decimal>("DefaultReorderLevel")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("default_reorder_level");
+
+                    b.Property<string>("DefaultUnit")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("default_unit");
+
+                    b.Property<decimal>("GlobalLowStockThreshold")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("global_low_stock_threshold");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("inventory_settings", "inventory", t =>
+                        {
+                            t.HasCheckConstraint(
+                                "ck_inventory_settings_non_negative_thresholds",
+                                "default_reorder_level >= 0 AND global_low_stock_threshold >= 0");
+                        });
+                });
+
             modelBuilder.Entity("StockFlow.Core.Notification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -515,7 +568,7 @@ namespace StockFlow.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("ck_products_non_negative_prices", "purchase_price >= 0 AND selling_price >= 0");
 
-                            t.HasCheckConstraint("ck_products_non_negative_stock", "stock_on_hand >= 0 AND reorder_level >= 0");
+                            t.HasCheckConstraint("ck_products_non_negative_reorder_level", "reorder_level >= 0");
                         });
                 });
 
@@ -1003,7 +1056,7 @@ namespace StockFlow.Infrastructure.Migrations
 
                     b.ToTable("stock_movements", "inventory", t =>
                         {
-                            t.HasCheckConstraint("ck_stock_movements_values", "quantity > 0 AND balance_after >= 0");
+                            t.HasCheckConstraint("ck_stock_movements_values", "quantity > 0");
                         });
                 });
 

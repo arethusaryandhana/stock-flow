@@ -7,7 +7,8 @@ namespace StockFlow.Application.UseCases;
 
 public sealed class ProductUseCase(
     IProductRepository products,
-    ICategoryRepository categories) : IProductUseCase
+    ICategoryRepository categories,
+    IInventorySettingsRepository inventorySettings) : IProductUseCase
 {
     public Task<PagedResponse<ProductResponse>> GetAllAsync(
         int page,
@@ -24,7 +25,11 @@ public sealed class ProductUseCase(
     {
         var sku = request.Sku?.Trim() ?? string.Empty;
         var name = request.Name?.Trim() ?? string.Empty;
-        var unit = request.Unit?.Trim() ?? string.Empty;
+        var defaults = await inventorySettings.GetAsync(cancellationToken);
+        var unit = string.IsNullOrWhiteSpace(request.Unit)
+            ? defaults.DefaultUnit
+            : request.Unit.Trim();
+        var reorderLevel = request.ReorderLevel ?? defaults.DefaultReorderLevel;
 
         if (string.IsNullOrWhiteSpace(sku) || string.IsNullOrWhiteSpace(name))
         {
@@ -40,10 +45,10 @@ public sealed class ProductUseCase(
             return UseCaseResult<ProductResponse>.BadRequest("SKU maksimal 80 karakter, nama 160 karakter, dan satuan 24 karakter.");
 
         if (request.PurchasePrice < 0 || request.SellingPrice < 0 ||
-            request.ReorderLevel < 0 ||
+            reorderLevel < 0 ||
             decimal.Round(request.PurchasePrice, 2) != request.PurchasePrice ||
             decimal.Round(request.SellingPrice, 2) != request.SellingPrice ||
-            decimal.Round(request.ReorderLevel, 2) != request.ReorderLevel)
+            decimal.Round(reorderLevel, 2) != reorderLevel)
         {
             return UseCaseResult<ProductResponse>.BadRequest(
                 "Harga tidak boleh negatif; minimum stok harus 0 atau lebih dan maksimal 2 angka desimal.");
@@ -66,7 +71,7 @@ public sealed class ProductUseCase(
             CategoryId = request.CategoryId,
             PurchasePrice = request.PurchasePrice,
             SellingPrice = request.SellingPrice,
-            ReorderLevel = request.ReorderLevel,
+            ReorderLevel = reorderLevel,
             Unit = unit
         };
 
@@ -87,6 +92,7 @@ public sealed class ProductUseCase(
         var sku = request.Sku?.Trim() ?? string.Empty;
         var name = request.Name?.Trim() ?? string.Empty;
         var unit = request.Unit?.Trim() ?? string.Empty;
+        var reorderLevel = request.ReorderLevel;
 
         if (string.IsNullOrWhiteSpace(sku) || string.IsNullOrWhiteSpace(name))
             return UseCaseResult<ProductResponse>.BadRequest("SKU dan nama wajib diisi.");
@@ -98,10 +104,10 @@ public sealed class ProductUseCase(
             return UseCaseResult<ProductResponse>.BadRequest("SKU maksimal 80 karakter, nama 160 karakter, dan satuan 24 karakter.");
 
         if (request.PurchasePrice < 0 || request.SellingPrice < 0 ||
-            request.ReorderLevel < 0 ||
+            reorderLevel is null || reorderLevel < 0 ||
             decimal.Round(request.PurchasePrice, 2) != request.PurchasePrice ||
             decimal.Round(request.SellingPrice, 2) != request.SellingPrice ||
-            decimal.Round(request.ReorderLevel, 2) != request.ReorderLevel)
+            decimal.Round(reorderLevel.Value, 2) != reorderLevel.Value)
         {
             return UseCaseResult<ProductResponse>.BadRequest(
                 "Harga tidak boleh negatif; minimum stok harus 0 atau lebih dan maksimal 2 angka desimal.");
@@ -123,7 +129,7 @@ public sealed class ProductUseCase(
         product.CategoryId = request.CategoryId;
         product.PurchasePrice = request.PurchasePrice;
         product.SellingPrice = request.SellingPrice;
-        product.ReorderLevel = request.ReorderLevel;
+        product.ReorderLevel = reorderLevel.Value;
         product.Unit = unit;
         await products.SaveChangesAsync(cancellationToken);
 

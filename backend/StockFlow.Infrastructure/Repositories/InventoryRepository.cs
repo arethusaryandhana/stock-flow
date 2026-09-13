@@ -131,8 +131,13 @@ public sealed class InventoryRepository(StockFlowDbContext db) : IInventoryRepos
         if (!product.IsActive)
             return new StockAdjustmentCreationResult(StockAdjustmentCreationStatus.ProductInactive);
 
+        var allowNegativeStock = await db.InventorySettingsSet
+            .AsNoTracking()
+            .Where(settings => settings.Id == InventorySettings.DefaultId)
+            .Select(settings => settings.AllowNegativeStock)
+            .SingleOrDefaultAsync(cancellationToken);
         var balanceAfter = decimal.Round(product.StockOnHand + request.QuantityDelta, 2);
-        if (balanceAfter < 0)
+        if (!allowNegativeStock && balanceAfter < 0)
             return new StockAdjustmentCreationResult(StockAdjustmentCreationStatus.NegativeBalance);
 
         var now = DateTime.UtcNow;

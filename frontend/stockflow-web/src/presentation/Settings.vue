@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import ChangePasswordModal from '../components/ChangePasswordModal.vue'
+import FormattedNumberInput from '../components/FormattedNumberInput.vue'
 import { api } from '../infrastructure/api'
 import { useI18n } from '../i18n'
 import type { Language } from '../i18n'
@@ -17,10 +18,11 @@ import {
 } from '../preferences'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useInventorySettings, type InventorySettings } from '../inventorySettings'
 import { useTheme, type ThemePreference } from '../theme'
 
 type SessionProfile = { fullName: string; email: string; role: string }
-type SettingsSection = 'account' | 'display' | 'notifications'
+type SettingsSection = 'account' | 'display' | 'notifications' | 'inventory'
 type NotificationToggleKey = Exclude<keyof NotificationPreferences, 'pollingIntervalSeconds'>
 
 const auth = useAuthStore()
@@ -32,6 +34,11 @@ const {
   loadPreferences: loadNotificationPreferences,
   savePreferences: saveNotificationPreferences,
 } = useNotificationPreferences()
+const {
+  settings: inventorySettings,
+  loadSettings: loadInventorySettings,
+  saveSettings: saveInventorySettings,
+} = useInventorySettings()
 const {
   timeZone,
   dateFormat,
@@ -65,6 +72,15 @@ const securityError = ref('')
 const notificationLoading = ref(true)
 const notificationSaving = ref(false)
 const notificationError = ref('')
+const inventoryLoading = ref(false)
+const inventorySaving = ref(false)
+const inventoryError = ref('')
+const inventoryDraft = ref({
+  defaultReorderLevel: '5',
+  defaultUnit: 'pcs',
+  allowNegativeStock: false,
+  globalLowStockThreshold: '0',
+})
 const previewNow = new Date()
 
 const datePreview = computed(() => formatDate(previewNow, { includeTime: true }))
@@ -75,6 +91,15 @@ const enabledNotificationCategories = computed(() => [
   notificationPreferences.value.reportReadyEnabled,
   notificationPreferences.value.systemEnabled,
 ].filter(Boolean).length)
+const isAdmin = computed(() => auth.isAdmin)
+const inventoryDirty = computed(() => {
+  const reorder = inventoryDraft.value.defaultReorderLevel.trim()
+  const threshold = inventoryDraft.value.globalLowStockThreshold.trim()
+  return !reorder || Number(reorder) !== inventorySettings.value.defaultReorderLevel ||
+    inventoryDraft.value.defaultUnit.trim() !== inventorySettings.value.defaultUnit ||
+    inventoryDraft.value.allowNegativeStock !== inventorySettings.value.allowNegativeStock ||
+    !threshold || Number(threshold) !== inventorySettings.value.globalLowStockThreshold
+})
 
 const normalizedName = computed(() => fullName.value.trim().replace(/\s+/g, ' '))
 const normalizedEmail = computed(() => email.value.trim().toLowerCase())
@@ -172,6 +197,68 @@ async function loadNotificationSettings() {
   }
 }
 
+function applyInventorySettings(settings: InventorySettings) {
+  inventoryDraft.value = {
+    defaultReorderLevel: String(settings.defaultReorderLevel),
+    defaultUnit: settings.defaultUnit,
+    allowNegativeStock: settings.allowNegativeStock,
+    globalLowStockThreshold: String(settings.globalLowStockThreshold),
+  }
+}
+
+async function loadInventoryConfiguration() {
+  if (!isAdmin.value) return
+  inventoryLoading.value = true
+  inventoryError.value = ''
+  try {
+    applyInventorySettings(await loadInventorySettings(true))
+  } catch (requestError) {
+    inventoryError.value = (requestError as Error).message
+  } finally {
+    inventoryLoading.value = false
+  }
+}
+
+function resetInventoryConfiguration() {
+  applyInventorySettings(inventorySettings.value)
+  inventoryError.value = ''
+}
+
+async function saveInventoryConfiguration() {
+  inventoryError.value = ''
+  const reorderRaw = inventoryDraft.value.defaultReorderLevel.trim()
+  const thresholdRaw = inventoryDraft.value.globalLowStockThreshold.trim()
+  const defaultReorderLevel = Number(reorderRaw)
+  const globalLowStockThreshold = Number(thresholdRaw)
+  const defaultUnit = inventoryDraft.value.defaultUnit.trim()
+  if (!defaultUnit || !isValidInventoryQuantity(reorderRaw) || !isValidInventoryQuantity(thresholdRaw)) {
+    inventoryError.value = t('settings.inventoryValidation')
+    return
+  }
+
+  inventorySaving.value = true
+  try {
+    const saved = await saveInventorySettings({
+      defaultReorderLevel,
+      defaultUnit,
+      allowNegativeStock: inventoryDraft.value.allowNegativeStock,
+      globalLowStockThreshold,
+    })
+    applyInventorySettings(saved)
+    toast.success(t('settings.inventorySaved'))
+  } catch (requestError) {
+    inventoryError.value = (requestError as Error).message
+  } finally {
+    inventorySaving.value = false
+  }
+}
+
+function isValidInventoryQuantity(raw: string) {
+  const value = Number(raw)
+  return raw !== '' && Number.isFinite(value) && value >= 0 && value <= 9_999_999_999.99 &&
+    Number(value.toFixed(2)) === value
+}
+
 async function updateNotificationPreferences(next: NotificationPreferences) {
   if (notificationSaving.value) return
   const previous = notificationPreferences.value
@@ -226,9 +313,9 @@ function changeDefaultPageSize(event: Event) {
   setDefaultPageSize(Number((event.target as HTMLSelectElement).value))
 }
 
-onMounted(() => {
-  void loadProfile()
-  void loadNotificationSettings()
+onMounted(async () => {
+  await Promise.all([loadProfile(), loadNotificationSettings()])
+  await loadInventoryConfiguration()
 })
 </script>
 
@@ -265,6 +352,12 @@ onMounted(() => {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></svg>
           </span>
           <span><strong>{{ t('settings.notifications') }}</strong><small>{{ t('settings.notificationsHint') }}</small></span>
+        </button>
+        <button v-if="isAdmin" class="settings-nav-item" :class="{ active: activeSection === 'inventory' }" type="button" :aria-current="activeSection === 'inventory' ? 'page' : undefined" @click="activeSection = 'inventory'">
+          <span class="settings-nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v13H4z" /><path d="m4 7 3-4h10l3 4M9 11h6" /></svg>
+          </span>
+          <span><strong>{{ t('settings.inventory') }}</strong><small>{{ t('settings.inventoryHint') }}</small></span>
         </button>
       </aside>
 
@@ -511,7 +604,7 @@ onMounted(() => {
         </section>
       </main>
 
-      <main v-else class="settings-content">
+      <main v-else-if="activeSection === 'notifications'" class="settings-content">
         <section class="surface-card notification-summary">
           <div class="notification-summary-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></svg>
@@ -606,6 +699,92 @@ onMounted(() => {
           </section>
         </template>
       </main>
+
+      <main v-else-if="activeSection === 'inventory' && isAdmin" class="settings-content">
+        <section class="surface-card inventory-summary">
+          <div class="inventory-summary-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v13H4z" /><path d="m4 7 3-4h10l3 4M9 11h6" /></svg>
+          </div>
+          <div>
+            <span class="account-kicker">{{ t('settings.adminConfiguration') }}</span>
+            <h2>{{ t('settings.inventorySummaryTitle') }}</h2>
+            <p>{{ t('settings.inventorySummaryDescription') }}</p>
+          </div>
+          <span class="admin-badge">{{ t('settings.adminOnly') }}</span>
+        </section>
+
+        <p v-if="inventoryError" class="alert error-banner" role="alert">{{ inventoryError }}</p>
+        <div v-if="inventoryLoading" class="surface-card settings-loading">{{ t('settings.loadingInventory') }}</div>
+
+        <form v-else class="inventory-settings-form" :aria-busy="inventorySaving" @submit.prevent="saveInventoryConfiguration">
+          <section class="surface-card settings-card">
+            <div class="settings-card-head">
+              <div>
+                <h2>{{ t('settings.productDefaultsTitle') }}</h2>
+                <p>{{ t('settings.productDefaultsDescription') }}</p>
+              </div>
+              <span class="settings-card-icon blue" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14v13H5z" /><path d="m5 7 3-4h8l3 4M9 11h6" /></svg>
+              </span>
+            </div>
+
+            <div class="inventory-fields">
+              <label class="field-label">
+                {{ t('settings.defaultReorderLevel') }}
+                <FormattedNumberInput v-model="inventoryDraft.defaultReorderLevel" :decimal-scale="2" :disabled="inventorySaving" required />
+                <small class="field-hint">{{ t('settings.defaultReorderLevelHint') }}</small>
+              </label>
+              <label class="field-label">
+                {{ t('settings.defaultUnit') }}
+                <input v-model.trim="inventoryDraft.defaultUnit" maxlength="24" :disabled="inventorySaving" required>
+                <small class="field-hint">{{ t('settings.defaultUnitHint') }}</small>
+              </label>
+            </div>
+          </section>
+
+          <section class="surface-card settings-card">
+            <div class="settings-card-head">
+              <div>
+                <h2>{{ t('settings.stockPolicyTitle') }}</h2>
+                <p>{{ t('settings.stockPolicyDescription') }}</p>
+              </div>
+              <span class="settings-card-icon amber" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7v5c0 4.5 2.6 7.7 8 9 5.4-1.3 8-4.5 8-9V7l-8-4Z" /><path d="M12 8v5M12 17h.01" /></svg>
+              </span>
+            </div>
+
+            <div class="inventory-policy-list">
+              <div class="inventory-policy-row">
+                <span class="notification-setting-icon amber" aria-hidden="true">−</span>
+                <div><strong>{{ t('settings.allowNegativeStock') }}</strong><p>{{ t('settings.allowNegativeStockHint') }}</p></div>
+                <button class="preference-switch" :class="{ active: inventoryDraft.allowNegativeStock }" type="button" role="switch" :aria-checked="inventoryDraft.allowNegativeStock" :aria-label="t('settings.allowNegativeStock')" :disabled="inventorySaving" @click="inventoryDraft.allowNegativeStock = !inventoryDraft.allowNegativeStock"><span /></button>
+              </div>
+
+              <label class="inventory-threshold-row field-label">
+                <span class="notification-setting-icon teal" aria-hidden="true">!</span>
+                <span><strong>{{ t('settings.globalLowStockThreshold') }}</strong><small>{{ t('settings.globalLowStockThresholdHint') }}</small></span>
+                <FormattedNumberInput v-model="inventoryDraft.globalLowStockThreshold" class="inventory-number-input" :decimal-scale="2" :disabled="inventorySaving" required />
+              </label>
+            </div>
+
+            <div v-if="inventoryDraft.allowNegativeStock" class="inventory-warning" role="status">
+              <span aria-hidden="true">!</span>
+              <p><strong>{{ t('settings.negativeStockWarningTitle') }}</strong>{{ t('settings.negativeStockWarningDescription') }}</p>
+            </div>
+          </section>
+
+          <div class="inventory-actions">
+            <p>{{ t('settings.inventorySaveHint') }}</p>
+            <div>
+              <button class="secondary" type="button" :disabled="inventorySaving || !inventoryDirty" @click="resetInventoryConfiguration">{{ t('settings.discard') }}</button>
+              <button class="primary" type="submit" :disabled="inventorySaving || !inventoryDirty">
+                <span v-if="inventorySaving" class="button-spinner" aria-hidden="true" />
+                {{ inventorySaving ? t('settings.savingInventory') : t('settings.saveInventory') }}
+              </button>
+            </div>
+          </div>
+        </form>
+      </main>
     </div>
 
     <ChangePasswordModal v-if="changePasswordOpen" @close="changePasswordOpen = false" />
@@ -652,6 +831,31 @@ onMounted(() => {
 .notification-status-badge i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 13%, transparent); }
 .notification-status-badge.paused { border-color: var(--line); color: var(--muted); background: var(--surface-hover); }
 .notification-status-badge.paused i { box-shadow: none; }
+.inventory-summary { display: flex; min-height: 106px; align-items: center; gap: 14px; padding: 20px; background: linear-gradient(125deg, color-mix(in srgb, var(--blue) 7%, var(--surface)) 0%, var(--surface) 48%, color-mix(in srgb, var(--amber) 7%, var(--surface)) 100%); }
+.inventory-summary-icon { display: grid; width: 58px; height: 58px; flex: 0 0 58px; place-items: center; border: 1px solid color-mix(in srgb, var(--amber) 18%, var(--line)); border-radius: 16px; color: var(--amber); background: var(--amber-soft); }
+.inventory-summary-icon svg { width: 28px; height: 28px; }
+.inventory-summary > div:nth-child(2) { min-width: 0; flex: 1; }
+.inventory-summary h2 { margin-top: 5px; font-size: 1.04rem; }
+.inventory-summary p { max-width: 620px; margin-top: 5px; color: var(--muted); font-size: .64rem; line-height: 1.5; }
+.admin-badge { display: inline-flex; flex: 0 0 auto; align-items: center; padding: 7px 10px; border: 1px solid color-mix(in srgb, var(--amber) 20%, var(--line)); border-radius: 999px; color: var(--amber); background: var(--amber-soft); font-size: .57rem; font-weight: 800; }
+.inventory-settings-form { display: grid; gap: 14px; }
+.inventory-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 20px; }
+.inventory-settings-form input { width: 100%; }
+.inventory-policy-list { padding: 2px 20px; }
+.inventory-policy-list > * + * { border-top: 1px solid var(--line); }
+.inventory-policy-list > .field-label { margin: 0; }
+.inventory-policy-row, .inventory-threshold-row { display: flex; min-height: 76px; align-items: center; gap: 12px; padding: 15px 0; }
+.inventory-policy-row > div, .inventory-threshold-row > span:nth-child(2) { min-width: 0; flex: 1; }
+.inventory-policy-row strong, .inventory-threshold-row strong { display: block; color: var(--ink); font-size: .69rem; }
+.inventory-policy-row p, .inventory-threshold-row small { display: block; margin-top: 4px; color: var(--muted); font-size: .61rem; font-weight: 400; line-height: 1.5; }
+.inventory-threshold-row .inventory-number-input { width: 145px; flex: 0 0 145px; }
+.inventory-warning { display: flex; align-items: flex-start; gap: 10px; margin: 0 20px 20px; padding: 13px 14px; border: 1px solid color-mix(in srgb, var(--amber) 28%, var(--line)); border-radius: 10px; background: var(--amber-soft); }
+.inventory-warning > span { display: grid; width: 22px; height: 22px; flex: 0 0 22px; place-items: center; border-radius: 50%; color: #fff; background: var(--amber); font-size: .62rem; font-weight: 900; }
+.inventory-warning p { color: var(--control-text); font-size: .6rem; line-height: 1.5; }
+.inventory-warning strong { display: block; margin-bottom: 2px; color: var(--ink); font-size: .65rem; }
+.inventory-actions { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 4px 2px 0; }
+.inventory-actions > p { color: var(--muted); font-size: .58rem; line-height: 1.45; }
+.inventory-actions > div { display: flex; flex: 0 0 auto; gap: 9px; }
 .settings-card { overflow: hidden; }
 .settings-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 20px 20px 17px; border-bottom: 1px solid var(--line); }
 .settings-card-head p { max-width: 600px; margin-top: 5px; color: var(--muted); font-size: .66rem; line-height: 1.5; }
@@ -777,11 +981,11 @@ onMounted(() => {
   .notification-category-card p { min-height: 0; }
 }
 @media (max-width: 600px) {
-  .profile-fields { grid-template-columns: 1fr; }
-  .account-summary, .display-summary, .notification-summary { align-items: flex-start; flex-wrap: wrap; }
+  .profile-fields, .inventory-fields { grid-template-columns: 1fr; }
+  .account-summary, .display-summary, .notification-summary, .inventory-summary { align-items: flex-start; flex-wrap: wrap; }
   .role-badge { margin-left: 72px; }
-  .display-summary > div:nth-child(2), .notification-summary > div:nth-child(2) { flex: 0 0 calc(100% - 72px); }
-  .autosave-badge, .notification-status-badge { margin-left: 72px; }
+  .display-summary > div:nth-child(2), .notification-summary > div:nth-child(2), .inventory-summary > div:nth-child(2) { flex: 0 0 calc(100% - 72px); }
+  .autosave-badge, .notification-status-badge, .admin-badge { margin-left: 72px; }
   .theme-options, .regional-grid, .format-preview dl { grid-template-columns: 1fr; }
   .language-options { grid-template-columns: 1fr; }
   .theme-options button { grid-template-columns: 72px 1fr; }
@@ -790,6 +994,10 @@ onMounted(() => {
   .notification-setting-row .preference-switch, .notification-setting-row .notification-interval { margin-left: 49px; }
   .notification-footnote { align-items: flex-start; flex-wrap: wrap; }
   .notification-footnote > small { width: 100%; margin-left: 34px; }
+  .inventory-policy-row, .inventory-threshold-row { align-items: flex-start; flex-wrap: wrap; }
+  .inventory-policy-row .preference-switch, .inventory-threshold-row .inventory-number-input { width: calc(100% - 49px); margin-left: 49px; flex-basis: auto; }
+  .inventory-actions { align-items: stretch; flex-direction: column; }
+  .inventory-actions > div, .inventory-actions button { flex: 1; }
   .security-row, .logout-confirmation { align-items: flex-start; flex-wrap: wrap; }
   .security-row button { width: 100%; margin-left: 47px; }
   .logout-confirmation-actions { width: 100%; }

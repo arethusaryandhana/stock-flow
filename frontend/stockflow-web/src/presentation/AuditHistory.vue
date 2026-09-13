@@ -36,7 +36,7 @@ const error = ref('')
 const expandedIds = ref(new Set<string>())
 const { t } = useI18n()
 
-const entityTypes = ['Product', 'Category', 'Supplier', 'Customer', 'PurchaseOrder', 'GoodsReceipt', 'SalesOrder', 'StockAdjustment']
+const entityTypes = ['Product', 'Category', 'Supplier', 'Customer', 'PurchaseOrder', 'GoodsReceipt', 'SalesOrder', 'StockAdjustment', 'InventorySettings']
 
 function dateTime(value: string) {
   return displayPreferences.formatDate(value, { includeTime: true, includeSeconds: true })

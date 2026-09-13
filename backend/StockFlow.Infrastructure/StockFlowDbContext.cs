@@ -34,6 +34,7 @@ public sealed class StockFlowDbContext(
     public DbSet<SalesOrderItem> SalesOrderItems => Set<SalesOrderItem>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
     public DbSet<StockAdjustment> StockAdjustments => Set<StockAdjustment>();
+    public DbSet<InventorySettings> InventorySettingsSet => Set<InventorySettings>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ReportExportJob> ReportExportJobs => Set<ReportExportJob>();
@@ -123,7 +124,7 @@ public sealed class StockFlowDbContext(
 
     private static bool IsAuditable(Entity entity) => entity is
         Product or Category or Supplier or Customer or PurchaseOrder or GoodsReceipt or
-        SalesOrder or StockAdjustment;
+        SalesOrder or StockAdjustment or InventorySettings;
 
     private static bool ShouldAuditProperty(
         string propertyName,
@@ -157,6 +158,7 @@ public sealed class StockFlowDbContext(
         GoodsReceipt receipt => receipt.Number,
         SalesOrder order => order.Number,
         StockAdjustment adjustment => adjustment.Number,
+        InventorySettings => "Inventory settings",
         _ => entity.Id.ToString()
     };
 

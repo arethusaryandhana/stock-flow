@@ -8,8 +8,9 @@ import { useI18n } from '../i18n'
 import { useDisplayPreferences } from '../preferences'
 import PaginationControls from '../components/PaginationControls.vue'
 import FormattedNumberInput from '../components/FormattedNumberInput.vue'
+import { useInventorySettings } from '../inventorySettings'
 
-type Product = { id: string; sku: string; name: string; categoryId: string; category: string; purchasePrice: number; sellingPrice: number; stockOnHand: number; reorderLevel: number; unit: string; isActive: boolean }
+type Product = { id: string; sku: string; name: string; categoryId: string; category: string; purchasePrice: number; sellingPrice: number; stockOnHand: number; reorderLevel: number; effectiveReorderLevel: number; unit: string; isActive: boolean }
 type Category = { id: string; name: string; isActive: boolean }
 
 const displayPreferences = useDisplayPreferences()
@@ -27,7 +28,7 @@ const openMenu = ref('')
 const editingProduct = ref<Product | null>(null)
 const editReorderLevel = ref('0')
 const editSaving = ref(false)
-const newProduct = ref({ sku: '', name: '', categoryId: '', purchasePrice: '0', sellingPrice: '0', reorderLevel: '0', unit: 'pcs' })
+const newProduct = ref({ sku: '', name: '', categoryId: '', purchasePrice: '0', sellingPrice: '0', reorderLevel: '', unit: '' })
 const page = ref(1)
 const pageSize = ref<number>(displayPreferences.defaultPageSize.value)
 const totalCount = ref(0)
@@ -35,6 +36,7 @@ const totalPages = ref(0)
 const counts = ref({ all: 0, low: 0, out: 0, inactive: 0 })
 const { t } = useI18n()
 const auth = useAuthStore()
+const { settings: inventorySettings, loadSettings: loadInventorySettings } = useInventorySettings()
 const toast = useToastStore()
 const canManage = computed(() => auth.isAdmin)
 watch(openMenu, (value) => { if (value && !canManage.value) openMenu.value = '' })
@@ -44,7 +46,7 @@ const shortName = (value: string) => value.split(' ').map((part) => part[0]).sli
 const status = (product: Product) => {
   if (!product.isActive) return 'inactive'
   if (product.stockOnHand <= 0) return 'out'
-  if (product.stockOnHand <= product.reorderLevel) return 'low'
+  if (product.stockOnHand <= product.effectiveReorderLevel) return 'low'
   return 'ok'
 }
 const statusLabel = (product: Product) => status(product) === 'ok' ? t('products.safe') : status(product) === 'low' ? t('products.low') : status(product) === 'out' ? t('products.out') : t('products.inactive')
@@ -63,13 +65,14 @@ async function load() {
     const countResponses = statuses.map((statusValue) => statusValue === statusQuery.value
       ? productResponse
       : api.get<PagedResponse<Product>>('/products', { params: { page: 1, pageSize: 1, search: q.value.trim() || undefined, status: statusValue, categoryId: categoryQuery.value } }))
-    const [productsResponse, allCountResponse, lowCountResponse, outCountResponse, inactiveCountResponse, categoriesResponse] = await Promise.all([
+    const [productsResponse, allCountResponse, lowCountResponse, outCountResponse, inactiveCountResponse, categoriesResponse, loadedInventorySettings] = await Promise.all([
       productResponse,
       countResponses[0],
       countResponses[1],
       countResponses[2],
       countResponses[3],
       api.get<PagedResponse<Category>>('/categories', { params: { page: 1, pageSize: 100 } }),
+      canManage.value ? loadInventorySettings() : Promise.resolve(null),
     ])
     items.value = productsResponse.data.items
     page.value = productsResponse.data.page
@@ -83,13 +86,15 @@ async function load() {
     }
     categories.value = categoriesResponse.data.items.filter((category) => category.isActive)
     if (!newProduct.value.categoryId && categories.value[0]) newProduct.value.categoryId = categories.value[0].id
+    if (loadedInventorySettings && !newProduct.value.reorderLevel) newProduct.value.reorderLevel = String(loadedInventorySettings.defaultReorderLevel)
+    if (loadedInventorySettings && !newProduct.value.unit) newProduct.value.unit = loadedInventorySettings.defaultUnit
   } catch (requestError) {
     error.value = (requestError as Error).message
   } finally { loading.value = false }
 }
 
 function openForm() { formError.value = ''; showForm.value = true }
-function closeForm() { showForm.value = false; formError.value = ''; newProduct.value = { sku: '', name: '', categoryId: categories.value[0]?.id ?? '', purchasePrice: '0', sellingPrice: '0', reorderLevel: '0', unit: 'pcs' } }
+function closeForm() { showForm.value = false; formError.value = ''; newProduct.value = { sku: '', name: '', categoryId: categories.value[0]?.id ?? '', purchasePrice: '0', sellingPrice: '0', reorderLevel: String(inventorySettings.value.defaultReorderLevel), unit: inventorySettings.value.defaultUnit } }
 function openEditForm(product: Product) {
   if (!canManage.value) return
   openMenu.value = ''
@@ -204,7 +209,7 @@ onMounted(load)
       </div>
       <div v-if="loading" class="empty">{{ t('products.loading') }}</div>
       <div v-else-if="!filtered.length" class="empty"><strong>{{ t('products.noMatchTitle') }}</strong>{{ t('products.noMatchHint') }}</div>
-      <div v-else class="table-wrap"><table><thead><tr><th>{{ t('products.product') }}</th><th>{{ t('products.category') }}</th><th>{{ t('products.availableStock') }}</th><th>{{ t('products.sellingPrice') }}</th><th>{{ t('products.status') }}</th><th><span class="sr-only">{{ t('products.actionAria') }}</span></th></tr></thead><tbody><tr v-for="product in filtered" :key="product.id"><td><div class="product-cell"><span class="product-avatar">{{ shortName(product.name) }}</span><span><strong>{{ product.name }}</strong><small>{{ product.sku }}</small></span></div></td><td>{{ product.category }}</td><td><span class="stock-value" :class="{ low: status(product) === 'low', out: status(product) === 'out' }">{{ product.stockOnHand }} {{ product.unit }}</span><small>{{ t('products.min') }} {{ product.reorderLevel }} {{ product.unit }}</small></td><td class="stock-value">{{ money(product.sellingPrice) }}</td><td><span class="badge" :class="statusClass(product)">{{ statusLabel(product) }}</span></td><td><div class="action-menu-wrap"><button class="action-button" type="button" :aria-label="t('products.menuAria')" @click="openMenu = openMenu === product.id ? '' : product.id">•••</button><div v-if="openMenu === product.id" class="action-menu"><button type="button" @click="openEditForm(product)">{{ t('products.editReorderLevel') }}</button><button type="button" @click="toggleActive(product)">{{ product.isActive ? t('products.deactivate') : t('products.activate') }}</button></div></div></td></tr></tbody></table></div>
+      <div v-else class="table-wrap"><table><thead><tr><th>{{ t('products.product') }}</th><th>{{ t('products.category') }}</th><th>{{ t('products.availableStock') }}</th><th>{{ t('products.sellingPrice') }}</th><th>{{ t('products.status') }}</th><th><span class="sr-only">{{ t('products.actionAria') }}</span></th></tr></thead><tbody><tr v-for="product in filtered" :key="product.id"><td><div class="product-cell"><span class="product-avatar">{{ shortName(product.name) }}</span><span><strong>{{ product.name }}</strong><small>{{ product.sku }}</small></span></div></td><td>{{ product.category }}</td><td><span class="stock-value" :class="{ low: status(product) === 'low', out: status(product) === 'out' }">{{ product.stockOnHand }} {{ product.unit }}</span><small>{{ t('products.min') }} {{ product.effectiveReorderLevel }} {{ product.unit }}</small></td><td class="stock-value">{{ money(product.sellingPrice) }}</td><td><span class="badge" :class="statusClass(product)">{{ statusLabel(product) }}</span></td><td><div class="action-menu-wrap"><button class="action-button" type="button" :aria-label="t('products.menuAria')" @click="openMenu = openMenu === product.id ? '' : product.id">•••</button><div v-if="openMenu === product.id" class="action-menu"><button type="button" @click="openEditForm(product)">{{ t('products.editReorderLevel') }}</button><button type="button" @click="toggleActive(product)">{{ product.isActive ? t('products.deactivate') : t('products.activate') }}</button></div></div></td></tr></tbody></table></div>
       <PaginationControls v-if="!loading && filtered.length" :page="page" :page-size="pageSize" :total-count="totalCount" :total-pages="totalPages" @page-change="page = $event" @page-size-change="changePageSize" />
     </section>
 

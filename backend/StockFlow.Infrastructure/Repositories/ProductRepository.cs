@@ -16,6 +16,11 @@ public sealed class ProductRepository(StockFlowDbContext db) : IProductRepositor
         CancellationToken cancellationToken = default)
     {
         var pagination = Pagination.Normalize(page, pageSize);
+        var globalThreshold = await db.InventorySettingsSet
+            .AsNoTracking()
+            .Where(settings => settings.Id == InventorySettings.DefaultId)
+            .Select(settings => settings.GlobalLowStockThreshold)
+            .SingleOrDefaultAsync(cancellationToken);
         var query = db.ProductsSet.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -36,9 +41,12 @@ public sealed class ProductRepository(StockFlowDbContext db) : IProductRepositor
         {
             "inactive" => query.Where(product => !product.IsActive),
             "out" => query.Where(product => product.IsActive && product.StockOnHand <= 0),
-            "low" => query.Where(product => product.IsActive && product.StockOnHand > 0 && product.StockOnHand <= product.ReorderLevel),
-            "attention" => query.Where(product => product.IsActive && product.StockOnHand <= product.ReorderLevel),
-            "ok" => query.Where(product => product.IsActive && product.StockOnHand > product.ReorderLevel),
+            "low" => query.Where(product => product.IsActive && product.StockOnHand > 0 &&
+                product.StockOnHand <= (product.ReorderLevel >= globalThreshold ? product.ReorderLevel : globalThreshold)),
+            "attention" => query.Where(product => product.IsActive &&
+                product.StockOnHand <= (product.ReorderLevel >= globalThreshold ? product.ReorderLevel : globalThreshold)),
+            "ok" => query.Where(product => product.IsActive &&
+                product.StockOnHand > (product.ReorderLevel >= globalThreshold ? product.ReorderLevel : globalThreshold)),
             _ => query
         };
 
@@ -59,6 +67,7 @@ public sealed class ProductRepository(StockFlowDbContext db) : IProductRepositor
                 product.SellingPrice,
                 product.StockOnHand,
                 product.ReorderLevel,
+                product.ReorderLevel >= globalThreshold ? product.ReorderLevel : globalThreshold,
                 product.Unit,
                 product.IsActive))
             .ToListAsync(cancellationToken);
@@ -66,11 +75,17 @@ public sealed class ProductRepository(StockFlowDbContext db) : IProductRepositor
         return new PagedResponse<ProductResponse>(items, pagination.Page, pagination.PageSize, totalCount);
     }
 
-    public Task<ProductResponse?> GetByIdAsync(
+    public async Task<ProductResponse?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        return db.ProductsSet
+        var globalThreshold = await db.InventorySettingsSet
+            .AsNoTracking()
+            .Where(settings => settings.Id == InventorySettings.DefaultId)
+            .Select(settings => settings.GlobalLowStockThreshold)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return await db.ProductsSet
             .AsNoTracking()
             .Where(product => product.Id == id)
             .Select(product => new ProductResponse(
@@ -83,6 +98,7 @@ public sealed class ProductRepository(StockFlowDbContext db) : IProductRepositor
                 product.SellingPrice,
                 product.StockOnHand,
                 product.ReorderLevel,
+                product.ReorderLevel >= globalThreshold ? product.ReorderLevel : globalThreshold,
                 product.Unit,
                 product.IsActive))
             .SingleOrDefaultAsync(cancellationToken);

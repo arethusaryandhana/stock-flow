@@ -9,10 +9,15 @@ public sealed class DashboardRepository(StockFlowDbContext db) : IDashboardRepos
 {
     public async Task<DashboardResponse> GetAsync(CancellationToken cancellationToken = default)
     {
+        var globalThreshold = await db.InventorySettingsSet
+            .AsNoTracking()
+            .Where(settings => settings.Id == InventorySettings.DefaultId)
+            .Select(settings => settings.GlobalLowStockThreshold)
+            .SingleOrDefaultAsync(cancellationToken);
         var products = await db.ProductsSet.CountAsync(product => product.IsActive, cancellationToken);
         var lowStock = await db.ProductsSet.CountAsync(
             product => product.IsActive && product.StockOnHand > 0 &&
-                product.StockOnHand <= product.ReorderLevel,
+                product.StockOnHand <= (product.ReorderLevel >= globalThreshold ? product.ReorderLevel : globalThreshold),
             cancellationToken);
         var outOfStock = await db.ProductsSet.CountAsync(
             product => product.IsActive && product.StockOnHand <= 0,

@@ -36,8 +36,15 @@ public sealed record ProductResponse(
     decimal SellingPrice,
     decimal StockOnHand,
     decimal ReorderLevel,
+    decimal EffectiveReorderLevel,
     string Unit,
     bool IsActive);
+
+public sealed record InventorySettingsResponse(
+    decimal DefaultReorderLevel,
+    string DefaultUnit,
+    bool AllowNegativeStock,
+    decimal GlobalLowStockThreshold);
 
 public sealed record CategoryResponse(
     Guid Id,

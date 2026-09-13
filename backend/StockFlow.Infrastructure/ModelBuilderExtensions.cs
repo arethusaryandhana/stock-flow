@@ -38,6 +38,7 @@ internal static class ModelBuilderExtensions
 
         modelBuilder.Entity<StockMovement>().ToTable("stock_movements", StockFlowDbContext.Schemas.Inventory);
         modelBuilder.Entity<StockAdjustment>().ToTable("stock_adjustments", StockFlowDbContext.Schemas.Inventory);
+        modelBuilder.Entity<InventorySettings>().ToTable("inventory_settings", StockFlowDbContext.Schemas.Inventory);
 
         modelBuilder.Entity<ReportExportJob>().ToTable("report_export_jobs", StockFlowDbContext.Schemas.Reporting);
     }
@@ -68,6 +69,10 @@ internal static class ModelBuilderExtensions
         modelBuilder.Entity<GoodsReceipt>().HasIndex(entity => entity.Number).IsUnique();
         modelBuilder.Entity<StockMovement>().HasIndex(entity => new { entity.ProductId, entity.CreatedAt });
         modelBuilder.Entity<StockAdjustment>().HasIndex(entity => entity.Number).IsUnique();
+
+        modelBuilder.Entity<InventorySettings>().Property(entity => entity.DefaultReorderLevel).HasPrecision(12, 2);
+        modelBuilder.Entity<InventorySettings>().Property(entity => entity.DefaultUnit).HasMaxLength(24);
+        modelBuilder.Entity<InventorySettings>().Property(entity => entity.GlobalLowStockThreshold).HasPrecision(12, 2);
         modelBuilder.Entity<ReportExportJob>().HasIndex(entity => new { entity.Status, entity.RequestedAt });
         modelBuilder.Entity<ReportExportJob>().HasIndex(entity => entity.JobNumber).IsUnique();
         modelBuilder.Entity<ReportExportJob>()
@@ -227,7 +232,7 @@ internal static class ModelBuilderExtensions
         modelBuilder.Entity<Product>().ToTable(table =>
         {
             table.HasCheckConstraint("ck_products_non_negative_prices", "purchase_price >= 0 AND selling_price >= 0");
-            table.HasCheckConstraint("ck_products_non_negative_stock", "stock_on_hand >= 0 AND reorder_level >= 0");
+            table.HasCheckConstraint("ck_products_non_negative_reorder_level", "reorder_level >= 0");
         });
         modelBuilder.Entity<PurchaseOrderItem>().ToTable(table =>
             table.HasCheckConstraint("ck_purchase_order_items_values", "quantity > 0 AND unit_price >= 0"));
@@ -236,11 +241,15 @@ internal static class ModelBuilderExtensions
         modelBuilder.Entity<GoodsReceiptItem>().ToTable(table =>
             table.HasCheckConstraint("ck_goods_receipt_items_quantity", "quantity > 0"));
         modelBuilder.Entity<StockMovement>().ToTable(table =>
-            table.HasCheckConstraint("ck_stock_movements_values", "quantity > 0 AND balance_after >= 0"));
+            table.HasCheckConstraint("ck_stock_movements_values", "quantity > 0"));
         modelBuilder.Entity<StockAdjustment>().ToTable(table =>
             table.HasCheckConstraint("ck_stock_adjustments_quantity", "quantity_delta <> 0"));
         modelBuilder.Entity<ReportExportJob>().ToTable(table =>
             table.HasCheckConstraint("ck_report_export_jobs_progress", "progress >= 0 AND progress <= 100"));
+        modelBuilder.Entity<InventorySettings>().ToTable(table =>
+            table.HasCheckConstraint(
+                "ck_inventory_settings_non_negative_thresholds",
+                "default_reorder_level >= 0 AND global_low_stock_threshold >= 0"));
     }
 
     private static void ConfigurePartyLengths<TEntity>(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<TEntity> entity)

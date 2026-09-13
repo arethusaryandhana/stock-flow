@@ -54,6 +54,15 @@ public interface IProductRepository
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
+public interface IInventorySettingsRepository
+{
+    Task<InventorySettingsResponse> GetAsync(CancellationToken cancellationToken = default);
+
+    Task<InventorySettingsResponse> UpdateAsync(
+        InventorySettingsRequest request,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ICategoryRepository
 {
     Task<PagedResponse<CategoryResponse>> GetAllAsync(
