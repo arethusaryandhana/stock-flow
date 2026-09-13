@@ -133,6 +133,8 @@ public sealed class ReportExportTests
                 Assert.Equal("text/csv; charset=utf-8", download.Data.ContentType);
 
                 var csv = await File.ReadAllTextAsync(download.Data.FilePath);
+                Assert.Contains("# Company: \"StockFlow Demo\"", csv);
+                Assert.Contains("# Currency: IDR", csv);
                 Assert.Contains("sku,name,stock_on_hand,reorder_level", csv);
                 Assert.Contains("\"SKU-REPORT\",\"Widget, \"\"Pro\"\"\",12.5,5", csv);
 

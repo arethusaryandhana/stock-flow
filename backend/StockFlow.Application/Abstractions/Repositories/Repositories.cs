@@ -63,6 +63,15 @@ public interface IInventorySettingsRepository
         CancellationToken cancellationToken = default);
 }
 
+public interface ICompanyProfileRepository
+{
+    Task<CompanyProfileResponse> GetAsync(CancellationToken cancellationToken = default);
+
+    Task<CompanyProfileResponse> UpdateAsync(
+        CompanyProfileRequest request,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ICategoryRepository
 {
     Task<PagedResponse<CategoryResponse>> GetAllAsync(
@@ -271,6 +280,8 @@ public interface IReportExportRepository
     Task<ReportExportJob?> ClaimNextAsync(CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<ReportProductRow>> GetProductRowsAsync(CancellationToken cancellationToken = default);
+
+    Task<ReportCompanyProfile> GetCompanyProfileAsync(CancellationToken cancellationToken = default);
 
     Task CompleteAsync(
         ReportExportJob job,

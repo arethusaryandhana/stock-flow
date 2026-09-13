@@ -19,10 +19,11 @@ import {
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useInventorySettings, type InventorySettings } from '../inventorySettings'
+import { useCompanyProfile, type CompanyProfile } from '../companyProfile'
 import { useTheme, type ThemePreference } from '../theme'
 
 type SessionProfile = { fullName: string; email: string; role: string }
-type SettingsSection = 'account' | 'display' | 'notifications' | 'inventory'
+type SettingsSection = 'account' | 'display' | 'notifications' | 'inventory' | 'company'
 type NotificationToggleKey = Exclude<keyof NotificationPreferences, 'pollingIntervalSeconds'>
 
 const auth = useAuthStore()
@@ -39,6 +40,11 @@ const {
   loadSettings: loadInventorySettings,
   saveSettings: saveInventorySettings,
 } = useInventorySettings()
+const {
+  profile: companyProfile,
+  loadProfile: loadCompanyProfile,
+  saveProfile: saveCompanyProfile,
+} = useCompanyProfile()
 const {
   timeZone,
   dateFormat,
@@ -75,6 +81,17 @@ const notificationError = ref('')
 const inventoryLoading = ref(false)
 const inventorySaving = ref(false)
 const inventoryError = ref('')
+const companyLoading = ref(false)
+const companySaving = ref(false)
+const companyError = ref('')
+const companyDraft = ref({
+  name: 'StockFlow Demo',
+  address: '',
+  email: '',
+  phone: '',
+  currency: 'IDR',
+  logoUrl: '',
+})
 const inventoryDraft = ref({
   defaultReorderLevel: '5',
   defaultUnit: 'pcs',
@@ -100,6 +117,14 @@ const inventoryDirty = computed(() => {
     inventoryDraft.value.allowNegativeStock !== inventorySettings.value.allowNegativeStock ||
     !threshold || Number(threshold) !== inventorySettings.value.globalLowStockThreshold
 })
+const companyDirty = computed(() =>
+  companyDraft.value.name.trim() !== companyProfile.value.name ||
+  companyDraft.value.address.trim() !== (companyProfile.value.address ?? '') ||
+  companyDraft.value.email.trim().toLowerCase() !== (companyProfile.value.email ?? '') ||
+  companyDraft.value.phone.trim() !== (companyProfile.value.phone ?? '') ||
+  companyDraft.value.currency !== companyProfile.value.currency ||
+  companyDraft.value.logoUrl.trim() !== (companyProfile.value.logoUrl ?? ''),
+)
 
 const normalizedName = computed(() => fullName.value.trim().replace(/\s+/g, ' '))
 const normalizedEmail = computed(() => email.value.trim().toLowerCase())
@@ -253,6 +278,72 @@ async function saveInventoryConfiguration() {
   }
 }
 
+function applyCompanyProfile(profile: CompanyProfile) {
+  companyDraft.value = {
+    name: profile.name,
+    address: profile.address ?? '',
+    email: profile.email ?? '',
+    phone: profile.phone ?? '',
+    currency: profile.currency,
+    logoUrl: profile.logoUrl ?? '',
+  }
+}
+
+async function loadCompanyConfiguration() {
+  if (!isAdmin.value) return
+  companyLoading.value = true
+  companyError.value = ''
+  try {
+    applyCompanyProfile(await loadCompanyProfile(true))
+  } catch (requestError) {
+    companyError.value = (requestError as Error).message
+  } finally {
+    companyLoading.value = false
+  }
+}
+
+function resetCompanyConfiguration() {
+  applyCompanyProfile(companyProfile.value)
+  companyError.value = ''
+}
+
+async function saveCompanyConfiguration() {
+  companyError.value = ''
+  const name = companyDraft.value.name.trim()
+  const email = companyDraft.value.email.trim().toLowerCase()
+  const logoUrl = companyDraft.value.logoUrl.trim()
+  if (!name || name.length > 160 || companyDraft.value.address.trim().length > 300 ||
+      email.length > 254 || companyDraft.value.phone.trim().length > 40 || logoUrl.length > 1000) {
+    companyError.value = t('settings.companyValidation')
+    return
+  }
+  if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+    companyError.value = t('settings.companyEmailValidation')
+    return
+  }
+  if (logoUrl && !/^https?:\/\//i.test(logoUrl)) {
+    companyError.value = t('settings.companyLogoValidation')
+    return
+  }
+  companySaving.value = true
+  try {
+    const saved = await saveCompanyProfile({
+      name,
+      address: companyDraft.value.address.trim() || null,
+      email: email || null,
+      phone: companyDraft.value.phone.trim() || null,
+      currency: companyDraft.value.currency,
+      logoUrl: logoUrl || null,
+    })
+    applyCompanyProfile(saved)
+    toast.success(t('settings.companySaved'))
+  } catch (requestError) {
+    companyError.value = (requestError as Error).message
+  } finally {
+    companySaving.value = false
+  }
+}
+
 function isValidInventoryQuantity(raw: string) {
   const value = Number(raw)
   return raw !== '' && Number.isFinite(value) && value >= 0 && value <= 9_999_999_999.99 &&
@@ -316,6 +407,7 @@ function changeDefaultPageSize(event: Event) {
 onMounted(async () => {
   await Promise.all([loadProfile(), loadNotificationSettings()])
   await loadInventoryConfiguration()
+  await loadCompanyConfiguration()
 })
 </script>
 
@@ -358,6 +450,12 @@ onMounted(async () => {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v13H4z" /><path d="m4 7 3-4h10l3 4M9 11h6" /></svg>
           </span>
           <span><strong>{{ t('settings.inventory') }}</strong><small>{{ t('settings.inventoryHint') }}</small></span>
+        </button>
+        <button v-if="isAdmin" class="settings-nav-item" :class="{ active: activeSection === 'company' }" type="button" :aria-current="activeSection === 'company' ? 'page' : undefined" @click="activeSection = 'company'">
+          <span class="settings-nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4h11v17M15 9h5v12M8 8h3M8 12h3M8 16h3M18 13h.01M18 17h.01" /></svg>
+          </span>
+          <span><strong>{{ t('settings.company') }}</strong><small>{{ t('settings.companyHint') }}</small></span>
         </button>
       </aside>
 
@@ -785,6 +883,45 @@ onMounted(async () => {
           </div>
         </form>
       </main>
+
+      <main v-else-if="activeSection === 'company' && isAdmin" class="settings-content">
+        <section class="surface-card inventory-summary company-summary">
+          <div class="inventory-summary-icon company-summary-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4h11v17M15 9h5v12M8 8h3M8 12h3M8 16h3M18 13h.01M18 17h.01" /></svg>
+          </div>
+          <div>
+            <span class="account-kicker">{{ t('settings.adminConfiguration') }}</span>
+            <h2>{{ t('settings.companySummaryTitle') }}</h2>
+            <p>{{ t('settings.companySummaryDescription') }}</p>
+          </div>
+          <span class="admin-badge">{{ t('settings.adminOnly') }}</span>
+        </section>
+
+        <p v-if="companyError" class="alert error-banner" role="alert">{{ companyError }}</p>
+        <div v-if="companyLoading" class="surface-card settings-loading">{{ t('settings.loadingCompany') }}</div>
+        <form v-else class="company-settings-form" :aria-busy="companySaving" @submit.prevent="saveCompanyConfiguration">
+          <section class="surface-card settings-card">
+            <div class="settings-card-head"><div><h2>{{ t('settings.companyIdentityTitle') }}</h2><p>{{ t('settings.companyIdentityDescription') }}</p></div><span class="settings-card-icon blue" aria-hidden="true">⌂</span></div>
+            <div class="company-fields">
+              <label class="field-label">{{ t('settings.companyName') }}<input v-model="companyDraft.name" maxlength="160" required :disabled="companySaving"><small class="field-hint">{{ t('settings.companyNameHint') }}</small></label>
+              <label class="field-label">{{ t('settings.companyCurrency') }}<select v-model="companyDraft.currency" :disabled="companySaving"><option value="IDR">IDR — Rupiah Indonesia</option><option value="USD">USD — US Dollar</option><option value="SGD">SGD — Singapore Dollar</option><option value="MYR">MYR — Malaysian Ringgit</option><option value="EUR">EUR — Euro</option></select><small class="field-hint">{{ t('settings.companyCurrencyHint') }}</small></label>
+              <label class="field-label company-full-field">{{ t('settings.companyAddress') }}<textarea v-model="companyDraft.address" maxlength="300" rows="3" :disabled="companySaving" /><small class="field-hint">{{ t('settings.companyAddressHint') }}</small></label>
+            </div>
+          </section>
+
+          <section class="surface-card settings-card">
+            <div class="settings-card-head"><div><h2>{{ t('settings.companyContactTitle') }}</h2><p>{{ t('settings.companyContactDescription') }}</p></div><span class="settings-card-icon teal" aria-hidden="true">@</span></div>
+            <div class="company-fields">
+              <label class="field-label">{{ t('settings.companyEmail') }}<input v-model="companyDraft.email" type="email" maxlength="254" :disabled="companySaving"><small class="field-hint">{{ t('settings.companyEmailHint') }}</small></label>
+              <label class="field-label">{{ t('settings.companyPhone') }}<input v-model="companyDraft.phone" maxlength="40" :disabled="companySaving"><small class="field-hint">{{ t('settings.companyPhoneHint') }}</small></label>
+              <label class="field-label company-full-field">{{ t('settings.companyLogoUrl') }}<input v-model="companyDraft.logoUrl" type="url" maxlength="1000" placeholder="https://..." :disabled="companySaving"><small class="field-hint">{{ t('settings.companyLogoHint') }}</small></label>
+            </div>
+            <div v-if="companyDraft.logoUrl" class="company-logo-preview"><img :src="companyDraft.logoUrl" :alt="companyDraft.name" @error="($event.target as HTMLImageElement).style.display = 'none'"><span>{{ t('settings.companyLogoPreview') }}</span></div>
+          </section>
+
+          <div class="inventory-actions"><p>{{ t('settings.companySaveHint') }}</p><div><button class="secondary" type="button" :disabled="companySaving || !companyDirty" @click="resetCompanyConfiguration">{{ t('settings.discard') }}</button><button class="primary" type="submit" :disabled="companySaving || !companyDirty"><span v-if="companySaving" class="button-spinner" aria-hidden="true" />{{ companySaving ? t('settings.savingCompany') : t('settings.saveCompany') }}</button></div></div>
+        </form>
+      </main>
     </div>
 
     <ChangePasswordModal v-if="changePasswordOpen" @close="changePasswordOpen = false" />
@@ -856,6 +993,13 @@ onMounted(async () => {
 .inventory-actions { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 4px 2px 0; }
 .inventory-actions > p { color: var(--muted); font-size: .58rem; line-height: 1.45; }
 .inventory-actions > div { display: flex; flex: 0 0 auto; gap: 9px; }
+.company-settings-form { display: grid; gap: 14px; }
+.company-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 20px; }
+.company-fields input, .company-fields select, .company-fields textarea { width: 100%; }
+.company-full-field { grid-column: 1 / -1; }
+.company-logo-preview { display: flex; align-items: center; gap: 12px; margin: 0 20px 20px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); background: var(--surface-hover); font-size: .6rem; }
+.company-logo-preview img { width: 52px; height: 52px; object-fit: contain; border-radius: 8px; background: var(--surface-raised); }
+.company-summary-icon { color: var(--blue); background: var(--blue-soft); }
 .settings-card { overflow: hidden; }
 .settings-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 20px 20px 17px; border-bottom: 1px solid var(--line); }
 .settings-card-head p { max-width: 600px; margin-top: 5px; color: var(--muted); font-size: .66rem; line-height: 1.5; }
@@ -981,7 +1125,7 @@ onMounted(async () => {
   .notification-category-card p { min-height: 0; }
 }
 @media (max-width: 600px) {
-  .profile-fields, .inventory-fields { grid-template-columns: 1fr; }
+  .profile-fields, .inventory-fields, .company-fields { grid-template-columns: 1fr; }
   .account-summary, .display-summary, .notification-summary, .inventory-summary { align-items: flex-start; flex-wrap: wrap; }
   .role-badge { margin-left: 72px; }
   .display-summary > div:nth-child(2), .notification-summary > div:nth-child(2), .inventory-summary > div:nth-child(2) { flex: 0 0 calc(100% - 72px); }

@@ -111,12 +111,17 @@ public sealed class ReportExportUseCase(IReportExportRepository reports) : IRepo
             filePath = Path.Combine(storageRoot, $"{job.JobNumber}.csv");
             temporaryPath = $"{filePath}.{Guid.NewGuid():N}.tmp";
             var rows = await reports.GetProductRowsAsync(cancellationToken);
+            var company = await reports.GetCompanyProfileAsync(cancellationToken);
 
             await using (var writer = new StreamWriter(
                 temporaryPath,
                 false,
                 new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)))
             {
+                await writer.WriteLineAsync($"# Company: {EscapeCsv(company.Name)}");
+                await writer.WriteLineAsync($"# Currency: {company.Currency}");
+                if (!string.IsNullOrWhiteSpace(company.LogoUrl))
+                    await writer.WriteLineAsync($"# Logo: {EscapeCsv(company.LogoUrl)}");
                 await writer.WriteLineAsync("sku,name,stock_on_hand,reorder_level");
 
                 foreach (var row in rows)

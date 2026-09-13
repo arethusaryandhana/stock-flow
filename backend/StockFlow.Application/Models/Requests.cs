@@ -88,3 +88,11 @@ public sealed record InventorySettingsRequest(
     string DefaultUnit,
     bool AllowNegativeStock,
     decimal GlobalLowStockThreshold);
+
+public sealed record CompanyProfileRequest(
+    string Name,
+    string? Address,
+    string? Email,
+    string? Phone,
+    string Currency,
+    string? LogoUrl);

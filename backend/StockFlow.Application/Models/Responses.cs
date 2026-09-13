@@ -224,6 +224,20 @@ public sealed record ReportProductRow(
     decimal StockOnHand,
     decimal ReorderLevel);
 
+public sealed record ReportCompanyProfile(
+    string Name,
+    string Currency,
+    string? LogoUrl);
+
+public sealed record CompanyProfileResponse(
+    string Name,
+    string? Address,
+    string? Email,
+    string? Phone,
+    string Currency,
+    string? LogoUrl,
+    DateTime? UpdatedAt);
+
 public sealed record ReportExportResponse(
     Guid Id,
     string JobNumber,

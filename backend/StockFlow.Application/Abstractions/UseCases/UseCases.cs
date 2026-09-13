@@ -76,6 +76,15 @@ public interface IInventorySettingsUseCase
         CancellationToken cancellationToken = default);
 }
 
+public interface ICompanyProfileUseCase
+{
+    Task<CompanyProfileResponse> GetAsync(CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<CompanyProfileResponse>> UpdateAsync(
+        CompanyProfileRequest request,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ICategoryUseCase
 {
     Task<PagedResponse<CategoryResponse>> GetAllAsync(

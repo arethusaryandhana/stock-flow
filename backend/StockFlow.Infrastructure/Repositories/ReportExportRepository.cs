@@ -138,6 +138,17 @@ public sealed class ReportExportRepository(StockFlowDbContext db) : IReportExpor
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<ReportCompanyProfile> GetCompanyProfileAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var profile = await db.CompanyProfilesSet.AsNoTracking()
+            .SingleOrDefaultAsync(entity => entity.Id == CompanyProfile.DefaultId, cancellationToken);
+        return new ReportCompanyProfile(
+            profile?.Name ?? "StockFlow Demo",
+            profile?.Currency ?? "IDR",
+            profile?.LogoUrl);
+    }
+
     public async Task CompleteAsync(
         ReportExportJob job,
         string filePath,

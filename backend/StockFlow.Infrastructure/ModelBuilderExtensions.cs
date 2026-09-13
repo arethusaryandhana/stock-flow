@@ -39,6 +39,7 @@ internal static class ModelBuilderExtensions
         modelBuilder.Entity<StockMovement>().ToTable("stock_movements", StockFlowDbContext.Schemas.Inventory);
         modelBuilder.Entity<StockAdjustment>().ToTable("stock_adjustments", StockFlowDbContext.Schemas.Inventory);
         modelBuilder.Entity<InventorySettings>().ToTable("inventory_settings", StockFlowDbContext.Schemas.Inventory);
+        modelBuilder.Entity<CompanyProfile>().ToTable("company_profile", StockFlowDbContext.Schemas.Master);
 
         modelBuilder.Entity<ReportExportJob>().ToTable("report_export_jobs", StockFlowDbContext.Schemas.Reporting);
     }
@@ -73,6 +74,12 @@ internal static class ModelBuilderExtensions
         modelBuilder.Entity<InventorySettings>().Property(entity => entity.DefaultReorderLevel).HasPrecision(12, 2);
         modelBuilder.Entity<InventorySettings>().Property(entity => entity.DefaultUnit).HasMaxLength(24);
         modelBuilder.Entity<InventorySettings>().Property(entity => entity.GlobalLowStockThreshold).HasPrecision(12, 2);
+        modelBuilder.Entity<CompanyProfile>().Property(entity => entity.Name).HasMaxLength(160);
+        modelBuilder.Entity<CompanyProfile>().Property(entity => entity.Address).HasMaxLength(300);
+        modelBuilder.Entity<CompanyProfile>().Property(entity => entity.Email).HasMaxLength(254);
+        modelBuilder.Entity<CompanyProfile>().Property(entity => entity.Phone).HasMaxLength(40);
+        modelBuilder.Entity<CompanyProfile>().Property(entity => entity.Currency).HasMaxLength(3);
+        modelBuilder.Entity<CompanyProfile>().Property(entity => entity.LogoUrl).HasMaxLength(1000);
         modelBuilder.Entity<ReportExportJob>().HasIndex(entity => new { entity.Status, entity.RequestedAt });
         modelBuilder.Entity<ReportExportJob>().HasIndex(entity => entity.JobNumber).IsUnique();
         modelBuilder.Entity<ReportExportJob>()
