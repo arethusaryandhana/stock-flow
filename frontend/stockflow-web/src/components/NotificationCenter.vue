@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../infrastructure/api'
 import { useI18n } from '../i18n'
+import { useNotificationPreferences } from '../notificationPreferences'
 import { useDisplayPreferences } from '../preferences'
 
 type NotificationItem = {
@@ -26,6 +27,7 @@ type NotificationPage = {
 }
 
 const displayPreferences = useDisplayPreferences()
+const { preferences, loadPreferences } = useNotificationPreferences()
 const items = ref<NotificationItem[]>([])
 const unreadCount = ref(0)
 const open = ref(false)
@@ -36,8 +38,11 @@ const root = ref<HTMLElement | null>(null)
 const router = useRouter()
 const { t } = useI18n()
 let pollTimer: number | undefined
+let mounted = false
+let hasLoadedNotifications = false
 
 const unreadLabel = computed(() => unreadCount.value > 99 ? '99+' : String(unreadCount.value))
+const notificationsEnabled = computed(() => preferences.value.inAppEnabled)
 
 function dateTime(value: string) {
   return displayPreferences.formatDate(value, { includeYear: false, includeTime: true })
@@ -49,14 +54,46 @@ function icon(type: string) {
   return 'i'
 }
 
+function playNotificationSound() {
+  try {
+    const context = new AudioContext()
+    const oscillator = context.createOscillator()
+    const gain = context.createGain()
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(660, context.currentTime)
+    oscillator.frequency.exponentialRampToValueAtTime(880, context.currentTime + 0.08)
+    gain.gain.setValueAtTime(0.0001, context.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.12)
+    oscillator.connect(gain)
+    gain.connect(context.destination)
+    oscillator.addEventListener('ended', () => { void context.close() })
+    oscillator.start()
+    oscillator.stop(context.currentTime + 0.13)
+  } catch {
+    // Browsers can deny audio before the user has interacted with the page.
+  }
+}
+
 async function load(showLoading = false) {
+  if (!notificationsEnabled.value) {
+    items.value = []
+    unreadCount.value = 0
+    return
+  }
+
   if (showLoading) loading.value = true
   try {
+    const previousUnreadCount = unreadCount.value
     const { data } = await api.get<NotificationPage>('/notifications', {
       params: { page: 1, pageSize: 10 },
     })
     items.value = data.items
     unreadCount.value = data.unreadCount
+    if (hasLoadedNotifications && preferences.value.soundEnabled && data.unreadCount > previousUnreadCount) {
+      playNotificationSound()
+    }
+    hasLoadedNotifications = true
     error.value = ''
   } catch (requestError) {
     if (showLoading) error.value = (requestError as Error).message
@@ -67,7 +104,7 @@ async function load(showLoading = false) {
 
 async function toggle() {
   open.value = !open.value
-  if (open.value) await load(true)
+  if (open.value && notificationsEnabled.value) await load(true)
 }
 
 async function openNotification(item: NotificationItem) {
@@ -110,16 +147,47 @@ function closeOnEscape(event: KeyboardEvent) {
   if (event.key === 'Escape') open.value = false
 }
 
-onMounted(() => {
-  void load()
-  document.addEventListener('click', closeOnOutsideClick)
-  document.addEventListener('keydown', closeOnEscape)
+function schedulePolling() {
+  if (pollTimer !== undefined) window.clearInterval(pollTimer)
+  pollTimer = undefined
+  if (!notificationsEnabled.value) return
+
   pollTimer = window.setInterval(() => {
     if (document.visibilityState === 'visible') void load()
-  }, 30000)
+  }, preferences.value.pollingIntervalSeconds * 1000)
+}
+
+watch(() => [
+  preferences.value.inAppEnabled,
+  preferences.value.lowStockEnabled,
+  preferences.value.reportReadyEnabled,
+  preferences.value.systemEnabled,
+  preferences.value.pollingIntervalSeconds,
+], () => {
+  if (!mounted) return
+  schedulePolling()
+  if (notificationsEnabled.value) void load()
+  else {
+    items.value = []
+    unreadCount.value = 0
+  }
+})
+
+onMounted(async () => {
+  try {
+    await loadPreferences()
+  } catch {
+    // Keep the safe defaults so the notification inbox remains usable.
+  }
+  mounted = true
+  await load()
+  schedulePolling()
+  document.addEventListener('click', closeOnOutsideClick)
+  document.addEventListener('keydown', closeOnEscape)
 })
 
 onBeforeUnmount(() => {
+  mounted = false
   document.removeEventListener('click', closeOnOutsideClick)
   document.removeEventListener('keydown', closeOnEscape)
   if (pollTimer !== undefined) window.clearInterval(pollTimer)
@@ -130,6 +198,7 @@ onBeforeUnmount(() => {
   <div ref="root" class="notification-center">
     <button
       class="topbar-icon notification-button"
+      :class="{ paused: !notificationsEnabled }"
       type="button"
       :aria-label="t('app.notificationsAria')"
       :aria-expanded="open"
@@ -137,22 +206,27 @@ onBeforeUnmount(() => {
       @click="toggle"
     >
       <span aria-hidden="true">◔</span>
-      <strong v-if="unreadCount" class="notification-badge" aria-hidden="true">{{ unreadLabel }}</strong>
+      <strong v-if="notificationsEnabled && unreadCount" class="notification-badge" aria-hidden="true">{{ unreadLabel }}</strong>
     </button>
 
     <section v-if="open" class="notification-dropdown" role="dialog" :aria-label="t('notifications.title')">
       <header>
         <div>
           <strong>{{ t('notifications.title') }}</strong>
-          <small>{{ t('notifications.unreadCount', { count: unreadCount }) }}</small>
+          <small>{{ notificationsEnabled ? t('notifications.unreadCount', { count: unreadCount }) : t('notifications.pausedStatus') }}</small>
         </div>
-        <button v-if="unreadCount" type="button" :disabled="markingAll" @click="markAllRead">
+        <button v-if="notificationsEnabled && unreadCount" type="button" :disabled="markingAll" @click="markAllRead">
           {{ markingAll ? t('notifications.markingAll') : t('notifications.markAll') }}
         </button>
       </header>
 
       <p v-if="error" class="notification-error" role="alert">{{ error }}</p>
-      <div v-if="loading" class="notification-empty">{{ t('notifications.loading') }}</div>
+      <div v-if="!notificationsEnabled" class="notification-empty paused">
+        <span aria-hidden="true">—</span>
+        <strong>{{ t('notifications.pausedTitle') }}</strong>
+        <small>{{ t('notifications.pausedHint') }}</small>
+      </div>
+      <div v-else-if="loading" class="notification-empty">{{ t('notifications.loading') }}</div>
       <div v-else-if="!items.length" class="notification-empty">
         <span aria-hidden="true">✓</span>
         <strong>{{ t('notifications.emptyTitle') }}</strong>
@@ -182,6 +256,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .notification-center { position: relative; }
 .notification-button { font-size: 1.15rem; }
+.notification-button.paused { opacity: .72; }
 .notification-button > span { line-height: 1; }
 .notification-badge { position: absolute; top: -7px; right: -8px; display: grid; min-width: 19px; height: 19px; padding: 0 5px; place-items: center; border: 2px solid var(--surface-raised); border-radius: 999px; color: #fff; background: #dc6672; font-size: .55rem; line-height: 1; }
 .notification-dropdown { position: absolute; z-index: 40; top: calc(100% + 11px); right: -8px; width: min(390px, calc(100vw - 24px)); overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-raised); box-shadow: var(--shadow-lg, 0 18px 48px rgba(30, 42, 70, .2)); }
@@ -209,6 +284,7 @@ onBeforeUnmount(() => {
 .notification-copy time { color: var(--muted); font-size: .56rem; font-weight: 700; }
 .notification-empty { display: grid; min-height: 175px; place-items: center; align-content: center; gap: 5px; padding: 24px; color: var(--muted); text-align: center; }
 .notification-empty > span { display: grid; width: 36px; height: 36px; margin-bottom: 4px; place-items: center; border-radius: 50%; color: #13816e; background: var(--teal-soft); }
+.notification-empty.paused > span { color: var(--muted); background: var(--surface-hover); }
 .notification-empty strong { color: var(--text); font-size: .72rem; }
 .notification-empty small { font-size: .62rem; }
 @media (max-width: 700px) { .notification-dropdown { position: fixed; top: 62px; right: 12px; left: 12px; width: auto; } }

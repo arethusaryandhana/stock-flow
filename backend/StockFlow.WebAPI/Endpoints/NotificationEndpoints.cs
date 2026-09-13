@@ -18,6 +18,17 @@ public sealed class NotificationEndpoints : IEndpoint
             .Produces<NotificationPageResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized);
 
+        notifications.MapGet("/preferences", GetPreferencesAsync)
+            .Produces<NotificationPreferencesResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status404NotFound);
+
+        notifications.MapPut("/preferences", UpdatePreferencesAsync)
+            .Produces<NotificationPreferencesResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status404NotFound);
+
         notifications.MapPatch("/{id:guid}/read", MarkReadAsync)
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status401Unauthorized)
@@ -43,6 +54,29 @@ public sealed class NotificationEndpoints : IEndpoint
             page,
             pageSize,
             cancellationToken));
+    }
+
+    private static async Task<IResult> GetPreferencesAsync(
+        HttpContext context,
+        INotificationUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(context.User, out var userId))
+            return Results.Unauthorized();
+
+        return (await useCase.GetPreferencesAsync(userId, cancellationToken)).ToHttpResult();
+    }
+
+    private static async Task<IResult> UpdatePreferencesAsync(
+        NotificationPreferencesRequest request,
+        HttpContext context,
+        INotificationUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(context.User, out var userId))
+            return Results.Unauthorized();
+
+        return (await useCase.UpdatePreferencesAsync(userId, request, cancellationToken)).ToHttpResult();
     }
 
     private static async Task<IResult> MarkReadAsync(

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using StockFlow.Application.Abstractions.Services;
+using StockFlow.Application.Models;
 using StockFlow.Application.UseCases;
 using StockFlow.Core;
 using StockFlow.Infrastructure;
@@ -31,6 +32,7 @@ public sealed class NotificationAuditTests
             var roles = await setup.Roles.ToDictionaryAsync(role => role.Name);
             var admin = CreateUser("notify-admin@test.local", "Notification Admin", roles["Admin"]);
             var manager = CreateUser("notify-manager@test.local", "Notification Manager", roles["Manager"]);
+            manager.LowStockNotificationsEnabled = false;
             var staff = CreateUser("notify-staff@test.local", "Notification Staff", roles["Staff"]);
             var category = new Category { Name = "Notification Test" };
             setup.AddRange(
@@ -79,7 +81,7 @@ public sealed class NotificationAuditTests
         var staffPage = await useCase.GetAllAsync(staffId, 1, 10);
 
         var adminNotification = Assert.Single(adminPage.Items);
-        Assert.Single(managerPage.Items);
+        Assert.Empty(managerPage.Items);
         Assert.Empty(staffPage.Items);
         Assert.Equal(1, adminPage.UnreadCount);
         Assert.Equal(nameof(NotificationType.LowStock), adminNotification.Type);
@@ -95,6 +97,68 @@ public sealed class NotificationAuditTests
         Assert.Equal(0, readPage.UnreadCount);
         Assert.True(Assert.Single(readPage.Items).IsRead);
         Assert.NotNull(Assert.Single(readPage.Items).ReadAt);
+    }
+
+    [Fact]
+    public async Task NotificationPreferences_ArePersistedValidatedAndFilterTheInbox()
+    {
+        var connectionString = GetTestDatabase();
+        if (connectionString is null)
+            return;
+
+        var options = CreateOptions(connectionString);
+        Guid userId;
+
+        await using (var setup = new StockFlowDbContext(options))
+        {
+            await setup.Database.EnsureDeletedAsync();
+            await setup.Database.MigrateAsync();
+            var adminRole = await setup.Roles.SingleAsync(role => role.Name == "Admin");
+            var user = CreateUser("preferences@test.local", "Preferences Admin", adminRole);
+            setup.UsersSet.Add(user);
+            setup.Notifications.AddRange(
+                new Notification { User = user, Type = NotificationType.LowStock, Title = "Low", Message = "Low stock" },
+                new Notification { User = user, Type = NotificationType.ReportReady, Title = "Report", Message = "Report ready" },
+                new Notification { User = user, Type = NotificationType.System, Title = "System", Message = "System message" });
+            await setup.SaveChangesAsync();
+            userId = user.Id;
+        }
+
+        await using var db = new StockFlowDbContext(options);
+        var useCase = new NotificationUseCase(new NotificationRepository(db));
+
+        var defaults = await useCase.GetPreferencesAsync(userId);
+        Assert.Equal(200, defaults.StatusCode);
+        Assert.True(defaults.Data?.InAppEnabled);
+        Assert.Equal(30, defaults.Data?.PollingIntervalSeconds);
+
+        var invalid = await useCase.UpdatePreferencesAsync(
+            userId,
+            new NotificationPreferencesRequest(true, true, true, true, false, 10));
+        Assert.Equal(400, invalid.StatusCode);
+
+        var updated = await useCase.UpdatePreferencesAsync(
+            userId,
+            new NotificationPreferencesRequest(true, false, true, false, true, 60));
+        Assert.Equal(200, updated.StatusCode);
+        Assert.False(updated.Data?.LowStockEnabled);
+        Assert.True(updated.Data?.ReportReadyEnabled);
+        Assert.False(updated.Data?.SystemEnabled);
+        Assert.True(updated.Data?.SoundEnabled);
+        Assert.Equal(60, updated.Data?.PollingIntervalSeconds);
+
+        var filtered = await useCase.GetAllAsync(userId, 1, 10);
+        var report = Assert.Single(filtered.Items);
+        Assert.Equal(nameof(NotificationType.ReportReady), report.Type);
+        Assert.Equal(1, filtered.UnreadCount);
+
+        var disabled = await useCase.UpdatePreferencesAsync(
+            userId,
+            new NotificationPreferencesRequest(false, false, true, false, true, 60));
+        Assert.Equal(200, disabled.StatusCode);
+        var empty = await useCase.GetAllAsync(userId, 1, 10);
+        Assert.Empty(empty.Items);
+        Assert.Equal(0, empty.UnreadCount);
     }
 
     [Fact]

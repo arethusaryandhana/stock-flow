@@ -112,6 +112,22 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
 
+                    b.Property<bool>("InAppNotificationsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("in_app_notifications_enabled");
+
+                    b.Property<bool>("LowStockNotificationsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("low_stock_notifications_enabled");
+
+                    b.Property<int>("NotificationPollingIntervalSeconds")
+                        .HasColumnType("integer")
+                        .HasColumnName("notification_polling_interval_seconds");
+
+                    b.Property<bool>("NotificationSoundEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("notification_sound_enabled");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(160)
@@ -1093,6 +1109,14 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<Guid>("RoleId")
                         .HasColumnType("uuid")
                         .HasColumnName("role_id");
+
+                    b.Property<bool>("ReportReadyNotificationsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("report_ready_notifications_enabled");
+
+                    b.Property<bool>("SystemNotificationsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("system_notifications_enabled");
 
                     b.Property<int>("TokenVersion")
                         .HasColumnType("integer")

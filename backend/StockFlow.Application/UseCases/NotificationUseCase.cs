@@ -6,6 +6,35 @@ namespace StockFlow.Application.UseCases;
 
 public sealed class NotificationUseCase(INotificationRepository notifications) : INotificationUseCase
 {
+    private static readonly int[] SupportedPollingIntervals = [15, 30, 60, 300];
+
+    public async Task<UseCaseResult<NotificationPreferencesResponse>> GetPreferencesAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var preferences = await notifications.GetPreferencesAsync(userId, cancellationToken);
+        return preferences is null
+            ? UseCaseResult<NotificationPreferencesResponse>.NotFound("Pengguna tidak ditemukan.")
+            : UseCaseResult<NotificationPreferencesResponse>.Ok(preferences);
+    }
+
+    public async Task<UseCaseResult<NotificationPreferencesResponse>> UpdatePreferencesAsync(
+        Guid userId,
+        NotificationPreferencesRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!SupportedPollingIntervals.Contains(request.PollingIntervalSeconds))
+        {
+            return UseCaseResult<NotificationPreferencesResponse>.BadRequest(
+                "Interval notifikasi harus 15, 30, 60, atau 300 detik.");
+        }
+
+        var preferences = await notifications.UpdatePreferencesAsync(userId, request, cancellationToken);
+        return preferences is null
+            ? UseCaseResult<NotificationPreferencesResponse>.NotFound("Pengguna tidak ditemukan.")
+            : UseCaseResult<NotificationPreferencesResponse>.Ok(preferences);
+    }
+
     public Task<NotificationPageResponse> GetAllAsync(
         Guid userId,
         int page,

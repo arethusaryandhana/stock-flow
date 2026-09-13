@@ -241,6 +241,15 @@ public interface IReportExportUseCase
 
 public interface INotificationUseCase
 {
+    Task<UseCaseResult<NotificationPreferencesResponse>> GetPreferencesAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
+    Task<UseCaseResult<NotificationPreferencesResponse>> UpdatePreferencesAsync(
+        Guid userId,
+        NotificationPreferencesRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<NotificationPageResponse> GetAllAsync(
         Guid userId,
         int page,

@@ -5,6 +5,11 @@ import { api } from '../infrastructure/api'
 import { useI18n } from '../i18n'
 import type { Language } from '../i18n'
 import {
+  useNotificationPreferences,
+  type NotificationPollingInterval,
+  type NotificationPreferences,
+} from '../notificationPreferences'
+import {
   useDisplayPreferences,
   type DateFormatPreference,
   type NumberFormatPreference,
@@ -15,12 +20,18 @@ import { useToastStore } from '../stores/toast'
 import { useTheme, type ThemePreference } from '../theme'
 
 type SessionProfile = { fullName: string; email: string; role: string }
-type SettingsSection = 'account' | 'display'
+type SettingsSection = 'account' | 'display' | 'notifications'
+type NotificationToggleKey = Exclude<keyof NotificationPreferences, 'pollingIntervalSeconds'>
 
 const auth = useAuthStore()
 const toast = useToastStore()
 const { language, setLanguage, t } = useI18n()
 const { preference: themePreference, resolvedTheme, setTheme } = useTheme()
+const {
+  preferences: notificationPreferences,
+  loadPreferences: loadNotificationPreferences,
+  savePreferences: saveNotificationPreferences,
+} = useNotificationPreferences()
 const {
   timeZone,
   dateFormat,
@@ -51,11 +62,19 @@ const revoking = ref(false)
 const error = ref('')
 const formError = ref('')
 const securityError = ref('')
+const notificationLoading = ref(true)
+const notificationSaving = ref(false)
+const notificationError = ref('')
 const previewNow = new Date()
 
 const datePreview = computed(() => formatDate(previewNow, { includeTime: true }))
 const numberPreview = computed(() => formatNumber(1234567.89, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
 const currencyPreview = computed(() => formatNumber(1250000, { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }))
+const enabledNotificationCategories = computed(() => [
+  notificationPreferences.value.lowStockEnabled,
+  notificationPreferences.value.reportReadyEnabled,
+  notificationPreferences.value.systemEnabled,
+].filter(Boolean).length)
 
 const normalizedName = computed(() => fullName.value.trim().replace(/\s+/g, ' '))
 const normalizedEmail = computed(() => email.value.trim().toLowerCase())
@@ -141,6 +160,48 @@ async function logoutAll() {
   }
 }
 
+async function loadNotificationSettings() {
+  notificationLoading.value = true
+  notificationError.value = ''
+  try {
+    await loadNotificationPreferences(true)
+  } catch (requestError) {
+    notificationError.value = (requestError as Error).message
+  } finally {
+    notificationLoading.value = false
+  }
+}
+
+async function updateNotificationPreferences(next: NotificationPreferences) {
+  if (notificationSaving.value) return
+  const previous = notificationPreferences.value
+  notificationPreferences.value = next
+  notificationSaving.value = true
+  notificationError.value = ''
+  try {
+    await saveNotificationPreferences(next)
+  } catch (requestError) {
+    notificationPreferences.value = previous
+    notificationError.value = (requestError as Error).message
+  } finally {
+    notificationSaving.value = false
+  }
+}
+
+function toggleNotificationPreference(key: NotificationToggleKey) {
+  void updateNotificationPreferences({
+    ...notificationPreferences.value,
+    [key]: !notificationPreferences.value[key],
+  })
+}
+
+function changeNotificationInterval(event: Event) {
+  void updateNotificationPreferences({
+    ...notificationPreferences.value,
+    pollingIntervalSeconds: Number((event.target as HTMLSelectElement).value) as NotificationPollingInterval,
+  })
+}
+
 function changeLanguage(value: Language) {
   setLanguage(value)
 }
@@ -165,7 +226,10 @@ function changeDefaultPageSize(event: Event) {
   setDefaultPageSize(Number((event.target as HTMLSelectElement).value))
 }
 
-onMounted(loadProfile)
+onMounted(() => {
+  void loadProfile()
+  void loadNotificationSettings()
+})
 </script>
 
 <template>
@@ -195,6 +259,12 @@ onMounted(loadProfile)
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M8 21h8M12 17v4" /></svg>
           </span>
           <span><strong>{{ t('settings.displayRegional') }}</strong><small>{{ t('settings.displayRegionalHint') }}</small></span>
+        </button>
+        <button class="settings-nav-item" :class="{ active: activeSection === 'notifications' }" type="button" :aria-current="activeSection === 'notifications' ? 'page' : undefined" @click="activeSection = 'notifications'">
+          <span class="settings-nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></svg>
+          </span>
+          <span><strong>{{ t('settings.notifications') }}</strong><small>{{ t('settings.notificationsHint') }}</small></span>
         </button>
       </aside>
 
@@ -325,7 +395,7 @@ onMounted(loadProfile)
         </section>
       </main>
 
-      <main v-else class="settings-content">
+      <main v-else-if="activeSection === 'display'" class="settings-content">
         <section class="surface-card display-summary">
           <div class="display-summary-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9c0-1.1-.9-2-2-2h-1.3a2 2 0 0 1-1.7-3l.2-.4A2.4 2.4 0 0 0 14.1 3H12Z" /><circle cx="7.5" cy="11" r=".7" fill="currentColor" /><circle cx="10" cy="7" r=".7" fill="currentColor" /><circle cx="8.5" cy="15" r=".7" fill="currentColor" /></svg>
@@ -440,6 +510,102 @@ onMounted(loadProfile)
           </div>
         </section>
       </main>
+
+      <main v-else class="settings-content">
+        <section class="surface-card notification-summary">
+          <div class="notification-summary-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></svg>
+          </div>
+          <div>
+            <span class="account-kicker">{{ t('settings.notifications') }}</span>
+            <h2>{{ t('settings.notificationSummaryTitle') }}</h2>
+            <p>{{ t('settings.notificationSummaryDescription') }}</p>
+          </div>
+          <span class="notification-status-badge" :class="{ paused: !notificationPreferences.inAppEnabled }">
+            <i />{{ notificationPreferences.inAppEnabled ? t('settings.notificationsActive') : t('settings.notificationsPaused') }}
+          </span>
+        </section>
+
+        <p v-if="notificationError" class="alert error-banner" role="alert">{{ notificationError }}</p>
+        <div v-if="notificationLoading" class="surface-card settings-loading">{{ t('settings.loadingNotifications') }}</div>
+
+        <template v-else>
+          <section class="surface-card settings-card">
+            <div class="settings-card-head">
+              <div>
+                <h2>{{ t('settings.deliveryTitle') }}</h2>
+                <p>{{ t('settings.deliveryDescription') }}</p>
+              </div>
+              <span class="settings-card-icon blue" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M9 6h6M10 18h4" /></svg>
+              </span>
+            </div>
+
+            <div class="notification-settings-list">
+              <div class="notification-setting-row primary-notification-row">
+                <span class="notification-setting-icon blue" aria-hidden="true">◔</span>
+                <div><strong>{{ t('settings.inAppTitle') }}</strong><p>{{ t('settings.inAppDescription') }}</p></div>
+                <button class="preference-switch" :class="{ active: notificationPreferences.inAppEnabled }" type="button" role="switch" :aria-checked="notificationPreferences.inAppEnabled" :aria-label="t('settings.inAppTitle')" :disabled="notificationSaving" @click="toggleNotificationPreference('inAppEnabled')"><span /></button>
+              </div>
+
+              <div class="notification-setting-row" :class="{ muted: !notificationPreferences.inAppEnabled }">
+                <span class="notification-setting-icon teal" aria-hidden="true">♪</span>
+                <div><strong>{{ t('settings.soundTitle') }}</strong><p>{{ t('settings.soundDescription') }}</p></div>
+                <button class="preference-switch" :class="{ active: notificationPreferences.soundEnabled }" type="button" role="switch" :aria-checked="notificationPreferences.soundEnabled" :aria-label="t('settings.soundTitle')" :disabled="notificationSaving || !notificationPreferences.inAppEnabled" @click="toggleNotificationPreference('soundEnabled')"><span /></button>
+              </div>
+
+              <div class="notification-setting-row" :class="{ muted: !notificationPreferences.inAppEnabled }">
+                <span class="notification-setting-icon amber" aria-hidden="true">↻</span>
+                <div><strong>{{ t('settings.refreshTitle') }}</strong><p>{{ t('settings.refreshDescription') }}</p></div>
+                <select class="notification-interval" :value="notificationPreferences.pollingIntervalSeconds" :aria-label="t('settings.refreshTitle')" :disabled="notificationSaving || !notificationPreferences.inAppEnabled" @change="changeNotificationInterval">
+                  <option :value="15">{{ t('settings.refreshSeconds', { count: 15 }) }}</option>
+                  <option :value="30">{{ t('settings.refreshSeconds', { count: 30 }) }}</option>
+                  <option :value="60">{{ t('settings.refreshMinute') }}</option>
+                  <option :value="300">{{ t('settings.refreshMinutes', { count: 5 }) }}</option>
+                </select>
+              </div>
+            </div>
+          </section>
+
+          <section class="surface-card settings-card">
+            <div class="settings-card-head">
+              <div>
+                <h2>{{ t('settings.categoriesTitle') }}</h2>
+                <p>{{ t('settings.categoriesDescription') }}</p>
+              </div>
+              <span class="settings-card-icon teal" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16" /><circle cx="7" cy="6" r="1" fill="currentColor" /><circle cx="13" cy="12" r="1" fill="currentColor" /><circle cx="17" cy="18" r="1" fill="currentColor" /></svg>
+              </span>
+            </div>
+
+            <div class="notification-category-grid" :class="{ muted: !notificationPreferences.inAppEnabled }">
+              <article class="notification-category-card">
+                <span class="category-icon amber" aria-hidden="true">!</span>
+                <div><strong>{{ t('settings.lowStockTitle') }}</strong><p>{{ t('settings.lowStockDescription') }}</p><small>{{ t('settings.inventoryCategory') }}</small></div>
+                <button class="preference-switch" :class="{ active: notificationPreferences.lowStockEnabled }" type="button" role="switch" :aria-checked="notificationPreferences.lowStockEnabled" :aria-label="t('settings.lowStockTitle')" :disabled="notificationSaving || !notificationPreferences.inAppEnabled" @click="toggleNotificationPreference('lowStockEnabled')"><span /></button>
+              </article>
+
+              <article class="notification-category-card">
+                <span class="category-icon teal" aria-hidden="true">↓</span>
+                <div><strong>{{ t('settings.reportReadyTitle') }}</strong><p>{{ t('settings.reportReadyDescription') }}</p><small>{{ t('settings.reportsCategory') }}</small></div>
+                <button class="preference-switch" :class="{ active: notificationPreferences.reportReadyEnabled }" type="button" role="switch" :aria-checked="notificationPreferences.reportReadyEnabled" :aria-label="t('settings.reportReadyTitle')" :disabled="notificationSaving || !notificationPreferences.inAppEnabled" @click="toggleNotificationPreference('reportReadyEnabled')"><span /></button>
+              </article>
+
+              <article class="notification-category-card">
+                <span class="category-icon blue" aria-hidden="true">i</span>
+                <div><strong>{{ t('settings.systemTitle') }}</strong><p>{{ t('settings.systemDescription') }}</p><small>{{ t('settings.systemCategory') }}</small></div>
+                <button class="preference-switch" :class="{ active: notificationPreferences.systemEnabled }" type="button" role="switch" :aria-checked="notificationPreferences.systemEnabled" :aria-label="t('settings.systemTitle')" :disabled="notificationSaving || !notificationPreferences.inAppEnabled" @click="toggleNotificationPreference('systemEnabled')"><span /></button>
+              </article>
+            </div>
+
+            <div class="notification-footnote">
+              <span aria-hidden="true">✓</span>
+              <p><strong>{{ t('settings.accountSyncedTitle') }}</strong>{{ t('settings.accountSyncedDescription', { count: enabledNotificationCategories }) }}</p>
+              <small>{{ notificationSaving ? t('settings.savingNotifications') : t('settings.savedNotifications') }}</small>
+            </div>
+          </section>
+        </template>
+      </main>
     </div>
 
     <ChangePasswordModal v-if="changePasswordOpen" @close="changePasswordOpen = false" />
@@ -476,6 +642,16 @@ onMounted(loadProfile)
 .display-summary p { max-width: 620px; margin-top: 5px; color: var(--muted); font-size: .64rem; line-height: 1.5; }
 .autosave-badge { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid color-mix(in srgb, var(--teal) 18%, var(--line)); border-radius: 999px; color: var(--teal); background: var(--teal-soft); font-size: .57rem; font-weight: 800; }
 .autosave-badge i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.notification-summary { display: flex; min-height: 106px; align-items: center; gap: 14px; padding: 20px; background: linear-gradient(125deg, color-mix(in srgb, var(--blue) 7%, var(--surface)) 0%, var(--surface) 48%, color-mix(in srgb, var(--amber) 6%, var(--surface)) 100%); }
+.notification-summary-icon { display: grid; width: 58px; height: 58px; flex: 0 0 58px; place-items: center; border: 1px solid color-mix(in srgb, var(--blue) 16%, var(--line)); border-radius: 16px; color: var(--blue); background: var(--blue-soft); }
+.notification-summary-icon svg { width: 27px; height: 27px; }
+.notification-summary > div:nth-child(2) { min-width: 0; flex: 1; }
+.notification-summary h2 { margin-top: 5px; font-size: 1.04rem; }
+.notification-summary p { max-width: 620px; margin-top: 5px; color: var(--muted); font-size: .64rem; line-height: 1.5; }
+.notification-status-badge { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid color-mix(in srgb, var(--teal) 18%, var(--line)); border-radius: 999px; color: var(--teal); background: var(--teal-soft); font-size: .57rem; font-weight: 800; }
+.notification-status-badge i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 13%, transparent); }
+.notification-status-badge.paused { border-color: var(--line); color: var(--muted); background: var(--surface-hover); }
+.notification-status-badge.paused i { box-shadow: none; }
 .settings-card { overflow: hidden; }
 .settings-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 20px 20px 17px; border-bottom: 1px solid var(--line); }
 .settings-card-head p { max-width: 600px; margin-top: 5px; color: var(--muted); font-size: .66rem; line-height: 1.5; }
@@ -521,6 +697,34 @@ onMounted(loadProfile)
 .format-preview dl > div { min-width: 0; }
 .format-preview dt { color: var(--muted-2); font-size: .52rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
 .format-preview dd { margin: 6px 0 0; overflow: hidden; color: var(--ink); font-size: .7rem; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.notification-settings-list { padding: 2px 20px; }
+.notification-setting-row { display: flex; min-height: 72px; align-items: center; gap: 12px; padding: 15px 0; transition: opacity .16s ease; }
+.notification-setting-row + .notification-setting-row { border-top: 1px solid var(--line); }
+.notification-setting-row.muted, .notification-category-grid.muted { opacity: .52; }
+.notification-setting-icon, .category-icon { display: grid; width: 37px; height: 37px; flex: 0 0 37px; place-items: center; border-radius: 10px; font-size: .72rem; font-weight: 900; }
+.notification-setting-icon.blue, .category-icon.blue { color: var(--blue); background: var(--blue-soft); }
+.notification-setting-icon.teal, .category-icon.teal { color: var(--teal); background: var(--teal-soft); }
+.notification-setting-icon.amber, .category-icon.amber { color: var(--amber); background: var(--amber-soft); }
+.notification-setting-row > div { min-width: 0; flex: 1; }
+.notification-setting-row strong, .notification-category-card strong { color: var(--ink); font-size: .69rem; }
+.notification-setting-row p, .notification-category-card p { margin-top: 4px; color: var(--muted); font-size: .61rem; line-height: 1.5; }
+.preference-switch { position: relative; width: 39px; height: 22px; flex: 0 0 39px; border: 1px solid color-mix(in srgb, var(--muted) 25%, var(--line)); border-radius: 999px; background: var(--surface-hover); transition: background .16s ease, border-color .16s ease; }
+.preference-switch span { position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); box-shadow: 0 1px 3px rgba(0, 0, 0, .18); transition: transform .16s ease, background .16s ease; }
+.preference-switch.active { border-color: var(--blue); background: var(--blue); }
+.preference-switch.active span { background: #fff; transform: translateX(17px); }
+.preference-switch:disabled { cursor: not-allowed; }
+.notification-interval { width: auto; min-width: 132px; flex: 0 0 auto; }
+.notification-category-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 20px; transition: opacity .16s ease; }
+.notification-category-card { position: relative; display: grid; min-height: 156px; grid-template-columns: 37px minmax(0, 1fr); align-content: start; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-raised); }
+.notification-category-card .preference-switch { position: absolute; top: 14px; right: 14px; }
+.notification-category-card > div { grid-column: 1 / -1; }
+.notification-category-card p { min-height: 37px; }
+.notification-category-card small { display: inline-flex; margin-top: 10px; padding: 4px 7px; border-radius: 6px; color: var(--muted-2); background: var(--surface-hover); font-size: .52rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.notification-footnote { display: flex; align-items: center; gap: 10px; margin: 0 20px 20px; padding: 13px 14px; border: 1px solid color-mix(in srgb, var(--teal) 18%, var(--line)); border-radius: 10px; background: color-mix(in srgb, var(--teal) 5%, var(--surface-raised)); }
+.notification-footnote > span { display: grid; width: 24px; height: 24px; flex: 0 0 24px; place-items: center; border-radius: 50%; color: var(--teal); background: var(--teal-soft); font-size: .62rem; font-weight: 900; }
+.notification-footnote p { min-width: 0; flex: 1; color: var(--muted); font-size: .58rem; line-height: 1.45; }
+.notification-footnote p strong { display: block; margin-bottom: 2px; color: var(--ink); font-size: .63rem; }
+.notification-footnote > small { flex: 0 0 auto; color: var(--teal); font-size: .55rem; font-weight: 800; }
 .profile-form { padding: 20px; }
 .profile-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .email-verification { display: flex; align-items: flex-start; gap: 11px; margin-top: 17px; padding: 14px; border: 1px solid color-mix(in srgb, var(--amber) 24%, var(--line)); border-radius: 10px; background: var(--amber-soft); }
@@ -568,17 +772,24 @@ onMounted(loadProfile)
 @media (max-width: 830px) {
   .settings-layout { grid-template-columns: 1fr; }
   .settings-nav { position: static; }
+  .notification-category-grid { grid-template-columns: 1fr; }
+  .notification-category-card { min-height: 126px; }
+  .notification-category-card p { min-height: 0; }
 }
 @media (max-width: 600px) {
   .profile-fields { grid-template-columns: 1fr; }
-  .account-summary, .display-summary { align-items: flex-start; flex-wrap: wrap; }
+  .account-summary, .display-summary, .notification-summary { align-items: flex-start; flex-wrap: wrap; }
   .role-badge { margin-left: 72px; }
-  .display-summary > div:nth-child(2) { flex: 0 0 calc(100% - 72px); }
-  .autosave-badge { margin-left: 72px; }
+  .display-summary > div:nth-child(2), .notification-summary > div:nth-child(2) { flex: 0 0 calc(100% - 72px); }
+  .autosave-badge, .notification-status-badge { margin-left: 72px; }
   .theme-options, .regional-grid, .format-preview dl { grid-template-columns: 1fr; }
   .language-options { grid-template-columns: 1fr; }
   .theme-options button { grid-template-columns: 72px 1fr; }
   .format-preview-head { align-items: flex-start; flex-direction: column; }
+  .notification-setting-row { align-items: flex-start; flex-wrap: wrap; }
+  .notification-setting-row .preference-switch, .notification-setting-row .notification-interval { margin-left: 49px; }
+  .notification-footnote { align-items: flex-start; flex-wrap: wrap; }
+  .notification-footnote > small { width: 100%; margin-left: 34px; }
   .security-row, .logout-confirmation { align-items: flex-start; flex-wrap: wrap; }
   .security-row button { width: 100%; margin-left: 47px; }
   .logout-confirmation-actions { width: 100%; }

@@ -74,3 +74,11 @@ public sealed record SalesOrderStatusRequest(string Status);
 public sealed record ReportExportRequest(
     string ReportType,
     string Format);
+
+public sealed record NotificationPreferencesRequest(
+    bool InAppEnabled,
+    bool LowStockEnabled,
+    bool ReportReadyEnabled,
+    bool SystemEnabled,
+    bool SoundEnabled,
+    int PollingIntervalSeconds);

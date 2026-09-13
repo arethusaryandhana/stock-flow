@@ -8,6 +8,49 @@ namespace StockFlow.Infrastructure.Repositories;
 
 public sealed class NotificationRepository(StockFlowDbContext db) : INotificationRepository
 {
+    public Task<NotificationPreferencesResponse?> GetPreferencesAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default) =>
+        db.UsersSet
+            .AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => new NotificationPreferencesResponse(
+                user.InAppNotificationsEnabled,
+                user.LowStockNotificationsEnabled,
+                user.ReportReadyNotificationsEnabled,
+                user.SystemNotificationsEnabled,
+                user.NotificationSoundEnabled,
+                user.NotificationPollingIntervalSeconds))
+            .SingleOrDefaultAsync(cancellationToken);
+
+    public async Task<NotificationPreferencesResponse?> UpdatePreferencesAsync(
+        Guid userId,
+        NotificationPreferencesRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await db.UsersSet.SingleOrDefaultAsync(
+            item => item.Id == userId,
+            cancellationToken);
+        if (user is null)
+            return null;
+
+        user.InAppNotificationsEnabled = request.InAppEnabled;
+        user.LowStockNotificationsEnabled = request.LowStockEnabled;
+        user.ReportReadyNotificationsEnabled = request.ReportReadyEnabled;
+        user.SystemNotificationsEnabled = request.SystemEnabled;
+        user.NotificationSoundEnabled = request.SoundEnabled;
+        user.NotificationPollingIntervalSeconds = request.PollingIntervalSeconds;
+        await db.SaveChangesAsync(cancellationToken);
+
+        return new NotificationPreferencesResponse(
+            user.InAppNotificationsEnabled,
+            user.LowStockNotificationsEnabled,
+            user.ReportReadyNotificationsEnabled,
+            user.SystemNotificationsEnabled,
+            user.NotificationSoundEnabled,
+            user.NotificationPollingIntervalSeconds);
+    }
+
     public async Task<NotificationPageResponse> GetAllAsync(
         Guid userId,
         int page,
@@ -15,9 +58,24 @@ public sealed class NotificationRepository(StockFlowDbContext db) : INotificatio
         CancellationToken cancellationToken = default)
     {
         var pagination = Pagination.Normalize(page, pageSize);
+        var preferences = await GetPreferencesAsync(userId, cancellationToken);
+        if (preferences is null || !preferences.InAppEnabled)
+        {
+            return new NotificationPageResponse(
+                [],
+                pagination.Page,
+                pagination.PageSize,
+                0,
+                0);
+        }
+
         var query = db.Notifications
             .AsNoTracking()
-            .Where(notification => notification.UserId == userId);
+            .Where(notification => notification.UserId == userId)
+            .Where(notification =>
+                (notification.Type == NotificationType.LowStock && preferences.LowStockEnabled) ||
+                (notification.Type == NotificationType.ReportReady && preferences.ReportReadyEnabled) ||
+                (notification.Type == NotificationType.System && preferences.SystemEnabled));
         var totalCount = await query.CountAsync(cancellationToken);
         var unreadCount = await query.CountAsync(notification => !notification.IsRead, cancellationToken);
         var items = await query
@@ -65,22 +123,34 @@ public sealed class NotificationRepository(StockFlowDbContext db) : INotificatio
         return true;
     }
 
-    public Task MarkAllReadAsync(
+    public async Task MarkAllReadAsync(
         Guid userId,
-        CancellationToken cancellationToken = default) =>
-        db.Notifications
+        CancellationToken cancellationToken = default)
+    {
+        var preferences = await GetPreferencesAsync(userId, cancellationToken);
+        if (preferences is null || !preferences.InAppEnabled)
+            return;
+
+        await db.Notifications
             .Where(notification => notification.UserId == userId && !notification.IsRead)
+            .Where(notification =>
+                (notification.Type == NotificationType.LowStock && preferences.LowStockEnabled) ||
+                (notification.Type == NotificationType.ReportReady && preferences.ReportReadyEnabled) ||
+                (notification.Type == NotificationType.System && preferences.SystemEnabled))
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(notification => notification.IsRead, true)
                     .SetProperty(notification => notification.ReadAt, DateTime.UtcNow),
                 cancellationToken);
+    }
 
     public async Task CreateLowStockNotificationsAsync(CancellationToken cancellationToken = default)
     {
         var recipients = await db.UsersSet
             .AsNoTracking()
             .Where(user => user.IsActive &&
+                user.InAppNotificationsEnabled &&
+                user.LowStockNotificationsEnabled &&
                 (user.Role.Name == "Admin" || user.Role.Name == "Manager"))
             .Select(user => user.Id)
             .ToListAsync(cancellationToken);

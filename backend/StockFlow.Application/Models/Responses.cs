@@ -275,6 +275,14 @@ public sealed record NotificationPageResponse(
         : (int)Math.Ceiling(TotalCount / (double)PageSize);
 }
 
+public sealed record NotificationPreferencesResponse(
+    bool InAppEnabled,
+    bool LowStockEnabled,
+    bool ReportReadyEnabled,
+    bool SystemEnabled,
+    bool SoundEnabled,
+    int PollingIntervalSeconds);
+
 public sealed record AuditLogResponse(
     Guid Id,
     Guid? ActorId,

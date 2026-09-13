@@ -287,6 +287,15 @@ public sealed record ReportExportCreationResult(
 
 public interface INotificationRepository
 {
+    Task<NotificationPreferencesResponse?> GetPreferencesAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
+    Task<NotificationPreferencesResponse?> UpdatePreferencesAsync(
+        Guid userId,
+        NotificationPreferencesRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<NotificationPageResponse> GetAllAsync(
         Guid userId,
         int page,

@@ -149,16 +149,24 @@ public sealed class ReportExportRepository(StockFlowDbContext db) : IReportExpor
         job.FilePath = filePath;
         job.FileSize = fileSize;
         job.CompletedAt = DateTime.UtcNow;
-        db.Notifications.Add(new Notification
+        var notificationEnabled = await db.UsersSet
+            .AsNoTracking()
+            .Where(user => user.Id == job.RequestedById)
+            .Select(user => user.InAppNotificationsEnabled && user.ReportReadyNotificationsEnabled)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (notificationEnabled)
         {
-            UserId = job.RequestedById,
-            Type = NotificationType.ReportReady,
-            Title = "Laporan siap",
-            Message = $"Laporan {job.JobNumber} sudah siap diunduh.",
-            Link = "/reports",
-            DeduplicationKey = $"report-ready:{job.Id:N}",
-            CreatedAt = DateTime.UtcNow
-        });
+            db.Notifications.Add(new Notification
+            {
+                UserId = job.RequestedById,
+                Type = NotificationType.ReportReady,
+                Title = "Laporan siap",
+                Message = $"Laporan {job.JobNumber} sudah siap diunduh.",
+                Link = "/reports",
+                DeduplicationKey = $"report-ready:{job.Id:N}",
+                CreatedAt = DateTime.UtcNow
+            });
+        }
 
         await db.SaveChangesAsync(cancellationToken);
     }
