@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../infrastructure/api'
 import { useI18n } from '../i18n'
+import { useDisplayPreferences } from '../preferences'
 
 type NotificationItem = {
   id: string
@@ -24,6 +25,7 @@ type NotificationPage = {
   unreadCount: number
 }
 
+const displayPreferences = useDisplayPreferences()
 const items = ref<NotificationItem[]>([])
 const unreadCount = ref(0)
 const open = ref(false)
@@ -32,18 +34,13 @@ const markingAll = ref(false)
 const error = ref('')
 const root = ref<HTMLElement | null>(null)
 const router = useRouter()
-const { locale, t } = useI18n()
+const { t } = useI18n()
 let pollTimer: number | undefined
 
 const unreadLabel = computed(() => unreadCount.value > 99 ? '99+' : String(unreadCount.value))
 
 function dateTime(value: string) {
-  return new Intl.DateTimeFormat(locale.value, {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value))
+  return displayPreferences.formatDate(value, { includeYear: false, includeTime: true })
 }
 
 function icon(type: string) {

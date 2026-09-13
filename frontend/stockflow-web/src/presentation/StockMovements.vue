@@ -3,10 +3,12 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../infrastructure/api'
 import type { PagedResponse } from '../infrastructure/api'
 import { useI18n } from '../i18n'
+import { useDisplayPreferences } from '../preferences'
 import PaginationControls from '../components/PaginationControls.vue'
 
 type Movement = { id: string; productId: string; productSku: string; productName: string; unit: string; type: string; quantity: number; balanceAfter: number; referenceNumber: string; reason: string | null; createdAt: string }
 type MovementPageResponse = PagedResponse<Movement> & { summary: { todayCount: number; inboundQuantity: number; outboundQuantity: number } }
+const displayPreferences = useDisplayPreferences()
 const movements = ref<Movement[]>([])
 const q = ref('')
 const typeFilter = ref('all')
@@ -14,15 +16,16 @@ const period = ref('30')
 const loading = ref(true)
 const error = ref('')
 const page = ref(1)
-const pageSize = ref(10)
+const pageSize = ref<number>(displayPreferences.defaultPageSize.value)
 const totalCount = ref(0)
 const totalPages = ref(0)
 const summary = ref({ todayCount: 0, inboundQuantity: 0, outboundQuantity: 0 })
-const { locale, t } = useI18n()
+const { t } = useI18n()
 const isInbound = (movement: Movement) => movement.type === 'GoodsReceipt' || movement.type === 'AdjustmentIn'
 const label = (movement: Movement) => movement.type === 'GoodsReceipt' ? t('movements.receipt') : movement.type === 'Sale' ? t('movements.sale') : movement.type === 'AdjustmentIn' ? t('movements.adjustmentIn') : movement.type === 'AdjustmentOut' ? t('movements.adjustmentOut') : movement.type
-const quantity = (movement: Movement) => `${isInbound(movement) ? '+' : '−'}${movement.quantity} ${movement.unit}`
-const date = (value: string) => new Intl.DateTimeFormat(locale.value, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+const quantity = (movement: Movement) => `${isInbound(movement) ? '+' : '−'}${displayPreferences.formatNumber(movement.quantity, { maximumFractionDigits: 2 })} ${movement.unit}`
+const balance = (movement: Movement) => `${displayPreferences.formatNumber(movement.balanceAfter, { maximumFractionDigits: 2 })} ${movement.unit}`
+const date = (value: string) => displayPreferences.formatDate(value, { includeTime: true })
 const shortName = (value: string) => value.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase()
 const filtered = computed(() => movements.value)
 const received = computed(() => summary.value.inboundQuantity)
@@ -45,6 +48,7 @@ function exportCsv() {
   const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = 'stockflow-pergerakan.csv'; link.click(); URL.revokeObjectURL(link.href)
 }
 function changePageSize(nextPageSize: number) {
+  displayPreferences.setDefaultPageSize(nextPageSize)
   pageSize.value = nextPageSize
   page.value = 1
 }
@@ -73,7 +77,7 @@ onMounted(load)
       <div class="section-note movement-section-note"><span class="status-dot" /> {{ t('movements.showing', { count: totalCount }) }}</div>
       <div v-if="loading" class="empty">{{ t('movements.loading') }}</div>
       <div v-else-if="!filtered.length" class="empty"><strong>{{ t('movements.emptyTitle') }}</strong>{{ t('movements.emptyHint') }}</div>
-      <div v-else class="table-wrap"><table><thead><tr><th>{{ t('common.date') }}</th><th>{{ t('products.product') }}</th><th>{{ t('movements.activityType') }}</th><th>{{ t('movements.change') }}</th><th>{{ t('movements.balance') }}</th><th>{{ t('movements.reference') }}</th><th>{{ t('movements.note') }}</th></tr></thead><tbody><tr v-for="movement in filtered" :key="movement.id"><td class="date-cell">{{ date(movement.createdAt) }}</td><td><div class="product-cell"><span class="product-avatar" :class="{ teal: isInbound(movement) }">{{ shortName(movement.productName) }}</span><span><strong>{{ movement.productName }}</strong><small>{{ movement.productSku }}</small></span></div></td><td><span class="badge" :class="isInbound(movement) ? 'ok' : 'danger'">{{ label(movement) }}</span></td><td :class="isInbound(movement) ? 'quantity-in' : 'quantity-out'">{{ quantity(movement) }}</td><td class="stock-value">{{ movement.balanceAfter }} {{ movement.unit }}</td><td class="muted-cell">{{ movement.referenceNumber }}</td><td class="muted-cell">{{ movement.reason || '—' }}</td></tr></tbody></table></div>
+      <div v-else class="table-wrap"><table><thead><tr><th>{{ t('common.date') }}</th><th>{{ t('products.product') }}</th><th>{{ t('movements.activityType') }}</th><th>{{ t('movements.change') }}</th><th>{{ t('movements.balance') }}</th><th>{{ t('movements.reference') }}</th><th>{{ t('movements.note') }}</th></tr></thead><tbody><tr v-for="movement in filtered" :key="movement.id"><td class="date-cell">{{ date(movement.createdAt) }}</td><td><div class="product-cell"><span class="product-avatar" :class="{ teal: isInbound(movement) }">{{ shortName(movement.productName) }}</span><span><strong>{{ movement.productName }}</strong><small>{{ movement.productSku }}</small></span></div></td><td><span class="badge" :class="isInbound(movement) ? 'ok' : 'danger'">{{ label(movement) }}</span></td><td :class="isInbound(movement) ? 'quantity-in' : 'quantity-out'">{{ quantity(movement) }}</td><td class="stock-value">{{ balance(movement) }}</td><td class="muted-cell">{{ movement.referenceNumber }}</td><td class="muted-cell">{{ movement.reason || '—' }}</td></tr></tbody></table></div>
       <PaginationControls v-if="!loading && filtered.length" :page="page" :page-size="pageSize" :total-count="totalCount" :total-pages="totalPages" @page-change="page = $event" @page-size-change="changePageSize" />
     </section>
   </div>

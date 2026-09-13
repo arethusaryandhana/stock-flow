@@ -5,6 +5,7 @@ import type { PagedResponse } from '../infrastructure/api'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useI18n } from '../i18n'
+import { useDisplayPreferences } from '../preferences'
 import PaginationControls from '../components/PaginationControls.vue'
 import FormattedNumberInput from '../components/FormattedNumberInput.vue'
 
@@ -16,6 +17,7 @@ type SalesOrderStatusCounts = { draft: number; confirmed: number; processing: nu
 type SalesOrderPageResponse = PagedResponse<SalesOrder> & { statusCounts: SalesOrderStatusCounts }
 type OrderLine = { productId: string; quantity: string; unitPrice: string }
 
+const displayPreferences = useDisplayPreferences()
 const orders = ref<SalesOrder[]>([])
 const customers = ref<Customer[]>([])
 const products = ref<Product[]>([])
@@ -30,11 +32,11 @@ const expandedOrderId = ref('')
 const newOrder = ref({ customerId: '', notes: '' })
 const lines = ref<OrderLine[]>([{ productId: '', quantity: '', unitPrice: '' }])
 const page = ref(1)
-const pageSize = ref(10)
+const pageSize = ref<number>(displayPreferences.defaultPageSize.value)
 const totalCount = ref(0)
 const totalPages = ref(0)
 const statusCounts = ref<SalesOrderStatusCounts>({ draft: 0, confirmed: 0, processing: 0, completed: 0, cancelled: 0 })
-const { locale, t } = useI18n()
+const { t } = useI18n()
 const auth = useAuthStore()
 const toast = useToastStore()
 
@@ -42,9 +44,9 @@ const canManage = computed(() => ['admin', 'manager'].includes(auth.role.trim().
 const activeCustomers = computed(() => customers.value.filter((customer) => customer.isActive))
 const activeProducts = computed(() => products.value.filter((product) => product.isActive))
 const totalAmount = computed(() => lines.value.reduce((total, line) => total + parseAmount(line.quantity) * parseAmount(line.unitPrice), 0))
-const date = (value: string) => new Intl.DateTimeFormat(locale.value, { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value))
-const money = (value: number) => new Intl.NumberFormat(locale.value, { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value)
-const formatQuantity = (value: number) => Number(value.toFixed(2)).toString()
+const date = (value: string) => displayPreferences.formatDate(value)
+const money = (value: number) => displayPreferences.formatNumber(value, { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
+const formatQuantity = (value: number) => displayPreferences.formatNumber(Number(value.toFixed(2)), { maximumFractionDigits: 2 })
 const parseAmount = (value: string | number) => {
   const parsed = Number(String(value ?? '').trim().replace(',', '.'))
   return Number.isFinite(parsed) ? parsed : 0
@@ -176,6 +178,7 @@ function exportCsv() {
 }
 
 function changePageSize(nextPageSize: number) {
+  displayPreferences.setDefaultPageSize(nextPageSize)
   pageSize.value = nextPageSize
   page.value = 1
 }

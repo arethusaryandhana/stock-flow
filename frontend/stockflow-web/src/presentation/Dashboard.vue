@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../infrastructure/api'
 import type { PagedResponse } from '../infrastructure/api'
 import { useI18n } from '../i18n'
+import { useDisplayPreferences } from '../preferences'
 import PaginationControls from '../components/PaginationControls.vue'
 
 type DashboardData = {
@@ -18,6 +19,7 @@ type LowStockProduct = { id: string; sku: string; name: string; category: string
 type Movement = { id: string; productName: string; productSku: string; unit: string; type: string; quantity: number; reason: string | null; createdAt: string }
 type MovementPageResponse = PagedResponse<Movement> & { summary: { todayCount: number; inboundQuantity: number; outboundQuantity: number } }
 
+const displayPreferences = useDisplayPreferences()
 const data = ref<DashboardData>({ products: 0, lowStock: 0, purchases: 0, salesToday: 0, healthyProducts: 0, outOfStockProducts: 0, totalUnits: 0 })
 const movements = ref<Movement[]>([])
 const attention = ref<LowStockProduct[]>([])
@@ -25,13 +27,13 @@ const loading = ref(true)
 const attentionLoading = ref(true)
 const error = ref('')
 const attentionPage = ref(1)
-const attentionPageSize = ref(10)
+const attentionPageSize = ref<number>(displayPreferences.defaultPageSize.value)
 const attentionTotalCount = ref(0)
 const attentionTotalPages = ref(0)
-const { locale, t } = useI18n()
+const { t } = useI18n()
 
-const money = (value: number) => new Intl.NumberFormat(locale.value, { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value)
-const date = (value: string) => new Intl.DateTimeFormat(locale.value, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+const money = (value: number) => displayPreferences.formatNumber(value, { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
+const date = (value: string) => displayPreferences.formatDate(value, { includeYear: false, includeTime: true })
 const shortName = (value: string) => value.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase()
 const healthyStock = computed(() => data.value.healthyProducts)
 const lowStock = computed(() => data.value.lowStock)
@@ -75,6 +77,7 @@ async function loadAttention() {
   }
 }
 function changeAttentionPageSize(nextPageSize: number) {
+  displayPreferences.setDefaultPageSize(nextPageSize)
   attentionPageSize.value = nextPageSize
   attentionPage.value = 1
 }

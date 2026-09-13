@@ -6,6 +6,7 @@ import type { PagedResponse } from '../infrastructure/api'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useI18n } from '../i18n'
+import { useDisplayPreferences } from '../preferences'
 import PaginationControls from '../components/PaginationControls.vue'
 import FormattedNumberInput from '../components/FormattedNumberInput.vue'
 
@@ -13,10 +14,11 @@ type PurchaseOrderItem = { id: string; productId: string; productSku: string; pr
 type PurchaseOrder = { id: string; number: string; supplierName: string; status: string; orderDate: string; items: PurchaseOrderItem[] }
 type Receipt = { id: string; number: string; purchaseOrderId: string; purchaseOrderNumber: string; supplierName: string; receivedAt: string; items: { id: string; productId: string; productSku: string; productName: string; unit: string; quantity: number }[] }
 
+const displayPreferences = useDisplayPreferences()
 const route = useRoute()
 const auth = useAuthStore()
 const toast = useToastStore()
-const { locale, t } = useI18n()
+const { t } = useI18n()
 const orders = ref<PurchaseOrder[]>([])
 const receipts = ref<Receipt[]>([])
 const selectedOrderId = ref('')
@@ -27,7 +29,7 @@ const saving = ref(false)
 const error = ref('')
 const formError = ref('')
 const page = ref(1)
-const pageSize = ref(10)
+const pageSize = ref<number>(displayPreferences.defaultPageSize.value)
 const totalCount = ref(0)
 const totalPages = ref(0)
 
@@ -35,8 +37,8 @@ const canManage = computed(() => ['admin', 'manager'].includes(auth.role.trim().
 const selectedOrder = computed(() => orders.value.find((order) => order.id === selectedOrderId.value))
 const receivableOrders = computed(() => orders.value.filter((order) => order.status === 'Approved'))
 const receivedUnits = computed(() => receipts.value.reduce((total, receipt) => total + receipt.items.reduce((subtotal, item) => subtotal + item.quantity, 0), 0))
-const date = (value: string) => new Intl.DateTimeFormat(locale.value, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
-const formatQuantity = (value: number) => Number(value.toFixed(2)).toString()
+const date = (value: string) => displayPreferences.formatDate(value, { includeTime: true })
+const formatQuantity = (value: number) => displayPreferences.formatNumber(Number(value.toFixed(2)), { maximumFractionDigits: 2 })
 const parseQuantity = (value: string | number) => {
   const parsed = Number(String(value ?? '').trim().replace(',', '.'))
   return Number.isFinite(parsed) ? parsed : 0
@@ -126,6 +128,7 @@ function exportCsv() {
 }
 
 function changePageSize(nextPageSize: number) {
+  displayPreferences.setDefaultPageSize(nextPageSize)
   pageSize.value = nextPageSize
   page.value = 1
 }

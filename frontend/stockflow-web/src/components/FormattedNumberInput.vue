@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useDisplayPreferences } from '../preferences'
 
 defineOptions({ inheritAttrs: false })
 
@@ -16,8 +17,17 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
+const { resolvedNumberLocale } = useDisplayPreferences()
+const separators = computed(() => {
+  const parts = new Intl.NumberFormat(resolvedNumberLocale.value).formatToParts(12345.6)
+  return {
+    decimal: parts.find((part) => part.type === 'decimal')?.value ?? '.',
+    group: parts.find((part) => part.type === 'group')?.value ?? ',',
+  }
+})
+
 function groupThousands(value: string) {
-  return value.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return value.replace(/\B(?=(\d{3})+(?!\d))/g, separators.value.group)
 }
 
 function formatModelValue(value: string | number) {
@@ -30,7 +40,7 @@ function formatModelValue(value: string | number) {
   const [integer = '', fraction] = unsigned.split('.')
   const digits = integer.replace(/\D/g, '') || '0'
   const decimal = props.decimalScale > 0 && fraction !== undefined
-    ? `,${fraction.replace(/\D/g, '').slice(0, props.decimalScale)}`
+    ? `${separators.value.decimal}${fraction.replace(/\D/g, '').slice(0, props.decimalScale)}`
     : ''
 
   return `${isNegative ? '-' : ''}${groupThousands(digits)}${decimal}`
@@ -38,7 +48,7 @@ function formatModelValue(value: string | number) {
 
 const displayValue = ref(formatModelValue(props.modelValue))
 
-watch(() => props.modelValue, (value) => {
+watch([() => props.modelValue, resolvedNumberLocale], ([value]) => {
   const formatted = formatModelValue(value)
   if (formatted !== displayValue.value) displayValue.value = formatted
 })
@@ -48,10 +58,10 @@ function handleInput(event: Event) {
   const typed = input.value
   const isNegative = props.allowNegative && typed.trimStart().startsWith('-')
   const unsigned = typed.replace(/-/g, '')
-  const commaIndex = props.decimalScale > 0 ? unsigned.indexOf(',') : -1
-  const integerPart = (commaIndex >= 0 ? unsigned.slice(0, commaIndex) : unsigned).replace(/\D/g, '')
-  const fractionPart = commaIndex >= 0
-    ? unsigned.slice(commaIndex + 1).replace(/\D/g, '').slice(0, props.decimalScale)
+  const decimalIndex = props.decimalScale > 0 ? unsigned.indexOf(separators.value.decimal) : -1
+  const integerPart = (decimalIndex >= 0 ? unsigned.slice(0, decimalIndex) : unsigned).replace(/\D/g, '')
+  const fractionPart = decimalIndex >= 0
+    ? unsigned.slice(decimalIndex + separators.value.decimal.length).replace(/\D/g, '').slice(0, props.decimalScale)
     : ''
 
   if (!integerPart) {
@@ -63,8 +73,8 @@ function handleInput(event: Event) {
   }
 
   const normalizedInteger = integerPart.replace(/^0+(?=\d)/, '')
-  const decimalDisplay = commaIndex >= 0 ? `,${fractionPart}` : ''
-  const rawValue = `${isNegative ? '-' : ''}${normalizedInteger}${commaIndex >= 0 ? `.${fractionPart}` : ''}`
+  const decimalDisplay = decimalIndex >= 0 ? `${separators.value.decimal}${fractionPart}` : ''
+  const rawValue = `${isNegative ? '-' : ''}${normalizedInteger}${decimalIndex >= 0 ? `.${fractionPart}` : ''}`
   const formatted = `${isNegative ? '-' : ''}${groupThousands(normalizedInteger)}${decimalDisplay}`
 
   displayValue.value = formatted

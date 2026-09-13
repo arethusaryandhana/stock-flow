@@ -5,12 +5,14 @@ import type { PagedResponse } from '../infrastructure/api'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useI18n } from '../i18n'
+import { useDisplayPreferences } from '../preferences'
 import PaginationControls from '../components/PaginationControls.vue'
 import FormattedNumberInput from '../components/FormattedNumberInput.vue'
 
 type Product = { id: string; sku: string; name: string; categoryId: string; category: string; purchasePrice: number; sellingPrice: number; stockOnHand: number; reorderLevel: number; unit: string; isActive: boolean }
 type Category = { id: string; name: string; isActive: boolean }
 
+const displayPreferences = useDisplayPreferences()
 const items = ref<Product[]>([])
 const categories = ref<Category[]>([])
 const q = ref('')
@@ -27,17 +29,17 @@ const editReorderLevel = ref('0')
 const editSaving = ref(false)
 const newProduct = ref({ sku: '', name: '', categoryId: '', purchasePrice: '0', sellingPrice: '0', reorderLevel: '0', unit: 'pcs' })
 const page = ref(1)
-const pageSize = ref(10)
+const pageSize = ref<number>(displayPreferences.defaultPageSize.value)
 const totalCount = ref(0)
 const totalPages = ref(0)
 const counts = ref({ all: 0, low: 0, out: 0, inactive: 0 })
-const { locale, t } = useI18n()
+const { t } = useI18n()
 const auth = useAuthStore()
 const toast = useToastStore()
 const canManage = computed(() => auth.isAdmin)
 watch(openMenu, (value) => { if (value && !canManage.value) openMenu.value = '' })
 
-const money = (value: number) => new Intl.NumberFormat(locale.value, { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value)
+const money = (value: number) => displayPreferences.formatNumber(value, { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
 const shortName = (value: string) => value.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase()
 const status = (product: Product) => {
   if (!product.isActive) return 'inactive'
@@ -164,6 +166,7 @@ function exportCsv() {
   const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = 'stockflow-produk.csv'; link.click(); URL.revokeObjectURL(link.href)
 }
 function changePageSize(nextPageSize: number) {
+  displayPreferences.setDefaultPageSize(nextPageSize)
   pageSize.value = nextPageSize
   page.value = 1
 }

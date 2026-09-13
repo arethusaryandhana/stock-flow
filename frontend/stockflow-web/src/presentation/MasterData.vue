@@ -5,6 +5,7 @@ import type { PagedResponse } from '../infrastructure/api'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useI18n } from '../i18n'
+import { useDisplayPreferences } from '../preferences'
 import PaginationControls from '../components/PaginationControls.vue'
 import FormattedNumberInput from '../components/FormattedNumberInput.vue'
 
@@ -26,10 +27,11 @@ type Product = {
 type Partner = { id: string; code: string; name: string; email?: string | null; phone?: string | null; address?: string | null; isActive: boolean }
 type MasterItem = Category | Product | Partner
 
+const displayPreferences = useDisplayPreferences()
 const props = defineProps<{ entity: EntityType }>()
 const auth = useAuthStore()
 const toast = useToastStore()
-const { locale, t } = useI18n()
+const { t } = useI18n()
 const items = ref<MasterItem[]>([])
 const categories = ref<Category[]>([])
 const query = ref('')
@@ -40,7 +42,7 @@ const saving = ref(false)
 const showForm = ref(false)
 const editingId = ref<string | null>(null)
 const page = ref(1)
-const pageSize = ref(10)
+const pageSize = ref<number>(displayPreferences.defaultPageSize.value)
 const totalCount = ref(0)
 const totalPages = ref(0)
 
@@ -70,7 +72,7 @@ const productItems = computed(() => filtered.value as Product[])
 const partnerItems = computed(() => filtered.value as Partner[])
 const categoryOptions = computed(() => categories.value.filter((category) => category.isActive || category.id === form.categoryId))
 
-const money = (value: number) => new Intl.NumberFormat(locale.value, { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value)
+const money = (value: number) => displayPreferences.formatNumber(value, { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
 const shortName = (value: string) => value.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase()
 
 async function load() {
@@ -105,6 +107,7 @@ function resetForm() {
 }
 
 function changePageSize(nextPageSize: number) {
+  displayPreferences.setDefaultPageSize(nextPageSize)
   pageSize.value = nextPageSize
   page.value = 1
 }

@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../infrastructure/api'
 import type { PagedResponse } from '../infrastructure/api'
 import { useI18n } from '../i18n'
+import { useDisplayPreferences } from '../preferences'
 import { useToastStore } from '../stores/toast'
 import PaginationControls from '../components/PaginationControls.vue'
 import FormattedNumberInput from '../components/FormattedNumberInput.vue'
@@ -10,6 +11,7 @@ import FormattedNumberInput from '../components/FormattedNumberInput.vue'
 type Product = { id: string; sku: string; name: string; stockOnHand: number; unit: string; isActive: boolean }
 type Adjustment = { id: string; number: string; productId: string; productSku: string; productName: string; unit: string; quantityDelta: number; reason: string; createdAt: string }
 type AdjustmentForm = { productId: string; quantityDelta: string; reason: string }
+const displayPreferences = useDisplayPreferences()
 const products = ref<Product[]>([])
 const adjustments = ref<Adjustment[]>([])
 const loading = ref(true)
@@ -20,10 +22,10 @@ const form = ref<AdjustmentForm>({ productId: '', quantityDelta: '', reason: '' 
 const reasonTemplates = ['New', 'New Item', 'New Stock']
 const historyQuery = ref('')
 const page = ref(1)
-const pageSize = ref(10)
+const pageSize = ref<number>(displayPreferences.defaultPageSize.value)
 const totalCount = ref(0)
 const totalPages = ref(0)
-const { locale, t } = useI18n()
+const { t } = useI18n()
 const toast = useToastStore()
 const activeProducts = computed(() => products.value.filter((product) => product.isActive))
 const selectedProduct = computed(() => products.value.find((product) => product.id === form.value.productId))
@@ -33,9 +35,9 @@ const newBalance = computed(() => {
   const stockOnHand = selectedProduct.value?.stockOnHand ?? 0
   return quantityDelta.value === null ? stockOnHand : roundQuantity(stockOnHand + quantityDelta.value)
 })
-const date = (value: string) => new Intl.DateTimeFormat(locale.value, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+const date = (value: string) => displayPreferences.formatDate(value, { includeTime: true })
 const roundQuantity = (value: number) => Number(value.toFixed(2))
-const formatQuantity = (value: number) => roundQuantity(value).toFixed(2)
+const formatQuantity = (value: number) => displayPreferences.formatNumber(roundQuantity(value), { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 function parseQuantity(value: unknown): number | null {
   const normalized = String(value ?? '').trim().replace(',', '.')
   if (!/^[+-]?\d+(?:\.\d{1,2})?$/.test(normalized)) return null
@@ -96,6 +98,7 @@ function exportCsv() {
   const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = 'stockflow-penyesuaian.csv'; link.click(); URL.revokeObjectURL(link.href)
 }
 function changePageSize(nextPageSize: number) {
+  displayPreferences.setDefaultPageSize(nextPageSize)
   pageSize.value = nextPageSize
   page.value = 1
 }

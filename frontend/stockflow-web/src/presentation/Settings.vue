@@ -3,15 +3,39 @@ import { computed, onMounted, ref } from 'vue'
 import ChangePasswordModal from '../components/ChangePasswordModal.vue'
 import { api } from '../infrastructure/api'
 import { useI18n } from '../i18n'
+import type { Language } from '../i18n'
+import {
+  useDisplayPreferences,
+  type DateFormatPreference,
+  type NumberFormatPreference,
+  type TimeZonePreference,
+} from '../preferences'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useTheme, type ThemePreference } from '../theme'
 
 type SessionProfile = { fullName: string; email: string; role: string }
+type SettingsSection = 'account' | 'display'
 
 const auth = useAuthStore()
 const toast = useToastStore()
-const { t } = useI18n()
+const { language, setLanguage, t } = useI18n()
+const { preference: themePreference, resolvedTheme, setTheme } = useTheme()
+const {
+  timeZone,
+  dateFormat,
+  numberFormat,
+  defaultPageSize,
+  systemTimeZone,
+  setTimeZone,
+  setDateFormat,
+  setNumberFormat,
+  setDefaultPageSize,
+  formatDate,
+  formatNumber,
+} = useDisplayPreferences()
 
+const activeSection = ref<SettingsSection>('account')
 const fullName = ref(auth.name)
 const email = ref(auth.email)
 const role = ref(auth.role)
@@ -27,6 +51,11 @@ const revoking = ref(false)
 const error = ref('')
 const formError = ref('')
 const securityError = ref('')
+const previewNow = new Date()
+
+const datePreview = computed(() => formatDate(previewNow, { includeTime: true }))
+const numberPreview = computed(() => formatNumber(1234567.89, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
+const currencyPreview = computed(() => formatNumber(1250000, { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }))
 
 const normalizedName = computed(() => fullName.value.trim().replace(/\s+/g, ' '))
 const normalizedEmail = computed(() => email.value.trim().toLowerCase())
@@ -112,6 +141,30 @@ async function logoutAll() {
   }
 }
 
+function changeLanguage(value: Language) {
+  setLanguage(value)
+}
+
+function changeTheme(value: ThemePreference) {
+  setTheme(value)
+}
+
+function changeTimeZone(event: Event) {
+  setTimeZone((event.target as HTMLSelectElement).value as TimeZonePreference)
+}
+
+function changeDateFormat(event: Event) {
+  setDateFormat((event.target as HTMLSelectElement).value as DateFormatPreference)
+}
+
+function changeNumberFormat(event: Event) {
+  setNumberFormat((event.target as HTMLSelectElement).value as NumberFormatPreference)
+}
+
+function changeDefaultPageSize(event: Event) {
+  setDefaultPageSize(Number((event.target as HTMLSelectElement).value))
+}
+
 onMounted(loadProfile)
 </script>
 
@@ -131,15 +184,21 @@ onMounted(loadProfile)
 
     <div v-else class="settings-layout">
       <aside class="surface-card settings-nav" :aria-label="t('settings.navigation')">
-        <button class="settings-nav-item active" type="button" aria-current="page">
+        <button class="settings-nav-item" :class="{ active: activeSection === 'account' }" type="button" :aria-current="activeSection === 'account' ? 'page' : undefined" @click="activeSection = 'account'">
           <span class="settings-nav-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.7-4 3-6 7-6s6.3 2 7 6" /></svg>
           </span>
           <span><strong>{{ t('settings.accountSecurity') }}</strong><small>{{ t('settings.accountSecurityHint') }}</small></span>
         </button>
+        <button class="settings-nav-item" :class="{ active: activeSection === 'display' }" type="button" :aria-current="activeSection === 'display' ? 'page' : undefined" @click="activeSection = 'display'">
+          <span class="settings-nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M8 21h8M12 17v4" /></svg>
+          </span>
+          <span><strong>{{ t('settings.displayRegional') }}</strong><small>{{ t('settings.displayRegionalHint') }}</small></span>
+        </button>
       </aside>
 
-      <main class="settings-content">
+      <main v-if="activeSection === 'account'" class="settings-content">
         <section class="surface-card account-summary">
           <div class="account-avatar" aria-hidden="true">{{ initials }}</div>
           <div class="account-summary-copy">
@@ -265,6 +324,122 @@ onMounted(loadProfile)
           <p v-if="securityError" class="alert security-error" role="alert">{{ securityError }}</p>
         </section>
       </main>
+
+      <main v-else class="settings-content">
+        <section class="surface-card display-summary">
+          <div class="display-summary-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9c0-1.1-.9-2-2-2h-1.3a2 2 0 0 1-1.7-3l.2-.4A2.4 2.4 0 0 0 14.1 3H12Z" /><circle cx="7.5" cy="11" r=".7" fill="currentColor" /><circle cx="10" cy="7" r=".7" fill="currentColor" /><circle cx="8.5" cy="15" r=".7" fill="currentColor" /></svg>
+          </div>
+          <div>
+            <span class="account-kicker">{{ t('settings.displayRegional') }}</span>
+            <h2>{{ t('settings.displaySummaryTitle') }}</h2>
+            <p>{{ t('settings.displaySummaryDescription') }}</p>
+          </div>
+          <span class="autosave-badge"><i />{{ t('settings.savedAutomatically') }}</span>
+        </section>
+
+        <section class="surface-card settings-card">
+          <div class="settings-card-head">
+            <div>
+              <h2>{{ t('settings.appearanceTitle') }}</h2>
+              <p>{{ t('settings.appearanceDescription') }}</p>
+            </div>
+            <span class="settings-card-icon blue" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16M8 3v4M16 3v4" /><path d="M6 10h12v10H6z" /></svg>
+            </span>
+          </div>
+
+          <div class="preference-body">
+            <div class="preference-group">
+              <div class="preference-label"><strong>{{ t('settings.languageTitle') }}</strong><p>{{ t('settings.languageDescription') }}</p></div>
+              <div class="language-options" role="group" :aria-label="t('settings.languageTitle')">
+                <button type="button" :class="{ active: language === 'en' }" :aria-pressed="language === 'en'" @click="changeLanguage('en')"><span>EN</span><strong>English</strong></button>
+                <button type="button" :class="{ active: language === 'id' }" :aria-pressed="language === 'id'" @click="changeLanguage('id')"><span>ID</span><strong>Bahasa Indonesia</strong></button>
+              </div>
+            </div>
+
+            <div class="preference-group">
+              <div class="preference-label"><strong>{{ t('settings.themeTitle') }}</strong><p>{{ t('settings.themeDescription') }}</p></div>
+              <div class="theme-options" role="group" :aria-label="t('settings.themeTitle')">
+                <button type="button" :class="{ active: themePreference === 'system' }" :aria-pressed="themePreference === 'system'" @click="changeTheme('system')">
+                  <span class="theme-swatch system-swatch"><i /><i /></span><strong>{{ t('settings.themeSystem') }}</strong><small>{{ t('settings.themeSystemHint') }}</small>
+                </button>
+                <button type="button" :class="{ active: themePreference === 'light' }" :aria-pressed="themePreference === 'light'" @click="changeTheme('light')">
+                  <span class="theme-swatch light-swatch"><i /><i /></span><strong>{{ t('settings.themeLight') }}</strong><small>{{ t('settings.themeLightHint') }}</small>
+                </button>
+                <button type="button" :class="{ active: themePreference === 'dark' }" :aria-pressed="themePreference === 'dark'" @click="changeTheme('dark')">
+                  <span class="theme-swatch dark-swatch"><i /><i /></span><strong>{{ t('settings.themeDark') }}</strong><small>{{ t('settings.themeDarkHint') }}</small>
+                </button>
+              </div>
+              <p class="resolved-theme">{{ t('settings.activeTheme', { theme: resolvedTheme === 'dark' ? t('settings.themeDark') : t('settings.themeLight') }) }}</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="surface-card settings-card">
+          <div class="settings-card-head">
+            <div>
+              <h2>{{ t('settings.regionalTitle') }}</h2>
+              <p>{{ t('settings.regionalDescription') }}</p>
+            </div>
+            <span class="settings-card-icon teal" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" /></svg>
+            </span>
+          </div>
+
+          <div class="regional-grid">
+            <label class="field-label">
+              {{ t('settings.timeZone') }}
+              <select :value="timeZone" @change="changeTimeZone">
+                <option value="system">{{ t('settings.timeZoneSystem', { zone: systemTimeZone }) }}</option>
+                <option value="Asia/Jakarta">WIB · Asia/Jakarta (UTC+7)</option>
+                <option value="Asia/Makassar">WITA · Asia/Makassar (UTC+8)</option>
+                <option value="Asia/Jayapura">WIT · Asia/Jayapura (UTC+9)</option>
+                <option value="UTC">UTC</option>
+              </select>
+              <small class="field-hint">{{ t('settings.timeZoneHint') }}</small>
+            </label>
+
+            <label class="field-label">
+              {{ t('settings.dateFormat') }}
+              <select :value="dateFormat" @change="changeDateFormat">
+                <option value="regional">{{ t('settings.formatRegional') }}</option>
+                <option value="dmy">DD MMM YYYY</option>
+                <option value="mdy">MMM DD, YYYY</option>
+                <option value="ymd">YYYY-MM-DD</option>
+              </select>
+              <small class="field-hint">{{ t('settings.dateFormatHint') }}</small>
+            </label>
+
+            <label class="field-label">
+              {{ t('settings.numberFormat') }}
+              <select :value="numberFormat" @change="changeNumberFormat">
+                <option value="regional">{{ t('settings.formatRegional') }}</option>
+                <option value="id-ID">Indonesia · 1.234.567,89</option>
+                <option value="en-US">English (US) · 1,234,567.89</option>
+              </select>
+              <small class="field-hint">{{ t('settings.numberFormatHint') }}</small>
+            </label>
+
+            <label class="field-label">
+              {{ t('settings.defaultRows') }}
+              <select :value="defaultPageSize" @change="changeDefaultPageSize">
+                <option v-for="size in [5, 10, 25, 50, 100]" :key="size" :value="size">{{ t('settings.rowsValue', { count: size }) }}</option>
+              </select>
+              <small class="field-hint">{{ t('settings.defaultRowsHint') }}</small>
+            </label>
+          </div>
+
+          <div class="format-preview">
+            <div class="format-preview-head"><span>{{ t('settings.livePreview') }}</span><small>{{ t('settings.livePreviewHint') }}</small></div>
+            <dl>
+              <div><dt>{{ t('settings.previewDateTime') }}</dt><dd>{{ datePreview }}</dd></div>
+              <div><dt>{{ t('settings.previewNumber') }}</dt><dd>{{ numberPreview }}</dd></div>
+              <div><dt>{{ t('settings.previewCurrency') }}</dt><dd>{{ currencyPreview }}</dd></div>
+            </dl>
+          </div>
+        </section>
+      </main>
     </div>
 
     <ChangePasswordModal v-if="changePasswordOpen" @close="changePasswordOpen = false" />
@@ -276,6 +451,8 @@ onMounted(loadProfile)
 .settings-layout { display: grid; grid-template-columns: 235px minmax(0, 1fr); align-items: start; gap: 16px; }
 .settings-nav { position: sticky; top: 94px; padding: 7px; }
 .settings-nav-item { display: flex; width: 100%; align-items: center; gap: 10px; padding: 11px; border-radius: 9px; color: var(--control-text); background: transparent; text-align: left; }
+.settings-nav-item + .settings-nav-item { margin-top: 3px; }
+.settings-nav-item:hover { background: var(--surface-hover); }
 .settings-nav-item.active { color: var(--blue); background: var(--blue-soft); }
 .settings-nav-icon { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border-radius: 8px; background: color-mix(in srgb, var(--blue) 10%, var(--surface-raised)); }
 .settings-nav-icon svg { width: 17px; height: 17px; }
@@ -291,6 +468,14 @@ onMounted(loadProfile)
 .account-summary-copy h2 { margin-top: 5px; font-size: 1.15rem; }
 .account-summary-copy p { margin-top: 4px; overflow: hidden; color: var(--muted); font-size: .66rem; text-overflow: ellipsis; white-space: nowrap; }
 .role-badge { padding: 6px 10px; border: 1px solid color-mix(in srgb, var(--teal) 20%, var(--line)); border-radius: 999px; color: var(--teal); background: var(--teal-soft); font-size: .59rem; font-weight: 800; }
+.display-summary { display: flex; min-height: 106px; align-items: center; gap: 14px; padding: 20px; background: linear-gradient(125deg, color-mix(in srgb, var(--blue) 7%, var(--surface)) 0%, var(--surface) 48%, color-mix(in srgb, var(--teal) 6%, var(--surface)) 100%); }
+.display-summary-icon { display: grid; width: 58px; height: 58px; flex: 0 0 58px; place-items: center; border: 1px solid color-mix(in srgb, var(--blue) 16%, var(--line)); border-radius: 16px; color: var(--blue); background: var(--blue-soft); }
+.display-summary-icon svg { width: 28px; height: 28px; }
+.display-summary > div:nth-child(2) { min-width: 0; flex: 1; }
+.display-summary h2 { margin-top: 5px; font-size: 1.04rem; }
+.display-summary p { max-width: 620px; margin-top: 5px; color: var(--muted); font-size: .64rem; line-height: 1.5; }
+.autosave-badge { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid color-mix(in srgb, var(--teal) 18%, var(--line)); border-radius: 999px; color: var(--teal); background: var(--teal-soft); font-size: .57rem; font-weight: 800; }
+.autosave-badge i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .settings-card { overflow: hidden; }
 .settings-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 20px 20px 17px; border-bottom: 1px solid var(--line); }
 .settings-card-head p { max-width: 600px; margin-top: 5px; color: var(--muted); font-size: .66rem; line-height: 1.5; }
@@ -299,6 +484,43 @@ onMounted(loadProfile)
 .settings-card-icon.blue { color: var(--blue); background: var(--blue-soft); }
 .settings-card-icon.teal { color: var(--teal); background: var(--teal-soft); }
 .settings-card-icon.amber { color: var(--amber); background: var(--amber-soft); }
+.preference-body { padding: 0 20px; }
+.preference-group { padding: 19px 0 21px; }
+.preference-group + .preference-group { border-top: 1px solid var(--line); }
+.preference-label { margin-bottom: 13px; }
+.preference-label strong { color: var(--ink); font-size: .7rem; }
+.preference-label p { margin-top: 4px; color: var(--muted); font-size: .61rem; line-height: 1.5; }
+.language-options { display: grid; max-width: 520px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.language-options button { display: flex; align-items: center; gap: 10px; min-height: 49px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; color: var(--control-text); background: var(--surface-raised); text-align: left; }
+.language-options button:hover, .theme-options button:hover { border-color: color-mix(in srgb, var(--blue) 34%, var(--line)); }
+.language-options button.active, .theme-options button.active { border-color: color-mix(in srgb, var(--blue) 56%, var(--line)); background: var(--blue-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blue) 10%, transparent); }
+.language-options button > span { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 8px; color: var(--blue); background: color-mix(in srgb, var(--blue) 11%, var(--surface)); font-size: .59rem; font-weight: 900; }
+.language-options button strong { font-size: .65rem; }
+.theme-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.theme-options button { display: grid; grid-template-columns: 64px 1fr; grid-template-rows: auto auto; gap: 3px 10px; align-items: center; min-height: 72px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; color: var(--control-text); background: var(--surface-raised); text-align: left; }
+.theme-options button > strong { align-self: end; font-size: .65rem; }
+.theme-options button > small { align-self: start; color: var(--muted); font-size: .55rem; }
+.theme-swatch { position: relative; display: block; width: 64px; height: 48px; grid-row: 1 / 3; overflow: hidden; border: 1px solid color-mix(in srgb, var(--muted) 22%, var(--line)); border-radius: 7px; background: #f7f9fc; }
+.theme-swatch::before { position: absolute; inset: 0 auto 0 0; width: 18px; content: ''; background: #e6ebf2; }
+.theme-swatch i:first-child { position: absolute; top: 8px; right: 7px; width: 31px; height: 6px; border-radius: 2px; background: #d1d8e3; }
+.theme-swatch i:last-child { position: absolute; top: 19px; right: 7px; width: 31px; height: 20px; border-radius: 3px; background: #e7ebf1; }
+.dark-swatch { background: #172131; }
+.dark-swatch::before { background: #101827; }
+.dark-swatch i:first-child { background: #47617f; }
+.dark-swatch i:last-child { background: #24344a; }
+.system-swatch { background: linear-gradient(135deg, #f7f9fc 0 50%, #172131 50%); }
+.system-swatch::before { background: linear-gradient(135deg, #e6ebf2 0 50%, #101827 50%); }
+.resolved-theme { margin-top: 10px; color: var(--muted-2); font-size: .56rem; }
+.regional-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 20px; }
+.regional-grid select { width: 100%; }
+.format-preview { margin: 0 20px 20px; padding: 15px; border: 1px solid color-mix(in srgb, var(--blue) 16%, var(--line)); border-radius: 11px; background: color-mix(in srgb, var(--blue) 4%, var(--surface-raised)); }
+.format-preview-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 11px; border-bottom: 1px solid var(--line); }
+.format-preview-head span { color: var(--ink); font-size: .66rem; font-weight: 800; }
+.format-preview-head small { color: var(--muted-2); font-size: .55rem; }
+.format-preview dl { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 12px; margin: 13px 0 0; }
+.format-preview dl > div { min-width: 0; }
+.format-preview dt { color: var(--muted-2); font-size: .52rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.format-preview dd { margin: 6px 0 0; overflow: hidden; color: var(--ink); font-size: .7rem; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
 .profile-form { padding: 20px; }
 .profile-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .email-verification { display: flex; align-items: flex-start; gap: 11px; margin-top: 17px; padding: 14px; border: 1px solid color-mix(in srgb, var(--amber) 24%, var(--line)); border-radius: 10px; background: var(--amber-soft); }
@@ -349,8 +571,14 @@ onMounted(loadProfile)
 }
 @media (max-width: 600px) {
   .profile-fields { grid-template-columns: 1fr; }
-  .account-summary { align-items: flex-start; flex-wrap: wrap; }
+  .account-summary, .display-summary { align-items: flex-start; flex-wrap: wrap; }
   .role-badge { margin-left: 72px; }
+  .display-summary > div:nth-child(2) { flex: 0 0 calc(100% - 72px); }
+  .autosave-badge { margin-left: 72px; }
+  .theme-options, .regional-grid, .format-preview dl { grid-template-columns: 1fr; }
+  .language-options { grid-template-columns: 1fr; }
+  .theme-options button { grid-template-columns: 72px 1fr; }
+  .format-preview-head { align-items: flex-start; flex-direction: column; }
   .security-row, .logout-confirmation { align-items: flex-start; flex-wrap: wrap; }
   .security-row button { width: 100%; margin-left: 47px; }
   .logout-confirmation-actions { width: 100%; }

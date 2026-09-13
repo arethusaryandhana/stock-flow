@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { api } from '../infrastructure/api'
 import { useI18n } from '../i18n'
+import { useDisplayPreferences } from '../preferences'
 import { useToastStore } from '../stores/toast'
 import PaginationControls from '../components/PaginationControls.vue'
 
@@ -28,9 +29,10 @@ type ReportPage = {
   statusCounts: StatusCounts
 }
 
+const displayPreferences = useDisplayPreferences()
 const jobs = ref<ReportJob[]>([])
 const page = ref(1)
-const pageSize = ref(10)
+const pageSize = ref<number>(displayPreferences.defaultPageSize.value)
 const totalCount = ref(0)
 const totalPages = ref(0)
 const statusFilter = ref('all')
@@ -39,23 +41,21 @@ const loading = ref(true)
 const creating = ref(false)
 const downloadingId = ref('')
 const error = ref('')
-const { locale, t } = useI18n()
+const { t } = useI18n()
 const toast = useToastStore()
 let pollTimer: number | undefined
 
 const hasActiveJobs = computed(() => statusCounts.value.queued + statusCounts.value.processing > 0)
 const activeCount = computed(() => statusCounts.value.queued + statusCounts.value.processing)
-const dateTime = (value: string) => new Intl.DateTimeFormat(locale.value, {
-  day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-}).format(new Date(value))
+const dateTime = (value: string) => displayPreferences.formatDate(value, { includeTime: true })
 const statusLabel = (status: string) => t(`reports.${status.toLowerCase()}`)
 const statusClass = (status: string) => status === 'Completed' ? 'ok' : status === 'Processing' || status === 'Queued' ? 'warn' : status === 'Failed' ? 'danger' : 'neutral'
 const reportTypeLabel = (reportType: string) => reportType === 'product-stock' ? t('reports.productStock') : reportType
 const fileSize = (bytes: number | null) => {
   if (bytes === null) return '—'
   if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  if (bytes < 1024 * 1024) return `${displayPreferences.formatNumber(bytes / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} KB`
+  return `${displayPreferences.formatNumber(bytes / (1024 * 1024), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MB`
 }
 
 async function load(showLoading = true) {
@@ -124,6 +124,7 @@ async function download(job: ReportJob) {
 }
 
 function changePageSize(nextPageSize: number) {
+  displayPreferences.setDefaultPageSize(nextPageSize)
   pageSize.value = nextPageSize
   page.value = 1
 }

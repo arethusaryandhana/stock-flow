@@ -4,6 +4,7 @@ import PaginationControls from '../components/PaginationControls.vue'
 import { api } from '../infrastructure/api'
 import type { PagedResponse } from '../infrastructure/api'
 import { useI18n } from '../i18n'
+import { useDisplayPreferences } from '../preferences'
 
 type AuditLog = {
   id: string
@@ -21,25 +22,24 @@ type AuditLog = {
 type AuditValue = { Before?: unknown; After?: unknown; before?: unknown; after?: unknown }
 type ParsedChange = { property: string; before: unknown; after: unknown }
 
+const displayPreferences = useDisplayPreferences()
 const logs = ref<AuditLog[]>([])
 const search = ref('')
 const entityType = ref('all')
 const action = ref('all')
 const page = ref(1)
-const pageSize = ref(10)
+const pageSize = ref<number>(displayPreferences.defaultPageSize.value)
 const totalCount = ref(0)
 const totalPages = ref(0)
 const loading = ref(true)
 const error = ref('')
 const expandedIds = ref(new Set<string>())
-const { locale, t } = useI18n()
+const { t } = useI18n()
 
 const entityTypes = ['Product', 'Category', 'Supplier', 'Customer', 'PurchaseOrder', 'GoodsReceipt', 'SalesOrder', 'StockAdjustment']
 
 function dateTime(value: string) {
-  return new Intl.DateTimeFormat(locale.value, {
-    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
-  }).format(new Date(value))
+  return displayPreferences.formatDate(value, { includeTime: true, includeSeconds: true })
 }
 
 const actionLabel = (value: string) => t(`audit.action${value}`)
@@ -98,6 +98,7 @@ async function load() {
 }
 
 function changePageSize(nextPageSize: number) {
+  displayPreferences.setDefaultPageSize(nextPageSize)
   pageSize.value = nextPageSize
   page.value = 1
 }

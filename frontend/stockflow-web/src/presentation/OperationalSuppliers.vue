@@ -4,16 +4,18 @@ import { api } from '../infrastructure/api'
 import type { PagedResponse } from '../infrastructure/api'
 import { useAuthStore } from '../stores/auth'
 import { useI18n } from '../i18n'
+import { useDisplayPreferences } from '../preferences'
 import PaginationControls from '../components/PaginationControls.vue'
 
 type Supplier = { id: string; code: string; name: string; email: string | null; phone: string | null; address: string | null; isActive: boolean; createdAt: string; updatedAt: string | null }
 
+const displayPreferences = useDisplayPreferences()
 const suppliers = ref<Supplier[]>([])
 const search = ref('')
 const loading = ref(true)
 const error = ref('')
 const page = ref(1)
-const pageSize = ref(10)
+const pageSize = ref<number>(displayPreferences.defaultPageSize.value)
 const totalCount = ref(0)
 const totalPages = ref(0)
 const auth = useAuthStore()
@@ -49,6 +51,7 @@ function exportCsv() {
 }
 
 function changePageSize(nextPageSize: number) {
+  displayPreferences.setDefaultPageSize(nextPageSize)
   pageSize.value = nextPageSize
   page.value = 1
 }
