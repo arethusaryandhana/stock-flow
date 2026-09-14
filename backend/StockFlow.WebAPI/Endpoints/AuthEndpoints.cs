@@ -76,7 +76,7 @@ public sealed class AuthEndpoints : IEndpoint
         {
             var lifetimeMinutes = int.TryParse(configuration["Jwt:LifetimeMinutes"], out var configuredLifetime)
                 ? Math.Clamp(configuredLifetime, 5, 480)
-                : 30;
+                : 480;
             response.Cookies.Append(AccessTokenCookie, result.Data.Token, new CookieOptions
             {
                 HttpOnly = true,

@@ -26,7 +26,7 @@ public sealed class TokenService(IConfiguration configuration) : ITokenService
 
         var lifetimeMinutes = int.TryParse(configuration["Jwt:LifetimeMinutes"], out var configuredLifetime)
             ? configuredLifetime
-            : 30;
+            : 480;
         lifetimeMinutes = Math.Clamp(lifetimeMinutes, 5, 480);
 
         var token = new JwtSecurityToken(

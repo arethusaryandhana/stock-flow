@@ -13,7 +13,7 @@ services:
     volumes: [stockflow_db:/var/lib/postgresql]
   stockflow-api:
     build: { context: ./backend, dockerfile: ../docker/api.Dockerfile }
-    environment: { ASPNETCORE_ENVIRONMENT: Development, ASPNETCORE_URLS: http://+:8080, ConnectionStrings__Database: "Host=stockflow-db;Port=5432;Database=stockflow;Username=postgres;Password=postgres;Pooling=true", WebOrigin: "http://localhost:5173", ReportStorage: /app/reports }
+    environment: { ASPNETCORE_ENVIRONMENT: Development, ASPNETCORE_URLS: http://+:8080, ConnectionStrings__Database: "Host=stockflow-db;Port=5432;Database=stockflow;Username=postgres;Password=postgres;Pooling=true", Jwt__LifetimeMinutes: "480", WebOrigin: "http://localhost:5173", ReportStorage: /app/reports }
     ports: ["8080:8080"]
     volumes: [stockflow_reports:/app/reports:ro]
     depends_on:

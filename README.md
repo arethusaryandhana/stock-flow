@@ -64,6 +64,8 @@ Production does not auto-migrate or seed demo data. Supply `ConnectionStrings__D
 `Notifications__LowStockIntervalMinutes` (default `5`) through deployment
 secrets/environment variables. The worker needs write access to report storage while the API only
 needs read access for downloads.
+JWT browser sessions and bearer tokens are valid for 8 hours by default; override this with
+`Jwt__LifetimeMinutes` when a different lifetime is required (maximum `480` minutes).
 Run EF migrations as a controlled release step. `Database__ApplyMigrations`, `SeedData__Demo`, and
 `PasswordReset__ExposeResetToken` should remain `false` in production.
 
