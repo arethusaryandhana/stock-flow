@@ -1113,7 +1113,7 @@ onMounted(async () => {
 <style scoped>
 .settings-page { max-width: 1260px; }
 .settings-layout { display: grid; grid-template-columns: 235px minmax(0, 1fr); align-items: start; gap: 16px; }
-.settings-nav { position: sticky; top: 94px; padding: 7px; }
+.settings-nav { position: static; padding: 7px; }
 .settings-nav-item { display: flex; width: 100%; align-items: center; gap: 10px; padding: 11px; border-radius: 9px; color: var(--control-text); background: transparent; text-align: left; }
 .settings-nav-item + .settings-nav-item { margin-top: 3px; }
 .settings-nav-item:hover { background: var(--surface-hover); }
@@ -1327,7 +1327,6 @@ onMounted(async () => {
 
 @media (max-width: 830px) {
   .settings-layout { grid-template-columns: 1fr; }
-  .settings-nav { position: static; }
   .notification-category-grid { grid-template-columns: 1fr; }
   .notification-category-card { min-height: 126px; }
   .notification-category-card p { min-height: 0; }
