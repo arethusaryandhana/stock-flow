@@ -33,7 +33,6 @@ const totalCount = ref(0)
 const totalPages = ref(0)
 const loading = ref(true)
 const error = ref('')
-const expandedIds = ref(new Set<string>())
 const { t } = useI18n()
 
 const entityTypes = ['Product', 'Category', 'Supplier', 'Customer', 'PurchaseOrder', 'GoodsReceipt', 'SalesOrder', 'StockAdjustment', 'InventorySettings', 'CompanyProfile']
@@ -65,13 +64,6 @@ function changesFor(log: AuditLog): ParsedChange[] {
   }
 }
 
-function toggleDetails(id: string) {
-  const next = new Set(expandedIds.value)
-  if (next.has(id)) next.delete(id)
-  else next.add(id)
-  expandedIds.value = next
-}
-
 async function load() {
   loading.value = true
   error.value = ''
@@ -89,7 +81,6 @@ async function load() {
     page.value = data.page
     totalCount.value = data.totalCount
     totalPages.value = data.totalPages
-    expandedIds.value = new Set()
   } catch (requestError) {
     error.value = (requestError as Error).message
   } finally {
@@ -141,7 +132,7 @@ onMounted(load)
       <div v-else-if="!logs.length" class="empty"><strong>{{ t('audit.emptyTitle') }}</strong>{{ t('audit.emptyHint') }}</div>
       <div v-else class="table-wrap">
         <table class="audit-table">
-          <thead><tr><th>{{ t('audit.time') }}</th><th>{{ t('audit.actor') }}</th><th>{{ t('audit.action') }}</th><th>{{ t('audit.entity') }}</th><th>{{ t('audit.record') }}</th><th>{{ t('audit.details') }}</th></tr></thead>
+          <thead><tr><th>{{ t('audit.time') }}</th><th>{{ t('audit.actor') }}</th><th>{{ t('audit.action') }}</th><th>{{ t('audit.entity') }}</th><th>{{ t('audit.record') }}</th></tr></thead>
           <tbody>
             <template v-for="log in logs" :key="log.id">
               <tr>
@@ -150,15 +141,19 @@ onMounted(load)
                 <td><span class="badge" :class="log.action === 'Created' ? 'ok' : log.action === 'Deleted' ? 'danger' : 'warn'">{{ actionLabel(log.action) }}</span></td>
                 <td><strong>{{ entityLabel(log.entityType) }}</strong><small class="audit-id">{{ log.entityId }}</small></td>
                 <td class="audit-summary">{{ log.summary || '—' }}</td>
-                <td><button class="audit-details-button" type="button" :aria-expanded="expandedIds.has(log.id)" @click="toggleDetails(log.id)">{{ expandedIds.has(log.id) ? t('audit.hideChanges') : t('audit.viewChanges') }}</button></td>
               </tr>
-              <tr v-if="expandedIds.has(log.id)" class="audit-change-row">
-                <td colspan="6">
-                  <div v-if="changesFor(log).length" class="audit-changes">
-                    <div class="audit-change-head"><span>{{ t('audit.field') }}</span><span>{{ t('audit.before') }}</span><span>{{ t('audit.after') }}</span></div>
-                    <div v-for="change in changesFor(log)" :key="change.property" class="audit-change-item"><strong>{{ propertyLabel(change.property) }}</strong><code>{{ formatValue(change.before) }}</code><code>{{ formatValue(change.after) }}</code></div>
-                  </div>
-                  <p v-else class="audit-no-changes">{{ t('audit.noChanges') }}</p>
+              <tr class="audit-change-row">
+                <td colspan="5">
+                  <details class="audit-details">
+                    <summary>{{ t('audit.details') }}</summary>
+                    <div class="audit-details-content">
+                      <div v-if="changesFor(log).length" class="audit-changes">
+                        <div class="audit-change-head"><span>{{ t('audit.field') }}</span><span>{{ t('audit.before') }}</span><span>{{ t('audit.after') }}</span></div>
+                        <div v-for="change in changesFor(log)" :key="change.property" class="audit-change-item"><strong>{{ propertyLabel(change.property) }}</strong><code>{{ formatValue(change.before) }}</code><code>{{ formatValue(change.after) }}</code></div>
+                      </div>
+                      <p v-else class="audit-no-changes">{{ t('audit.noChanges') }}</p>
+                    </div>
+                  </details>
                 </td>
               </tr>
             </template>
@@ -180,9 +175,13 @@ onMounted(load)
 .audit-table td small { display: block; margin-top: 4px; }
 .audit-id { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .audit-summary { min-width: 150px; max-width: 260px; }
-.audit-details-button { padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; color: var(--blue); background: var(--surface-raised); font-size: .61rem; font-weight: 800; white-space: nowrap; }
-.audit-details-button:hover { border-color: #c9d7f5; background: var(--blue-soft); }
-.audit-change-row td { padding: 0 15px 15px; background: color-mix(in srgb, var(--surface) 86%, var(--line)); }
+.audit-change-row td { padding: 0; background: color-mix(in srgb, var(--surface) 86%, var(--line)); }
+.audit-details summary { display: flex; align-items: center; justify-content: space-between; padding: 11px 15px; color: var(--blue); cursor: pointer; font-size: .65rem; font-weight: 800; list-style: none; }
+.audit-details summary::-webkit-details-marker { display: none; }
+.audit-details summary::after { content: '⌄'; color: var(--muted); font-size: .9rem; transition: transform .15s ease; }
+.audit-details[open] summary { border-bottom: 1px solid var(--line); }
+.audit-details[open] summary::after { transform: rotate(180deg); }
+.audit-details-content { padding: 0 15px 15px; }
 .audit-changes { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-raised); }
 .audit-change-head, .audit-change-item { display: grid; grid-template-columns: minmax(130px, .8fr) minmax(180px, 1fr) minmax(180px, 1fr); gap: 12px; padding: 9px 12px; }
 .audit-change-head { color: var(--muted); background: color-mix(in srgb, var(--surface) 88%, var(--line)); font-size: .58rem; font-weight: 800; text-transform: uppercase; }
