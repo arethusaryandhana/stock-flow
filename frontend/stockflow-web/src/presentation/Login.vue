@@ -10,7 +10,7 @@ type AuthMode = 'login' | 'forgot' | 'reset'
 
 const email = ref('')
 const password = ref('')
-const rememberMe = ref(false)
+const rememberMe = ref(true)
 const forgotEmail = ref('')
 const resetToken = ref(new URLSearchParams(window.location.search).get('resetToken') ?? '')
 const newPassword = ref('')
