@@ -39,7 +39,7 @@ public sealed class AuthUseCase(
         }
 
         return UseCaseResult<LoginResponse>.Ok(
-            new LoginResponse(tokens.Create(user), user.FullName, user.Email, user.Role.Name));
+            new LoginResponse(tokens.Create(user, request.RememberMe), user.FullName, user.Email, user.Role.Name));
     }
 
     public async Task<UseCaseResult<SessionResponse>> UpdateProfileAsync(

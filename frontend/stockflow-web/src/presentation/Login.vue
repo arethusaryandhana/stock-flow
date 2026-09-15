@@ -10,6 +10,7 @@ type AuthMode = 'login' | 'forgot' | 'reset'
 
 const email = ref('')
 const password = ref('')
+const rememberMe = ref(false)
 const forgotEmail = ref('')
 const resetToken = ref(new URLSearchParams(window.location.search).get('resetToken') ?? '')
 const newPassword = ref('')
@@ -48,7 +49,7 @@ function showForgot() {
 
 async function submitLogin() {
   busy.value = true; clearMessages()
-  try { await auth.login(email.value.trim(), password.value); router.push('/') } catch (requestError) { error.value = (requestError as Error).message } finally { busy.value = false }
+  try { await auth.login(email.value.trim(), password.value, rememberMe.value); router.push('/') } catch (requestError) { error.value = (requestError as Error).message } finally { busy.value = false }
 }
 
 async function submitForgot() {
@@ -99,7 +100,7 @@ async function submitReset() {
           <form class="login-form" :aria-busy="busy" @submit.prevent="submitLogin">
             <label class="login-label">{{ t('login.workEmail') }}<input v-model="email" type="email" autocomplete="username" required :disabled="busy"></label>
             <label class="login-label">{{ t('login.password') }}<div class="password-field"><input v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required :disabled="busy"><button class="password-toggle" type="button" :disabled="busy" :aria-label="showPassword ? t('login.hidePassword') : t('login.showPassword')" :aria-pressed="showPassword" @click="showPassword = !showPassword"><svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.75-6 10-6 10 6 10 6-3.75 6-10 6-10-6-10-6Z" /><circle cx="12" cy="12" r="2.75" /><path v-if="!showPassword" d="m3 3 18 18" /></svg></button></div></label>
-            <div class="login-options"><label class="checkbox"><input type="checkbox" :disabled="busy"> {{ t('login.rememberMe') }}</label><button class="text-link" type="button" :disabled="busy" @click="showForgot">{{ t('login.forgotPassword') }}</button></div>
+            <div class="login-options"><label class="checkbox"><input v-model="rememberMe" type="checkbox" :disabled="busy"> {{ t('login.rememberMe') }}</label><button class="text-link" type="button" :disabled="busy" @click="showForgot">{{ t('login.forgotPassword') }}</button></div>
             <p v-if="error" class="alert">{{ error }}</p><p v-if="feedback" class="form-feedback">{{ feedback }}</p>
             <button class="primary login-submit" :disabled="busy"><span v-if="busy" class="button-spinner" aria-hidden="true" />{{ busy ? t('login.checkingAccess') : t('login.submit') }}</button>
           </form>

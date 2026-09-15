@@ -10,7 +10,7 @@ namespace StockFlow.Infrastructure;
 
 public sealed class TokenService(IConfiguration configuration) : ITokenService
 {
-    public string Create(User user)
+    public string Create(User user, bool rememberMe = false)
     {
         var key = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
@@ -24,18 +24,26 @@ public sealed class TokenService(IConfiguration configuration) : ITokenService
             new Claim("token_version", user.TokenVersion.ToString())
         };
 
-        var lifetimeMinutes = int.TryParse(configuration["Jwt:LifetimeMinutes"], out var configuredLifetime)
-            ? configuredLifetime
-            : 480;
-        lifetimeMinutes = Math.Clamp(lifetimeMinutes, 5, 480);
+        var lifetime = rememberMe
+            ? TimeSpan.FromDays(GetRememberMeLifetimeDays())
+            : TimeSpan.FromMinutes(GetSessionLifetimeMinutes());
 
         var token = new JwtSecurityToken(
             issuer: configuration["Jwt:Issuer"],
             audience: configuration["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(lifetimeMinutes),
+            expires: DateTime.UtcNow.Add(lifetime),
             signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
+    private int GetSessionLifetimeMinutes() =>
+        Math.Clamp(ParseConfiguredInt("Jwt:LifetimeMinutes", 480), 5, 480);
+
+    private int GetRememberMeLifetimeDays() =>
+        Math.Clamp(ParseConfiguredInt("Jwt:RememberMeLifetimeDays", 30), 1, 90);
+
+    private int ParseConfiguredInt(string key, int fallback) =>
+        int.TryParse(configuration[key], out var configuredValue) ? configuredValue : fallback;
 }

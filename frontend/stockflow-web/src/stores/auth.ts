@@ -16,8 +16,8 @@ export const useAuthStore = defineStore('auth', {
     isAdmin: (state) => state.role.trim().toLowerCase() === 'admin',
   },
   actions: {
-    async login(email: string, password: string) {
-      const { data } = await api.post<SessionProfile & { token: string }>('/auth/login', { email, password })
+    async login(email: string, password: string, rememberMe: boolean) {
+      const { data } = await api.post<SessionProfile & { token: string }>('/auth/login', { email, password, rememberMe })
       this.setSession(data)
       localStorage.removeItem('stockflow_token')
     },

@@ -9,7 +9,7 @@ public interface ICurrentUserService
 
 public interface ITokenService
 {
-    string Create(User user);
+    string Create(User user, bool rememberMe = false);
 }
 
 public interface IPasswordService

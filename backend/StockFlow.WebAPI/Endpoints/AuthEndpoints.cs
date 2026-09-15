@@ -74,17 +74,24 @@ public sealed class AuthEndpoints : IEndpoint
         var result = await useCase.LoginAsync(request, cancellationToken);
         if (result.Data is not null)
         {
-            var lifetimeMinutes = int.TryParse(configuration["Jwt:LifetimeMinutes"], out var configuredLifetime)
-                ? Math.Clamp(configuredLifetime, 5, 480)
-                : 480;
-            response.Cookies.Append(AccessTokenCookie, result.Data.Token, new CookieOptions
+            var cookieOptions = new CookieOptions
             {
                 HttpOnly = true,
                 Secure = !environment.IsDevelopment(),
                 SameSite = SameSiteMode.Strict,
-                Path = "/",
-                MaxAge = TimeSpan.FromMinutes(lifetimeMinutes)
-            });
+                Path = "/"
+            };
+
+            if (request.RememberMe)
+            {
+                var lifetimeDays = Math.Clamp(
+                    configuration.GetValue<int?>("Jwt:RememberMeLifetimeDays") ?? 30,
+                    1,
+                    90);
+                cookieOptions.MaxAge = TimeSpan.FromDays(lifetimeDays);
+            }
+
+            response.Cookies.Append(AccessTokenCookie, result.Data.Token, cookieOptions);
         }
 
         return result.ToHttpResult();

@@ -1,6 +1,6 @@
 namespace StockFlow.Application.Models;
 
-public sealed record LoginRequest(string Email, string Password);
+public sealed record LoginRequest(string Email, string Password, bool RememberMe = false);
 
 public sealed record ForgotPasswordRequest(string Email);
 

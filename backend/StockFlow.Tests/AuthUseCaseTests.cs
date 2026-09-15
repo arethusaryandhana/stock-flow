@@ -9,6 +9,21 @@ namespace StockFlow.Tests;
 public sealed class AuthUseCaseTests
 {
     [Fact]
+    public async Task Login_ForwardsRememberMePreferenceToTokenService()
+    {
+        var user = CreateUser("OldStockFlow123!");
+        var tokenService = new StubTokenService();
+        var useCase = CreateUseCase(new StubUserRepository(user), user.Id, tokenService);
+
+        var result = await useCase.LoginAsync(
+            new LoginRequest(user.Email, "OldStockFlow123!", true),
+            CancellationToken.None);
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.True(tokenService.RememberMe);
+    }
+
+    [Fact]
     public async Task GetProfile_ReturnsCurrentAccountDetails()
     {
         var user = CreateUser("OldStockFlow123!");
@@ -121,11 +136,14 @@ public sealed class AuthUseCaseTests
         Assert.Equal(1, users.SaveCalls);
     }
 
-    private static AuthUseCase CreateUseCase(StubUserRepository users, Guid currentUserId) =>
+    private static AuthUseCase CreateUseCase(
+        StubUserRepository users,
+        Guid currentUserId,
+        StubTokenService? tokenService = null) =>
         new(
             users,
             new StubPasswordService(),
-            new StubTokenService(),
+            tokenService ?? new StubTokenService(),
             new StubResetTokenService(),
             new StubCurrentUserService(currentUserId));
 
@@ -185,7 +203,13 @@ public sealed class AuthUseCaseTests
 
     private sealed class StubTokenService : ITokenService
     {
-        public string Create(User user) => "token";
+        public bool RememberMe { get; private set; }
+
+        public string Create(User user, bool rememberMe = false)
+        {
+            RememberMe = rememberMe;
+            return "token";
+        }
     }
 
     private sealed class StubResetTokenService : IPasswordResetTokenService
