@@ -69,6 +69,28 @@ const groups = [
   },
 ]
 
+const breadcrumbGroupLabels: Record<string, string> = {
+  'app.administration': 'app.masterDataBreadcrumb',
+  'app.inventory': 'app.inventoryBreadcrumb',
+  'app.operations': 'app.operationsBreadcrumb',
+  'app.insight': 'app.insight',
+}
+
+const breadcrumbs = computed(() => {
+  const items = [{ labelKey: 'app.workspaceName', to: '/' }]
+  const group = groups.find((entry) => entry.items.some((item) => item.path === route.path))
+  if (!group) return items
+
+  const groupHome = group.items[0]
+  if (groupHome.path !== route.path && breadcrumbGroupLabels[group.labelKey]) {
+    items.push({ labelKey: breadcrumbGroupLabels[group.labelKey], to: groupHome.path })
+  }
+
+  const currentPage = group.items.find((item) => item.path === route.path)!
+  items.push({ labelKey: currentPage.labelKey, to: currentPage.path })
+  return items
+})
+
 function findActiveGroupKey() {
   return groups.find((group) => group.items.some((item) => item.path === route.path))?.labelKey
 }
@@ -289,7 +311,12 @@ onBeforeUnmount(() => {
             <img src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
             <strong>StockFlow</strong>
           </router-link>
-          <div class="breadcrumbs"><span>{{ t('app.workspaceName') }}</span><b>/</b><strong>{{ route.path === '/' ? t('app.dashboardBreadcrumb') : route.path.startsWith('/settings') ? t('app.settings') : route.path.startsWith('/master-data') || route.path.startsWith('/admin') ? t('app.masterDataBreadcrumb') : route.path.startsWith('/operations') ? t('app.operationsBreadcrumb') : route.path.startsWith('/reports') ? t('app.insight') : t('app.inventoryBreadcrumb') }}</strong></div>
+          <nav class="breadcrumbs" :aria-label="t('app.breadcrumbs')">
+            <template v-for="(item, index) in breadcrumbs" :key="`${index}-${item.to}`">
+              <b v-if="index" aria-hidden="true">/</b>
+              <router-link :to="item.to" :aria-current="index === breadcrumbs.length - 1 ? 'page' : undefined">{{ t(item.labelKey) }}</router-link>
+            </template>
+          </nav>
         </div>
         <div class="topbar-actions">
           <form class="global-search" @submit.prevent="handleSearch">

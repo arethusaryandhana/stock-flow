@@ -122,7 +122,9 @@ h3 { font-size: .9rem; font-weight: 800; }
 .mobile-brand strong { color: var(--ink); font-size: .8rem; font-weight: 800; letter-spacing: -.025em; }
 .breadcrumbs { gap: 10px; color: #93a0b2; font-size: .72rem; font-weight: 600; }
 .breadcrumbs b { color: #c4ccd7; font-weight: 500; }
-.breadcrumbs strong { color: var(--ink); font-weight: 800; }
+.breadcrumbs a { color: inherit; text-decoration: none; }
+.breadcrumbs a:hover, .breadcrumbs a:focus-visible { text-decoration: underline; }
+.breadcrumbs a[aria-current='page'] { color: var(--ink); font-weight: 800; }
 .topbar-actions { min-width: 0; gap: 10px; }
 .global-search { display: flex; width: min(285px, 24vw); min-width: 150px; height: 37px; align-items: center; gap: 7px; padding: 0 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-subtle); }
 .search-glyph { color: #7f8ca1; font-size: 1.35rem; line-height: 0; transform: translateY(-1px); }
