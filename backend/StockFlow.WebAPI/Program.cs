@@ -135,19 +135,19 @@ var app = builder.Build();
 app.UseMiddleware<CorrelationMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
 
+if (app.Environment.IsDevelopment())
+{
+    // Swagger must run before authorization: the fallback policy otherwise
+    // challenges its non-endpoint assets before Swagger can serve them.
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
 app.UseRouting();
 app.UseCors("web");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
-
-if (app.Environment.IsDevelopment())
-{
-    // Swagger is intentionally public for local development only. It is not
-    // registered at all in non-development environments.
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
 
 app.MapStockFlowEndpoints();
 app.MapHealthChecks("/health").RequireAuthorization();
