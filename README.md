@@ -11,7 +11,9 @@ data in the `stockflow_db` Docker volume.
 docker compose up --build
 ```
 
-Open `http://localhost:5173`. API documentation is at `http://localhost:8080/swagger`; health is at `http://localhost:8080/health`.
+Open `http://localhost:5173`. In the Development environment, API documentation is publicly
+available at `http://localhost:8080/swagger`. Health status at `http://localhost:8080/health`
+requires an authenticated browser session or bearer token.
 
 Demo login: `admin@stockflow.local` / `StockFlow123!`
 
@@ -20,6 +22,7 @@ Demo login: `admin@stockflow.local` / `StockFlow123!`
 - Clean Architecture boundaries and complete V1 domain model
 - PostgreSQL EF Core model with foreign keys, safe delete behaviors, indexes, and seed data
 - HttpOnly-cookie/Bearer JWT authentication, server-side session revocation, role authorization, auth rate limiting, correlation IDs, structured logging, exception handling, CORS, health checks
+- Fail-closed authorization: every endpoint requires authentication by default, with only login and password-recovery routes explicitly anonymous
 - Dashboard and product/category/supplier/customer APIs, including Admin-only master-data CRUD (soft delete)
 - Responsive Vue 3 + TypeScript + Tailwind shell, login, actionable dashboard, product inventory table, operational purchasing and sales screens, plus separate Admin-only master-data menus
 - Purchase order lifecycle APIs (Draft, Submitted, Approved, Received, Cancelled) with paginated search/filtering and atomic goods receipt updates for inventory and movement audit

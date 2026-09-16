@@ -24,6 +24,11 @@
   <ItemGroup>
     <ProjectReference Include="..\StockFlow.Application\StockFlow.Application.csproj" />
     <ProjectReference Include="..\StockFlow.Infrastructure\StockFlow.Infrastructure.csproj" />
+    <ProjectReference Include="..\StockFlow.WebAPI\StockFlow.WebAPI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
 </Project>

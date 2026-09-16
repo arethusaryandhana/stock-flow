@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -102,29 +103,54 @@ builder.Services
 
                 if (!sessionIsValid)
                     context.Fail("Sesi sudah tidak berlaku.");
-            }
+            },
+            OnChallenge = async context =>
+            {
+                // The JWT handler returns an empty 401 response by default.
+                // Always return the API's JSON error contract instead.
+                context.HandleResponse();
+                await SecurityErrorResponseWriter.WriteAsync(
+                    context.HttpContext,
+                    StatusCodes.Status401Unauthorized,
+                    "Autentikasi diperlukan. Silakan login kembali.");
+            },
+            OnForbidden = context => SecurityErrorResponseWriter.WriteAsync(
+                context.HttpContext,
+                StatusCodes.Status403Forbidden,
+                "Anda tidak memiliki izin untuk mengakses resource ini.")
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // Fail closed: every endpoint requires an authenticated user unless it is
+    // deliberately marked with AllowAnonymous. This protects future endpoints
+    // even when a developer forgets to add RequireAuthorization explicitly.
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 
 var app = builder.Build();
 
 app.UseMiddleware<CorrelationMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
 app.UseRouting();
 app.UseCors("web");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+
+if (app.Environment.IsDevelopment())
+{
+    // Swagger is intentionally public for local development only. It is not
+    // registered at all in non-development environments.
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
 app.MapStockFlowEndpoints();
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health").RequireAuthorization();
 
 if (builder.Configuration.GetValue<bool>("Database:ApplyMigrations"))
 {
@@ -195,5 +221,25 @@ public sealed class HttpCurrentUserService(IHttpContextAccessor httpContextAcces
 
             return Guid.TryParse(rawUserId, out var userId) ? userId : null;
         }
+    }
+}
+
+public static class SecurityErrorResponseWriter
+{
+    public static Task WriteAsync(HttpContext context, int statusCode, string message)
+    {
+        if (context.Response.HasStarted)
+            return Task.CompletedTask;
+
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/json; charset=utf-8";
+
+        return context.Response.WriteAsJsonAsync(new
+        {
+            message,
+            statusCode,
+            correlationId = context.Response.Headers["X-Correlation-ID"].FirstOrDefault()
+                ?? context.TraceIdentifier
+        });
     }
 }
