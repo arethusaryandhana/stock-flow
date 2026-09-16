@@ -33,6 +33,7 @@ const totalCount = ref(0)
 const totalPages = ref(0)
 const loading = ref(true)
 const error = ref('')
+const expandedLogId = ref('')
 const { t } = useI18n()
 
 const entityTypes = ['Product', 'Category', 'Supplier', 'Customer', 'PurchaseOrder', 'GoodsReceipt', 'SalesOrder', 'StockAdjustment', 'InventorySettings', 'CompanyProfile']
@@ -78,6 +79,7 @@ async function load() {
       },
     })
     logs.value = data.items
+    if (!logs.value.some((log) => log.id === expandedLogId.value)) expandedLogId.value = ''
     page.value = data.page
     totalCount.value = data.totalCount
     totalPages.value = data.totalPages
@@ -132,28 +134,36 @@ onMounted(load)
       <div v-else-if="!logs.length" class="empty"><strong>{{ t('audit.emptyTitle') }}</strong>{{ t('audit.emptyHint') }}</div>
       <div v-else class="table-wrap">
         <table class="audit-table">
-          <thead><tr><th>{{ t('audit.time') }}</th><th>{{ t('audit.actor') }}</th><th>{{ t('audit.action') }}</th><th>{{ t('audit.entity') }}</th><th>{{ t('audit.record') }}</th></tr></thead>
+          <thead><tr><th class="purchase-order-expand-cell"><span class="sr-only">{{ t('audit.details') }}</span></th><th>{{ t('audit.time') }}</th><th>{{ t('audit.actor') }}</th><th>{{ t('audit.action') }}</th><th>{{ t('audit.entity') }}</th><th>{{ t('audit.record') }}</th></tr></thead>
           <tbody>
             <template v-for="log in logs" :key="log.id">
               <tr>
+                <td class="purchase-order-expand-cell">
+                  <button
+                    class="purchase-order-expand-button"
+                    :class="{ expanded: expandedLogId === log.id }"
+                    type="button"
+                    :aria-label="t('audit.details')"
+                    :aria-expanded="expandedLogId === log.id"
+                    :aria-controls="`audit-details-${log.id}`"
+                    @click="expandedLogId = expandedLogId === log.id ? '' : log.id"
+                  ><span aria-hidden="true">›</span></button>
+                </td>
                 <td class="date-cell">{{ dateTime(log.createdAt) }}</td>
                 <td><strong>{{ log.actorName }}</strong><small>{{ log.actorEmail || t('audit.systemActor') }}</small></td>
                 <td><span class="badge" :class="log.action === 'Created' ? 'ok' : log.action === 'Deleted' ? 'danger' : 'warn'">{{ actionLabel(log.action) }}</span></td>
                 <td><strong>{{ entityLabel(log.entityType) }}</strong><small class="audit-id">{{ log.entityId }}</small></td>
                 <td class="audit-summary">{{ log.summary || '—' }}</td>
               </tr>
-              <tr class="audit-change-row">
-                <td colspan="5">
-                  <details class="audit-details">
-                    <summary>{{ t('audit.details') }}</summary>
-                    <div class="audit-details-content">
-                      <div v-if="changesFor(log).length" class="audit-changes">
-                        <div class="audit-change-head"><span>{{ t('audit.field') }}</span><span>{{ t('audit.before') }}</span><span>{{ t('audit.after') }}</span></div>
-                        <div v-for="change in changesFor(log)" :key="change.property" class="audit-change-item"><strong>{{ propertyLabel(change.property) }}</strong><code>{{ formatValue(change.before) }}</code><code>{{ formatValue(change.after) }}</code></div>
-                      </div>
-                      <p v-else class="audit-no-changes">{{ t('audit.noChanges') }}</p>
+              <tr v-if="expandedLogId === log.id" :id="`audit-details-${log.id}`" class="detail-row">
+                <td colspan="6">
+                  <div class="audit-details-content">
+                    <div v-if="changesFor(log).length" class="audit-changes">
+                      <div class="audit-change-head"><span>{{ t('audit.field') }}</span><span>{{ t('audit.before') }}</span><span>{{ t('audit.after') }}</span></div>
+                      <div v-for="change in changesFor(log)" :key="change.property" class="audit-change-item"><strong>{{ propertyLabel(change.property) }}</strong><code>{{ formatValue(change.before) }}</code><code>{{ formatValue(change.after) }}</code></div>
                     </div>
-                  </details>
+                    <p v-else class="audit-no-changes">{{ t('audit.noChanges') }}</p>
+                  </div>
                 </td>
               </tr>
             </template>
@@ -175,13 +185,7 @@ onMounted(load)
 .audit-table td small { display: block; margin-top: 4px; }
 .audit-id { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .audit-summary { min-width: 150px; max-width: 260px; }
-.audit-change-row td { padding: 0; background: color-mix(in srgb, var(--surface) 86%, var(--line)); }
-.audit-details summary { display: flex; align-items: center; justify-content: space-between; padding: 11px 15px; color: var(--blue); cursor: pointer; font-size: .65rem; font-weight: 800; list-style: none; }
-.audit-details summary::-webkit-details-marker { display: none; }
-.audit-details summary::after { content: '⌄'; color: var(--muted); font-size: .9rem; transition: transform .15s ease; }
-.audit-details[open] summary { border-bottom: 1px solid var(--line); }
-.audit-details[open] summary::after { transform: rotate(180deg); }
-.audit-details-content { padding: 0 15px 15px; }
+.audit-details-content { padding: 14px 18px 17px; border-top: 1px solid var(--line); }
 .audit-changes { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-raised); }
 .audit-change-head, .audit-change-item { display: grid; grid-template-columns: minmax(130px, .8fr) minmax(180px, 1fr) minmax(180px, 1fr); gap: 12px; padding: 9px 12px; }
 .audit-change-head { color: var(--muted); background: color-mix(in srgb, var(--surface) 88%, var(--line)); font-size: .58rem; font-weight: 800; text-transform: uppercase; }
