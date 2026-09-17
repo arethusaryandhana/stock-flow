@@ -12,7 +12,9 @@ import Receiving from '../presentation/Receiving.vue'
 import OperationalSuppliers from '../presentation/OperationalSuppliers.vue'
 import AuditHistory from '../presentation/AuditHistory.vue'
 import Settings from '../presentation/Settings.vue'
-import { api } from '../infrastructure/api'
+import { api, getAccessToken } from '../infrastructure/api'
+
+const sessionKeys = ['stockflow_authenticated', 'stockflow_name', 'stockflow_email', 'stockflow_role']
 
 const router = createRouter({
   history: createWebHistory(),
@@ -38,6 +40,10 @@ const router = createRouter({
 })
 
 async function restoreSession() {
+  if (!getAccessToken()) {
+    sessionKeys.forEach((key) => sessionStorage.removeItem(key))
+    return false
+  }
   if (sessionStorage.getItem('stockflow_authenticated') === 'true') return true
 
   try {
@@ -54,7 +60,7 @@ async function restoreSession() {
 
 router.beforeEach(async (to) => {
   const hasSession = to.meta.auth ? await restoreSession() :
-    sessionStorage.getItem('stockflow_authenticated') === 'true'
+    Boolean(getAccessToken()) && sessionStorage.getItem('stockflow_authenticated') === 'true'
 
   if (to.meta.auth && !hasSession) return '/login'
   if (to.meta.admin && sessionStorage.getItem('stockflow_role')?.trim().toLowerCase() !== 'admin') return hasSession ? '/' : '/login'

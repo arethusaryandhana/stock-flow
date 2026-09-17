@@ -11,8 +11,9 @@ locks the target product with `FOR UPDATE`, recalculates the balance, and writes
 movement, and product balance atomically. Database check constraints provide a final guard against
 negative balances and invalid quantities.
 
-Browser sessions use an `HttpOnly`, `SameSite=Strict` JWT cookie. Bearer tokens remain supported for
-non-browser API clients. Each JWT contains the user's token version; changing or resetting a
+All protected API requests require a JWT in the `Authorization: Bearer` header. The web client
+stores the token in session storage, or local storage when "Remember me" is selected. Cookies
+cannot authenticate API requests. Each JWT contains the user's token version; changing or resetting a
 password increments that version so previously issued sessions are rejected. Authentication
 endpoints are rate-limited by client address.
 

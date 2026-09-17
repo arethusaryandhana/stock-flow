@@ -8,7 +8,6 @@ namespace StockFlow.WebAPI.Endpoints;
 public sealed class AuthEndpoints : IEndpoint
 {
     private const string AuthRateLimitPolicy = "auth";
-    private const string AccessTokenCookie = "stockflow_access_token";
 
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
@@ -66,36 +65,8 @@ public sealed class AuthEndpoints : IEndpoint
     private static async Task<IResult> LoginAsync(
         LoginRequest request,
         IAuthUseCase useCase,
-        HttpResponse response,
-        IConfiguration configuration,
-        IWebHostEnvironment environment,
-        CancellationToken cancellationToken)
-    {
-        var result = await useCase.LoginAsync(request, cancellationToken);
-        if (result.Data is not null)
-        {
-            var cookieOptions = new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = !environment.IsDevelopment(),
-                SameSite = SameSiteMode.Strict,
-                Path = "/"
-            };
-
-            if (request.RememberMe)
-            {
-                var lifetimeDays = Math.Clamp(
-                    configuration.GetValue<int?>("Jwt:RememberMeLifetimeDays") ?? 30,
-                    1,
-                    90);
-                cookieOptions.MaxAge = TimeSpan.FromDays(lifetimeDays);
-            }
-
-            response.Cookies.Append(AccessTokenCookie, result.Data.Token, cookieOptions);
-        }
-
-        return result.ToHttpResult();
-    }
+        CancellationToken cancellationToken) =>
+        (await useCase.LoginAsync(request, cancellationToken)).ToHttpResult();
 
     private static async Task<IResult> ForgotPasswordAsync(
         ForgotPasswordRequest request,
@@ -129,21 +100,10 @@ public sealed class AuthEndpoints : IEndpoint
 
     private static async Task<IResult> LogoutAllAsync(
         IAuthUseCase useCase,
-        HttpResponse response,
-        CancellationToken cancellationToken)
-    {
-        var result = await useCase.RevokeAllSessionsAsync(cancellationToken);
-        if (result.Data is not null)
-            response.Cookies.Delete(AccessTokenCookie, new CookieOptions { Path = "/" });
+        CancellationToken cancellationToken) =>
+        (await useCase.RevokeAllSessionsAsync(cancellationToken)).ToHttpResult();
 
-        return result.ToHttpResult();
-    }
-
-    private static IResult Logout(HttpResponse response)
-    {
-        response.Cookies.Delete(AccessTokenCookie, new CookieOptions { Path = "/" });
-        return Results.NoContent();
-    }
+    private static IResult Logout() => Results.NoContent();
 
     private static async Task<IResult> GetSessionAsync(
         IAuthUseCase useCase,

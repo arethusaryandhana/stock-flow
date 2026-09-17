@@ -53,8 +53,7 @@ builder.Services.AddCors(options =>
         policy => policy
             .WithOrigins(builder.Configuration["WebOrigin"] ?? "http://localhost:5173")
             .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials()));
+            .AllowAnyMethod()));
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -73,16 +72,6 @@ builder.Services
         };
         options.Events = new JwtBearerEvents
         {
-            OnMessageReceived = context =>
-            {
-                if (string.IsNullOrWhiteSpace(context.Token) &&
-                    context.Request.Cookies.TryGetValue("stockflow_access_token", out var cookieToken))
-                {
-                    context.Token = cookieToken;
-                }
-
-                return Task.CompletedTask;
-            },
             OnTokenValidated = async context =>
             {
                 var rawUserId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier)

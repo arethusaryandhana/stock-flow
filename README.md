@@ -13,7 +13,7 @@ docker compose up --build
 
 Open `http://localhost:5173`. In the Development environment, API documentation is publicly
 available at `http://localhost:8080/swagger`. Health status at `http://localhost:8080/health`
-requires an authenticated browser session or bearer token.
+requires a bearer token in the `Authorization` header.
 
 Demo login: `admin@stockflow.local` / `StockFlow123!`
 
@@ -21,7 +21,7 @@ Demo login: `admin@stockflow.local` / `StockFlow123!`
 
 - Clean Architecture boundaries and complete V1 domain model
 - PostgreSQL EF Core model with foreign keys, safe delete behaviors, indexes, and seed data
-- HttpOnly-cookie/Bearer JWT authentication, server-side session revocation, role authorization, auth rate limiting, correlation IDs, structured logging, exception handling, CORS, health checks
+- Bearer JWT authentication, server-side session revocation, role authorization, auth rate limiting, correlation IDs, structured logging, exception handling, CORS, health checks
 - Fail-closed authorization: every endpoint requires authentication by default, with only login and password-recovery routes explicitly anonymous
 - Dashboard and product/category/supplier/customer APIs, including Admin-only master-data CRUD (soft delete)
 - Responsive Vue 3 + TypeScript + Tailwind shell, login, actionable dashboard, product inventory table, operational purchasing and sales screens, plus separate Admin-only master-data menus
@@ -67,8 +67,11 @@ Production does not auto-migrate or seed demo data. Supply `ConnectionStrings__D
 `Notifications__LowStockIntervalMinutes` (default `5`) through deployment
 secrets/environment variables. The worker needs write access to report storage while the API only
 needs read access for downloads.
-JWT browser sessions and bearer tokens are valid for 8 hours by default; override this with
-`Jwt__LifetimeMinutes` when a different lifetime is required (maximum `480` minutes).
+Bearer tokens are valid for 8 hours by default; override this with `Jwt__LifetimeMinutes`
+when a different lifetime is required (maximum `480` minutes). The web client sends tokens
+through the `Authorization: Bearer <token>` header. "Remember me" stores the token in local
+storage for the configured `Jwt__RememberMeLifetimeDays` (default `30`); otherwise it uses
+session storage.
 Run EF migrations as a controlled release step. `Database__ApplyMigrations`, `SeedData__Demo`, and
 `PasswordReset__ExposeResetToken` should remain `false` in production.
 
