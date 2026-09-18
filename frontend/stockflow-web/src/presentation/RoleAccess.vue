@@ -35,6 +35,8 @@ const groups = computed(() => {
   return order.map((key) => ({ key, items: permissions.value.filter((item) => item.group === key) }))
     .filter((group) => group.items.length)
 })
+const menuPreview = computed(() => permissions.value.filter((item) =>
+  item.kind === 'menu' && draftPermissions.value.includes(item.code)))
 const groupLabels: Record<string, string> = {
   workspace: 'app.workspace', administration: 'app.administration', access: 'app.accessManagement',
   inventory: 'app.inventory', operations: 'app.operations', insight: 'app.insight',
@@ -201,6 +203,13 @@ onMounted(() => { void load() })
           <button v-if="canEditSelected" class="primary" type="button" :disabled="busy || !isDirty" @click="savePermissions">{{ t('access.saveAccess') }}</button>
         </div>
         <p class="access-note">{{ selectedRole?.name === 'Admin' ? t('access.adminLocked') : t('access.matrixHint') }}</p>
+        <div class="access-preview">
+          <h3>{{ t('access.menuPreview') }}</h3>
+          <p v-if="!menuPreview.length" class="access-note">{{ t('access.noMenuPreview') }}</p>
+          <div v-else class="access-preview-items">
+            <span v-for="item in menuPreview" :key="item.code">{{ item.name }}</span>
+          </div>
+        </div>
       </section>
       <section v-for="group in groups" :key="group.key" class="surface-card access-card">
         <div class="access-section-title"><h2>{{ t(groupLabels[group.key]) }}</h2><span>{{ group.items.length }} {{ t('access.permissions') }}</span></div>
@@ -239,4 +248,8 @@ onMounted(() => { void load() })
 .access-permission input { margin-top: .2rem; }
 .access-permission small { overflow-wrap: anywhere; }
 .access-message { padding: 1.5rem; }
+.access-preview { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.access-preview h3 { margin: 0 0 .7rem; font-size: .9rem; }
+.access-preview-items { display: flex; flex-wrap: wrap; gap: .4rem; }
+.access-preview-items span { padding: .35rem .65rem; border-radius: 999px; background: var(--teal-soft); color: var(--teal); font-size: .78rem; }
 </style>

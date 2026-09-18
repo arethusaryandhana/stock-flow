@@ -14,6 +14,7 @@ import AuditHistory from '../presentation/AuditHistory.vue'
 import Settings from '../presentation/Settings.vue'
 import Users from '../presentation/Users.vue'
 import RoleAccess from '../presentation/RoleAccess.vue'
+import AccessHistory from '../presentation/AccessHistory.vue'
 import { useAuthStore } from '../stores/auth'
 import { api, getAccessToken } from '../infrastructure/api'
 
@@ -41,6 +42,7 @@ const router = createRouter({
     { path: '/admin/users', component: Users, meta: { auth: true, permission: 'menu.users' } },
     { path: '/admin/roles', component: RoleAccess, props: { mode: 'roles' }, meta: { auth: true, permission: 'menu.roles' } },
     { path: '/admin/access', component: RoleAccess, props: { mode: 'access' }, meta: { auth: true, permission: 'menu.access' } },
+    { path: '/admin/access-history', component: AccessHistory, meta: { auth: true, permission: 'menu.access-history' } },
     { path: '/settings', component: Settings, meta: { auth: true, permission: 'menu.settings' } },
     { path: '/forbidden', component: { template: '<div class="page"><div class="surface-card" style="padding:2rem"><h1>Akses ditolak</h1><p>Role Anda tidak memiliki akses ke halaman ini.</p></div></div>' }, meta: { auth: true } },
   ],

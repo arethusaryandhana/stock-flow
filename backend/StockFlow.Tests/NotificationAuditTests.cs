@@ -228,7 +228,11 @@ public sealed class NotificationAuditTests
         Assert.DoesNotContain("PasswordHash", update.Changes, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(
             await verification.AuditLogs.Select(log => log.EntityType).ToListAsync(),
-            type => type is nameof(User) or nameof(Notification));
+            type => type == nameof(Notification));
+        Assert.DoesNotContain(
+            await verification.AuditLogs.Where(log => log.EntityType == nameof(User))
+                .Select(log => log.Changes).ToListAsync(),
+            changes => changes.Contains("PasswordHash", StringComparison.OrdinalIgnoreCase));
 
         var page = await new AuditLogUseCase(new AuditLogRepository(verification))
             .GetAllAsync(1, 10, "Audit Admin", nameof(Product), "Updated");

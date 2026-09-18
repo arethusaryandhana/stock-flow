@@ -6,6 +6,7 @@ import { isRequestPending } from './infrastructure/requestActivity'
 import { useAuthStore } from './stores/auth'
 import { useToastStore } from './stores/toast'
 import { useI18n } from './i18n'
+import { visibleMenuGroups } from './accessPolicy'
 import ThemeSwitcher from './components/ThemeSwitcher.vue'
 import ChangePasswordModal from './components/ChangePasswordModal.vue'
 import NotificationCenter from './components/NotificationCenter.vue'
@@ -44,6 +45,7 @@ const groups = [
       { labelKey: 'app.users', path: '/admin/users', icon: '♙', badge: '', permission: 'menu.users' },
       { labelKey: 'app.roles', path: '/admin/roles', icon: '◇', badge: '', permission: 'menu.roles' },
       { labelKey: 'app.menuAccess', path: '/admin/access', icon: '◈', badge: '', permission: 'menu.access' },
+      { labelKey: 'app.accessHistory', path: '/admin/access-history', icon: '≡', badge: '', permission: 'menu.access-history' },
     ],
   },
   {
@@ -71,10 +73,7 @@ const groups = [
     ],
   },
 ]
-const visibleGroups = computed(() => groups.map((group) => ({
-  ...group,
-  items: group.items.filter((item) => auth.can(item.permission)),
-})).filter((group) => group.items.length > 0))
+const visibleGroups = computed(() => visibleMenuGroups(groups, auth.permissions))
 
 const breadcrumbGroupLabels: Record<string, string> = {
   'app.administration': 'app.masterDataBreadcrumb',

@@ -15,7 +15,9 @@ public sealed class AuditLogRepository(StockFlowDbContext db) : IAuditLogReposit
         CancellationToken cancellationToken = default)
     {
         var pagination = Pagination.Normalize(page, pageSize);
-        var query = db.AuditLogs.AsNoTracking();
+        var query = db.AuditLogs.AsNoTracking().Where(log =>
+            log.EntityType != "User" && log.EntityType != "Role" &&
+            log.EntityType != "RolePermission");
 
         if (!string.IsNullOrWhiteSpace(search))
         {

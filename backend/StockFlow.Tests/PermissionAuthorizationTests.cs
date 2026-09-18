@@ -51,6 +51,28 @@ public sealed class PermissionAuthorizationTests
         Assert.False(context.HasSucceeded);
     }
 
+    [Theory]
+    [InlineData("Admin", "menu.access-history", true)]
+    [InlineData("Manager", "menu.access-history", false)]
+    [InlineData("Staff", "menu.access-history", false)]
+    [InlineData("Manager", "menu.purchase-orders", true)]
+    [InlineData("Staff", "action.purchasing.manage", false)]
+    [InlineData("Manager", "action.purchasing.manage", true)]
+    public async Task BuiltInRolePoliciesMatchThePermissionMatrix(
+        string role, string permission, bool expected)
+    {
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString())], "test"));
+        var requirement = new AnyPermissionRequirement([permission]);
+        var context = new AuthorizationHandlerContext([requirement], principal, null);
+        var snapshot = new UserAccessSnapshot(role,
+            PermissionCatalog.DefaultsFor(role).ToHashSet(StringComparer.Ordinal));
+
+        await new PermissionAuthorizationHandler(new StubAccessReader(snapshot)).HandleAsync(context);
+
+        Assert.Equal(expected, context.HasSucceeded);
+    }
+
     private sealed class StubAccessReader(UserAccessSnapshot? snapshot) : IUserAccessReader
     {
         public Task<UserAccessSnapshot?> GetAsync(Guid userId, CancellationToken cancellationToken = default) =>

@@ -41,6 +41,7 @@ public static class PermissionCatalog
         new("menu.users", "access", "Pengguna", PermissionKind.Menu),
         new("menu.roles", "access", "Role", PermissionKind.Menu),
         new("menu.access", "access", "Akses menu", PermissionKind.Menu),
+        new("menu.access-history", "access", "Riwayat akses", PermissionKind.Menu),
         new("menu.products", "inventory", "Produk dan stok", PermissionKind.Menu, true, true),
         new("menu.movements", "inventory", "Pergerakan stok", PermissionKind.Menu, true, true),
         new("menu.adjustments", "inventory", "Penyesuaian stok", PermissionKind.Menu, true, true),

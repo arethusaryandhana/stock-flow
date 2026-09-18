@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
+using StockFlow.Application.Models;
 using StockFlow.Core;
 using StockFlow.Infrastructure;
 
@@ -19,6 +21,7 @@ public sealed class RoleAccessEndpoints : IEndpoint
         var group = app.MapGroup("/api/access").RequireAuthorization().WithTags("Access");
         group.MapGet("/roles", GetRolesAsync).RequireAuthorization(PermissionPolicies.RolesRead);
         group.MapGet("/permissions", GetPermissions).RequireAuthorization("menu.access");
+        group.MapGet("/history", GetHistoryAsync).RequireAuthorization("menu.access-history");
         group.MapPost("/roles", CreateAsync).RequireAuthorization("menu.roles", "action.roles.manage");
         group.MapPut("/roles/{id:guid}", UpdateAsync).RequireAuthorization("menu.roles", "action.roles.manage");
         group.MapPut("/roles/{id:guid}/permissions", UpdatePermissionsAsync)
@@ -40,6 +43,42 @@ public sealed class RoleAccessEndpoints : IEndpoint
         .Select(permission => new PermissionSummary(
             permission.Code, permission.Group, permission.Name, permission.Kind.ToString().ToLowerInvariant(),
             PermissionCatalog.RequiredMenuForAction.GetValueOrDefault(permission.Code))));
+
+    private static async Task<IResult> GetHistoryAsync(
+        StockFlowDbContext db, CancellationToken cancellationToken,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null, [FromQuery] string? entityType = null,
+        [FromQuery] string? action = null)
+    {
+        var pagination = Pagination.Normalize(page, pageSize);
+        var query = db.AuditLogs.AsNoTracking().Where(log =>
+            log.EntityType == nameof(User) || log.EntityType == nameof(Role) ||
+            log.EntityType == nameof(RolePermission));
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLowerInvariant();
+            query = query.Where(log => log.Summary.ToLower().Contains(term) ||
+                (log.Actor != null &&
+                    (log.Actor.FullName.ToLower().Contains(term) || log.Actor.Email.ToLower().Contains(term))));
+        }
+        if (entityType is nameof(User) or nameof(Role) or nameof(RolePermission))
+            query = query.Where(log => log.EntityType == entityType);
+        if (action is "Created" or "Updated" or "Deleted" or "Granted" or "Revoked")
+            query = query.Where(log => log.Action == action);
+
+        var total = await query.CountAsync(cancellationToken);
+        var rows = await query.OrderByDescending(log => log.CreatedAt).ThenByDescending(log => log.Id)
+            .Skip(pagination.Skip).Take(pagination.PageSize)
+            .Select(log => new AuditLogResponse(
+                log.Id, log.ActorId,
+                log.Actor == null ? "System" : log.Actor.FullName,
+                log.Actor == null ? null : log.Actor.Email,
+                log.Action, log.EntityType, log.EntityId,
+                log.Summary, log.Changes, log.CreatedAt))
+            .ToListAsync(cancellationToken);
+        return Results.Ok(new PagedResponse<AuditLogResponse>(rows, pagination.Page, pagination.PageSize, total));
+    }
 
     private static async Task<IResult> CreateAsync(
         RoleRequest request, StockFlowDbContext db, CancellationToken cancellationToken)

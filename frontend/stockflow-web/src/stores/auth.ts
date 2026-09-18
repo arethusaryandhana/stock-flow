@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { hasPermission } from '../accessPolicy'
 import { api, clearAccessToken, getAccessToken, redirectToLoginWithLoading, setAccessToken } from '../infrastructure/api'
 
 type SessionProfile = { fullName: string; email: string; role: string }
@@ -16,7 +17,7 @@ export const useAuthStore = defineStore('auth', {
   }),
   getters: {
     isAdmin: (state) => state.role.trim().toLowerCase() === 'admin',
-    can: (state) => (code: string) => state.permissions.includes(code),
+    can: (state) => (code: string) => hasPermission(state.permissions, code),
   },
   actions: {
     async login(email: string, password: string, rememberMe: boolean) {

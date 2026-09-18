@@ -129,6 +129,7 @@ public sealed class EndpointAuthorizationTests
         AssertPolicies("/api/access/roles", "POST", "menu.roles", "action.roles.manage");
         AssertPolicies("/api/access/roles/{id:guid}", "PUT", "menu.roles", "action.roles.manage");
         AssertPolicies("/api/access/roles/{id:guid}/permissions", "PUT", "menu.access", "action.access.manage");
+        AssertPolicies("/api/access/history", "GET", "menu.access-history");
         AssertPolicies("/api/users/", "POST", "menu.users", "action.users.manage");
         AssertPolicies("/api/users/", "GET", "menu.users");
     }

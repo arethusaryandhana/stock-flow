@@ -101,12 +101,16 @@ public sealed class StockFlowDbContext(
                 _ => throw new InvalidOperationException("Unsupported audit action.")
             };
             var changes = entry.Properties
-                .Where(property => ShouldAuditProperty(property.Metadata.Name, entry.State, property.IsModified))
+                .Where(property => ShouldAuditProperty(entry.Entity, property.Metadata.Name, entry.State, property.IsModified))
                 .ToDictionary(
                     property => property.Metadata.Name,
                     property => new AuditValue(
                         entry.State == EntityState.Added ? null : NormalizeAuditValue(property.OriginalValue),
                         entry.State == EntityState.Deleted ? null : NormalizeAuditValue(property.CurrentValue)));
+
+            if (entry.Entity is User && entry.State == EntityState.Modified &&
+                entry.Property(nameof(User.PasswordHash)).IsModified)
+                changes["PasswordChanged"] = new AuditValue(false, true);
 
             if (entry.State == EntityState.Modified && changes.Count == 0)
                 continue;
@@ -123,17 +127,47 @@ public sealed class StockFlowDbContext(
                 CreatedAt = now
             });
         }
+
+        foreach (var entry in ChangeTracker.Entries<RolePermission>()
+            .Where(entry => entry.State is EntityState.Added or EntityState.Deleted).ToList())
+        {
+            var granted = entry.State == EntityState.Added;
+            AuditLogs.Add(new AuditLog
+            {
+                ActorId = actorId,
+                Action = granted ? "Granted" : "Revoked",
+                EntityType = nameof(RolePermission),
+                EntityId = entry.Entity.RoleId,
+                Summary = entry.Entity.Role?.Name ?? entry.Entity.RoleId.ToString(),
+                Changes = JsonSerializer.Serialize(new Dictionary<string, AuditValue>
+                {
+                    ["PermissionCode"] = new(
+                        granted ? null : entry.Entity.PermissionCode,
+                        granted ? entry.Entity.PermissionCode : null)
+                }),
+                CreatedById = actorId,
+                CreatedAt = now
+            });
+        }
     }
 
     private static bool IsAuditable(Entity entity) => entity is
         Product or Category or Supplier or Customer or PurchaseOrder or GoodsReceipt or
-        SalesOrder or StockAdjustment or InventorySettings or CompanyProfile;
+        SalesOrder or StockAdjustment or InventorySettings or CompanyProfile or User or Role;
 
     private static bool ShouldAuditProperty(
+        Entity entity,
         string propertyName,
         EntityState state,
         bool isModified)
     {
+        if (entity is User)
+            return (state != EntityState.Modified || isModified) && propertyName is
+                nameof(User.FullName) or nameof(User.Email) or nameof(User.RoleId) or nameof(User.IsActive);
+        if (entity is Role)
+            return (state != EntityState.Modified || isModified) && propertyName is
+                nameof(Role.Name) or nameof(Role.IsActive);
+
         if (propertyName is nameof(Entity.CreatedAt) or nameof(Entity.CreatedById) or
             nameof(Entity.UpdatedAt) or nameof(Entity.UpdatedById) or
             nameof(User.PasswordHash) or nameof(User.TokenVersion) or
@@ -167,6 +201,8 @@ public sealed class StockFlowDbContext(
         StockAdjustment adjustment => adjustment.Number,
         InventorySettings => "Inventory settings",
         CompanyProfile profile => $"Company profile - {profile.Name}",
+        User user => $"{user.FullName} ({user.Email})",
+        Role role => role.Name,
         _ => entity.Id.ToString()
     };
 

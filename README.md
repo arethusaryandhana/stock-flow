@@ -35,7 +35,8 @@ Demo login: `admin@stockflow.local` / `StockFlow123!`
 - Permission-controlled company profile for business identity, contacts, primary currency, and report/document branding
 - User management for account creation, role assignment, active status, password reset, and last-admin protection
 - Role management and menu/action access matrix with protected built-in roles and database-backed authorization
-- Immutable Admin audit history for business entities, including actor and safe before/after field values without authentication secrets
+- Access history for user, role, and permission changes, with password contents excluded and role permissions tested in CI
+- Immutable, permission-controlled audit history for business entities, including actor and safe before/after field values without authentication secrets
 - Database constraints and row locking for concurrent inventory adjustments, goods receipts, and sales completion
 - Automated unit/integration tests and GitHub Actions CI for backend, PostgreSQL concurrency, and frontend builds
 - Separate Docker Compose containers for web, API, worker, and PostgreSQL
@@ -51,6 +52,9 @@ Backend unit tests run without external services:
 ```bash
 dotnet test backend/StockFlow.sln
 ```
+
+Frontend access contracts can be checked with `pnpm test:access` from
+`frontend/stockflow-web`; `pnpm build` also checks Vue and TypeScript.
 
 PostgreSQL integrity tests activate when `STOCKFLOW_TEST_CONNECTION` points to a disposable
 database whose name contains `test`. The test suite recreates that database. CI supplies
@@ -75,5 +79,6 @@ storage for the configured `Jwt__RememberMeLifetimeDays` (default `30`); otherwi
 session storage.
 Run EF migrations as a controlled release step. `Database__ApplyMigrations`, `SeedData__Demo`, and
 `PasswordReset__ExposeResetToken` should remain `false` in production.
+The access-history permission is added by migration `20260918090000_AddAccessHistoryPermission`.
 
 See [architecture](docs/architecture.md) for design rules and status.
