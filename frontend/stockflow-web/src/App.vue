@@ -41,6 +41,11 @@ const groups = [
     ],
   },
   {
+    labelKey: 'app.accessManagement',
+    adminOnly: true,
+    items: [{ labelKey: 'app.users', path: '/admin/users', icon: '♙', badge: '' }],
+  },
+  {
     labelKey: 'app.inventory',
     adminOnly: false,
     items: [
@@ -71,6 +76,7 @@ const groups = [
 
 const breadcrumbGroupLabels: Record<string, string> = {
   'app.administration': 'app.masterDataBreadcrumb',
+  'app.accessManagement': 'app.accessManagement',
   'app.inventory': 'app.inventoryBreadcrumb',
   'app.operations': 'app.operationsBreadcrumb',
   'app.insight': 'app.insight',

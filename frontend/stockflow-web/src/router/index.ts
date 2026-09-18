@@ -12,6 +12,7 @@ import Receiving from '../presentation/Receiving.vue'
 import OperationalSuppliers from '../presentation/OperationalSuppliers.vue'
 import AuditHistory from '../presentation/AuditHistory.vue'
 import Settings from '../presentation/Settings.vue'
+import Users from '../presentation/Users.vue'
 import { api, getAccessToken } from '../infrastructure/api'
 
 const sessionKeys = ['stockflow_authenticated', 'stockflow_name', 'stockflow_email', 'stockflow_role']
@@ -35,6 +36,7 @@ const router = createRouter({
     { path: '/master-data/suppliers', component: MasterData, props: { entity: 'suppliers' }, meta: { auth: true, admin: true } },
     { path: '/master-data/customers', component: MasterData, props: { entity: 'customers' }, meta: { auth: true, admin: true } },
     { path: '/admin/audit-history', component: AuditHistory, meta: { auth: true, admin: true } },
+    { path: '/admin/users', component: Users, meta: { auth: true, admin: true } },
     { path: '/settings', component: Settings, meta: { auth: true } },
   ],
 })
