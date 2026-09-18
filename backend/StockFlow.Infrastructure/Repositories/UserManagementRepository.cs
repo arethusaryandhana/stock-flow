@@ -46,8 +46,9 @@ public sealed class UserManagementRepository(StockFlowDbContext db) : IUserManag
 
     public async Task<IReadOnlyList<RoleOptionResponse>> GetRolesAsync(CancellationToken cancellationToken = default) =>
         await db.Roles.AsNoTracking()
-            .Where(role => role.Name == "Admin" || role.Name == "Manager" || role.Name == "Staff")
-            .OrderBy(role => role.Name == "Admin" ? 0 : role.Name == "Manager" ? 1 : 2)
+            .Where(role => role.IsActive)
+            .OrderBy(role => role.Name == "Admin" ? 0 : role.Name == "Manager" ? 1 : role.Name == "Staff" ? 2 : 3)
+            .ThenBy(role => role.Name)
             .Select(role => new RoleOptionResponse(role.Name))
             .ToListAsync(cancellationToken);
 
@@ -55,7 +56,7 @@ public sealed class UserManagementRepository(StockFlowDbContext db) : IUserManag
         db.UsersSet.Include(user => user.Role).SingleOrDefaultAsync(user => user.Id == id, cancellationToken);
 
     public Task<Role?> FindRoleAsync(string name, CancellationToken cancellationToken = default) =>
-        db.Roles.SingleOrDefaultAsync(role => role.Name == name, cancellationToken);
+        db.Roles.SingleOrDefaultAsync(role => role.Name == name && role.IsActive, cancellationToken);
 
     public Task<bool> ExistsByEmailAsync(string email, Guid? exceptId = null, CancellationToken cancellationToken = default) =>
         db.UsersSet.AnyAsync(user => user.Email == email && (!exceptId.HasValue || user.Id != exceptId.Value), cancellationToken);

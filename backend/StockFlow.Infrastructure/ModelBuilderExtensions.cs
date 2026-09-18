@@ -18,6 +18,8 @@ internal static class ModelBuilderExtensions
     private static void ConfigureTables(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Role>().ToTable("roles", StockFlowDbContext.Schemas.Identity);
+        modelBuilder.Entity<Permission>().ToTable("permissions", StockFlowDbContext.Schemas.Identity);
+        modelBuilder.Entity<RolePermission>().ToTable("role_permissions", StockFlowDbContext.Schemas.Identity);
         modelBuilder.Entity<User>().ToTable("users", StockFlowDbContext.Schemas.Identity);
         modelBuilder.Entity<PasswordResetToken>().ToTable("password_reset_tokens", StockFlowDbContext.Schemas.Identity);
         modelBuilder.Entity<Notification>().ToTable("notifications", StockFlowDbContext.Schemas.Identity);
@@ -47,6 +49,8 @@ internal static class ModelBuilderExtensions
     private static void ConfigureIndexes(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Role>().HasIndex(entity => entity.Name).IsUnique();
+        modelBuilder.Entity<RolePermission>().HasKey(entity => new { entity.RoleId, entity.PermissionCode });
+        modelBuilder.Entity<RolePermission>().HasIndex(entity => entity.PermissionCode);
         modelBuilder.Entity<Category>().HasIndex(entity => entity.Name).IsUnique();
         modelBuilder.Entity<Product>().HasIndex(entity => entity.Sku).IsUnique();
         modelBuilder.Entity<Product>().HasIndex(entity => new { entity.CategoryId, entity.IsActive });
@@ -90,6 +94,17 @@ internal static class ModelBuilderExtensions
 
     private static void ConfigureRelationships(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<RolePermission>()
+            .HasOne(entity => entity.Role)
+            .WithMany(role => role.Permissions)
+            .HasForeignKey(entity => entity.RoleId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RolePermission>()
+            .HasOne(entity => entity.Permission)
+            .WithMany(permission => permission.Roles)
+            .HasForeignKey(entity => entity.PermissionCode)
+            .OnDelete(DeleteBehavior.Restrict);
+
         modelBuilder.Entity<PurchaseOrderItem>()
             .HasOne(entity => entity.PurchaseOrder)
             .WithMany(order => order.Items)
@@ -192,6 +207,10 @@ internal static class ModelBuilderExtensions
     private static void ConfigureDataRules(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Role>().Property(entity => entity.Name).HasMaxLength(64);
+        modelBuilder.Entity<Permission>().HasKey(entity => entity.Code);
+        modelBuilder.Entity<Permission>().Property(entity => entity.Code).HasMaxLength(96);
+        modelBuilder.Entity<Permission>().Property(entity => entity.Group).HasMaxLength(64);
+        modelBuilder.Entity<Permission>().Property(entity => entity.Name).HasMaxLength(120);
 
         modelBuilder.Entity<User>().Property(entity => entity.Email).HasMaxLength(254);
         modelBuilder.Entity<User>().Property(entity => entity.FullName).HasMaxLength(160);

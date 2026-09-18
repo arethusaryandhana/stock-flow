@@ -15,7 +15,7 @@ public static class SeedData
             if (roles.ContainsKey(roleName))
                 continue;
 
-            var role = new Role { Name = roleName };
+            var role = new Role { Name = roleName, IsSystem = true };
             roles.Add(roleName, role);
             db.Roles.Add(role);
         }
