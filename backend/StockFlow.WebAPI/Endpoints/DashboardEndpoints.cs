@@ -8,7 +8,7 @@ public sealed class DashboardEndpoints : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/dashboard")
-            .RequireAuthorization()
+            .RequireAuthorization("menu.dashboard")
             .WithTags("Dashboard");
 
         group.MapGet("/", GetAsync)

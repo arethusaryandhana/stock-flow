@@ -4,6 +4,8 @@ public sealed record LoginResponse(string Token, string FullName, string Email, 
 
 public sealed record SessionResponse(string FullName, string Email, string Role);
 
+public sealed record UserAccessResponse(string Role, IReadOnlyList<string> Permissions);
+
 public sealed record PasswordResetRequestResponse(string Message, string? ResetToken = null);
 
 public sealed record MessageResponse(string Message);

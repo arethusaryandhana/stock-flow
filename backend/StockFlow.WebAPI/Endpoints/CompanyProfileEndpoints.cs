@@ -14,7 +14,7 @@ public sealed class CompanyProfileEndpoints : IEndpoint
 
         group.MapGet("/", GetAsync).Produces<CompanyProfileResponse>(StatusCodes.Status200OK);
         group.MapPut("/", UpdateAsync)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
+            .RequireAuthorization("menu.settings", "action.company.manage")
             .Produces<CompanyProfileResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest);
     }

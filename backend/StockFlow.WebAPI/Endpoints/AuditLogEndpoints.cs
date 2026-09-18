@@ -10,7 +10,7 @@ public sealed class AuditLogEndpoints : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         app.MapGet("/api/audit-logs", GetAllAsync)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
+            .RequireAuthorization("menu.audit", "action.audit.view")
             .WithTags("Audit")
             .Produces<PagedResponse<AuditLogResponse>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized)

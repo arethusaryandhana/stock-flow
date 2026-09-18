@@ -11,7 +11,7 @@ public sealed class ReportEndpoints : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         var reports = app.MapGroup("/api/report-exports")
-            .RequireAuthorization()
+            .RequireAuthorization("menu.reports")
             .WithTags("Reports");
 
         reports.MapGet("/", GetAllAsync)
@@ -19,6 +19,7 @@ public sealed class ReportEndpoints : IEndpoint
             .Produces(StatusCodes.Status401Unauthorized);
 
         reports.MapPost("/", RequestAsync)
+            .RequireAuthorization("action.reports.export")
             .Produces<ReportExportResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)

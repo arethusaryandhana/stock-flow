@@ -10,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using StockFlow.Application.Abstractions.Services;
 using StockFlow.Infrastructure;
+using StockFlow.WebAPI;
 using StockFlow.WebAPI.Endpoints;
 
 Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateLogger();
@@ -87,7 +88,7 @@ builder.Services
 
                 var db = context.HttpContext.RequestServices.GetRequiredService<StockFlowDbContext>();
                 var sessionIsValid = await db.UsersSet.AsNoTracking().AnyAsync(
-                    user => user.Id == userId && user.IsActive && user.TokenVersion == tokenVersion,
+                    user => user.Id == userId && user.IsActive && user.Role.IsActive && user.TokenVersion == tokenVersion,
                     context.HttpContext.RequestAborted);
 
                 if (!sessionIsValid)
@@ -111,6 +112,7 @@ builder.Services
     });
 builder.Services.AddAuthorization(options =>
 {
+    PermissionPolicies.Register(options);
     // Fail closed: every endpoint requires an authenticated user unless it is
     // deliberately marked with AllowAnonymous. This protects future endpoints
     // even when a developer forgets to add RequireAuthorization explicitly.
@@ -118,6 +120,7 @@ builder.Services.AddAuthorization(options =>
         .RequireAuthenticatedUser()
         .Build();
 });
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
 var app = builder.Build();
 

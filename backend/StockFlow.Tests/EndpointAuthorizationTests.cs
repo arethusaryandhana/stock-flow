@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using StockFlow.Infrastructure;
+using StockFlow.WebAPI;
 using StockFlow.WebAPI.Endpoints;
 
 namespace StockFlow.Tests;
@@ -59,6 +60,46 @@ public sealed class EndpointAuthorizationTests
     public void AnonymousRouteAllowlist_ContainsEveryAndOnlyPublicApiRoute()
     {
         Assert.Equal(3, AnonymousRoutes.Count);
+    }
+
+    [Fact]
+    public async Task EndpointPoliciesAreRegisteredAndDoNotUseStaleRoleClaims()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Configuration["ConnectionStrings:Database"] =
+            "Host=localhost;Database=stockflow_endpoint_metadata_tests;Username=unused;Password=unused";
+        builder.Services.AddInfrastructure(builder.Configuration);
+        builder.Services.AddAuthorization(PermissionPolicies.Register);
+        builder.Services.AddStockFlowEndpoints();
+
+        await using var app = builder.Build();
+        app.MapStockFlowEndpoints();
+        var policyProvider = app.Services.GetRequiredService<IAuthorizationPolicyProvider>();
+
+        var endpoints = ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/api/", StringComparison.Ordinal) == true);
+
+        foreach (var endpoint in endpoints)
+        {
+            var route = endpoint.RoutePattern.RawText!;
+            var method = endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.SingleOrDefault();
+            var isUniversalAccountRoute = route.StartsWith("/api/auth/", StringComparison.Ordinal) ||
+                route.StartsWith("/api/notifications", StringComparison.Ordinal) ||
+                (route.TrimEnd('/') == "/api/company-profile" && method == "GET");
+            var authorizations = endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>();
+            if (!isUniversalAccountRoute)
+                Assert.True(authorizations.Any(authorization => authorization.Policy is not null),
+                    $"{method} {route} requires a feature permission.");
+
+            foreach (var authorization in authorizations)
+            {
+                Assert.Null(authorization.Roles);
+                if (authorization.Policy is not null)
+                    Assert.NotNull(await policyProvider.GetPolicyAsync(authorization.Policy));
+            }
+        }
     }
 
     [Theory]

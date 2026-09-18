@@ -11,7 +11,7 @@ public sealed class UserManagementEndpoints : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/users")
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
+            .RequireAuthorization("menu.users", "action.users.manage")
             .WithTags("Users");
         group.MapGet("/", GetAllAsync).Produces<PagedResponse<ManagedUserResponse>>(StatusCodes.Status200OK);
         group.MapGet("/roles", GetRolesAsync).Produces<IReadOnlyList<RoleOptionResponse>>(StatusCodes.Status200OK);

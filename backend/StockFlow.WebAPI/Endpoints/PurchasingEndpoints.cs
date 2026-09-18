@@ -9,7 +9,7 @@ namespace StockFlow.WebAPI.Endpoints;
 
 public sealed class PurchasingEndpoints : IEndpoint
 {
-    private const string ManagePurchasingPolicy = "Admin,Manager";
+    private static readonly string[] ManagePurchasingPolicies = ["menu.purchase-orders", "action.purchasing.manage"];
 
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
@@ -18,20 +18,22 @@ public sealed class PurchasingEndpoints : IEndpoint
             .WithTags("Purchasing");
 
         purchaseOrders.MapGet("/", GetPurchaseOrdersAsync)
+            .RequireAuthorization(PermissionPolicies.PurchaseOrdersRead)
             .Produces<PurchaseOrderPageResponse>(StatusCodes.Status200OK);
 
         purchaseOrders.MapGet("/{id:guid}", GetPurchaseOrderAsync)
+            .RequireAuthorization(PermissionPolicies.PurchaseOrdersRead)
             .Produces<PurchaseOrderResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
 
         purchaseOrders.MapPost("/", CreatePurchaseOrderAsync)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = ManagePurchasingPolicy })
+            .RequireAuthorization(ManagePurchasingPolicies)
             .Produces<PurchaseOrderResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
 
         purchaseOrders.MapPatch("/{id:guid}/status", UpdateStatusAsync)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = ManagePurchasingPolicy })
+            .RequireAuthorization(ManagePurchasingPolicies)
             .Produces<PurchaseOrderResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
@@ -41,10 +43,11 @@ public sealed class PurchasingEndpoints : IEndpoint
             .WithTags("Purchasing");
 
         goodsReceipts.MapGet("/", GetGoodsReceiptsAsync)
+            .RequireAuthorization(PermissionPolicies.GoodsReceiptsRead)
             .Produces<PagedResponse<GoodsReceiptResponse>>(StatusCodes.Status200OK);
 
         goodsReceipts.MapPost("/", CreateGoodsReceiptAsync)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = ManagePurchasingPolicy })
+            .RequireAuthorization("menu.receiving", "action.receiving.manage")
             .Produces<GoodsReceiptResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);

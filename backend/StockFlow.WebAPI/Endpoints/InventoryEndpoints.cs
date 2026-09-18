@@ -16,6 +16,7 @@ public sealed class InventoryEndpoints : IEndpoint
             .WithTags("Inventory");
 
         movements.MapGet("/", GetMovementsAsync)
+            .RequireAuthorization(PermissionPolicies.MovementsRead)
             .Produces<StockMovementPageResponse>(StatusCodes.Status200OK);
 
         var adjustments = app.MapGroup("/api/stock-adjustments")
@@ -23,10 +24,11 @@ public sealed class InventoryEndpoints : IEndpoint
             .WithTags("Inventory");
 
         adjustments.MapGet("/", GetAdjustmentsAsync)
+            .RequireAuthorization("menu.adjustments")
             .Produces<PagedResponse<StockAdjustmentResponse>>(StatusCodes.Status200OK);
 
         adjustments.MapPost("/", CreateAdjustmentAsync)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin,Manager" })
+            .RequireAuthorization("menu.adjustments", "action.inventory.adjust")
             .Produces<StockAdjustmentResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);

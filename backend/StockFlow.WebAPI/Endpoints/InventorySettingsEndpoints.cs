@@ -9,7 +9,7 @@ public sealed class InventorySettingsEndpoints : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/inventory-settings")
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
+            .RequireAuthorization("menu.settings", "action.inventory.settings")
             .WithTags("Inventory Settings");
 
         group.MapGet("/", GetAsync)

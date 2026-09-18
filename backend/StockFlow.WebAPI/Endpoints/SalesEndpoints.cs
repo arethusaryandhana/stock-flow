@@ -9,7 +9,7 @@ namespace StockFlow.WebAPI.Endpoints;
 
 public sealed class SalesEndpoints : IEndpoint
 {
-    private const string ManageSalesPolicy = "Admin,Manager";
+    private static readonly string[] ManageSalesPolicies = ["menu.sales-orders", "action.sales.manage"];
 
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
@@ -18,20 +18,22 @@ public sealed class SalesEndpoints : IEndpoint
             .WithTags("Sales");
 
         salesOrders.MapGet("/", GetSalesOrdersAsync)
+            .RequireAuthorization("menu.sales-orders")
             .Produces<SalesOrderPageResponse>(StatusCodes.Status200OK);
 
         salesOrders.MapGet("/{id:guid}", GetSalesOrderAsync)
+            .RequireAuthorization("menu.sales-orders")
             .Produces<SalesOrderResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
 
         salesOrders.MapPost("/", CreateSalesOrderAsync)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = ManageSalesPolicy })
+            .RequireAuthorization(ManageSalesPolicies)
             .Produces<SalesOrderResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
 
         salesOrders.MapPatch("/{id:guid}/status", UpdateStatusAsync)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = ManageSalesPolicy })
+            .RequireAuthorization(ManageSalesPolicies)
             .Produces<SalesOrderResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);

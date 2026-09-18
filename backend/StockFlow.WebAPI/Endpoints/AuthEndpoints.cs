@@ -1,4 +1,7 @@
 using StockFlow.Application.Abstractions.UseCases;
+using StockFlow.Application.Abstractions.Services;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 using StockFlow.Application.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.RateLimiting;
@@ -60,6 +63,11 @@ public sealed class AuthEndpoints : IEndpoint
             .RequireAuthorization()
             .Produces<SessionResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized);
+
+        group.MapGet("/access", GetAccessAsync)
+            .RequireAuthorization()
+            .Produces<UserAccessResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized);
     }
 
     private static async Task<IResult> LoginAsync(
@@ -109,4 +117,21 @@ public sealed class AuthEndpoints : IEndpoint
         IAuthUseCase useCase,
         CancellationToken cancellationToken) =>
         (await useCase.GetProfileAsync(cancellationToken)).ToHttpResult();
+
+    private static async Task<IResult> GetAccessAsync(
+        HttpContext context,
+        IUserAccessReader access,
+        CancellationToken cancellationToken)
+    {
+        var rawUserId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? context.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        if (!Guid.TryParse(rawUserId, out var userId))
+            return Results.Unauthorized();
+
+        var snapshot = await access.GetAsync(userId, cancellationToken);
+        return snapshot is null
+            ? Results.Unauthorized()
+            : Results.Ok(new UserAccessResponse(snapshot.Role,
+                snapshot.Permissions.OrderBy(code => code, StringComparer.Ordinal).ToArray()));
+    }
 }

@@ -63,6 +63,43 @@ public sealed class UserManagementUseCaseTests
         Assert.Equal(0, users.SaveCalls);
     }
 
+    [Fact]
+    public async Task Update_ChangingRoleInvalidatesExistingSessions()
+    {
+        var target = CreateUser("Manager", "manager@stockflow.local", "Manager");
+        var users = new StubUserManagementRepository(target);
+        var useCase = new UserManagementUseCase(users, new StubPasswordService());
+
+        var result = await useCase.UpdateAsync(
+            target.Id,
+            new ManagedUserRequest(target.FullName, target.Email, null, "Staff", true),
+            Guid.NewGuid(),
+            CancellationToken.None);
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal("Staff", target.Role.Name);
+        Assert.Equal(1, target.TokenVersion);
+    }
+
+    [Fact]
+    public async Task Update_ReactivatingAccountDoesNotRestoreOldSessions()
+    {
+        var target = CreateUser("Staff", "staff@stockflow.local", "Staff");
+        target.IsActive = false;
+        var users = new StubUserManagementRepository(target);
+        var useCase = new UserManagementUseCase(users, new StubPasswordService());
+
+        var result = await useCase.UpdateAsync(
+            target.Id,
+            new ManagedUserRequest(target.FullName, target.Email, null, "Staff", true),
+            Guid.NewGuid(),
+            CancellationToken.None);
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.True(target.IsActive);
+        Assert.Equal(1, target.TokenVersion);
+    }
+
     private static User CreateUser(string name, string email, string roleName) => new()
     {
         FullName = name,

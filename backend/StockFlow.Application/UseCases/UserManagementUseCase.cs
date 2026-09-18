@@ -80,6 +80,8 @@ public sealed class UserManagementUseCase(
 
         user.FullName = normalized.FullName;
         user.Email = normalized.Email;
+        if (user.RoleId != role.Id || user.IsActive != normalized.IsActive)
+            user.TokenVersion++;
         user.IsActive = normalized.IsActive;
         user.RoleId = role.Id;
         user.Role = role;

@@ -14,26 +14,27 @@ public sealed class SupplierEndpoints : IEndpoint
             .WithTags("Suppliers");
 
         group.MapGet("/", GetAllAsync)
+            .RequireAuthorization(PermissionPolicies.SuppliersRead)
             .Produces<PagedResponse<SupplierResponse>>(StatusCodes.Status200OK);
 
         group.MapPost("/", CreateAsync)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
+            .RequireAuthorization("menu.master.suppliers", "action.suppliers.manage")
             .Produces<SupplierResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest);
 
         group.MapPut("/{id:guid}", UpdateAsync)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
+            .RequireAuthorization("menu.master.suppliers", "action.suppliers.manage")
             .Produces<SupplierResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
 
         group.MapPatch("/{id:guid}/active", SetActiveAsync)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
+            .RequireAuthorization("menu.master.suppliers", "action.suppliers.manage")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound);
 
         group.MapDelete("/{id:guid}", DeleteAsync)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" })
+            .RequireAuthorization("menu.master.suppliers", "action.suppliers.manage")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound);
     }

@@ -12,7 +12,7 @@ public sealed class UserRepository(StockFlowDbContext db) : IUserRepository
     {
         return db.UsersSet
             .Include(user => user.Role)
-            .SingleOrDefaultAsync(user => user.Email == email && user.IsActive, cancellationToken);
+            .SingleOrDefaultAsync(user => user.Email == email && user.IsActive && user.Role.IsActive, cancellationToken);
     }
 
     public Task<User?> GetActiveByIdAsync(
@@ -20,7 +20,7 @@ public sealed class UserRepository(StockFlowDbContext db) : IUserRepository
         CancellationToken cancellationToken = default) =>
         db.UsersSet
             .Include(user => user.Role)
-            .SingleOrDefaultAsync(user => user.Id == id && user.IsActive, cancellationToken);
+            .SingleOrDefaultAsync(user => user.Id == id && user.IsActive && user.Role.IsActive, cancellationToken);
 
     public Task<bool> EmailExistsForOtherUserAsync(
         string email,

@@ -16,8 +16,8 @@ public sealed class PermissionCatalogTests
             Assert.False(string.IsNullOrWhiteSpace(permission.Name));
             Assert.True(permission.Code.Length <= 96);
         });
-        Assert.Equal(16, permissions.Count(permission => permission.Kind == PermissionKind.Menu));
-        Assert.Equal(13, permissions.Count(permission => permission.Kind == PermissionKind.Action));
+        Assert.Equal(18, permissions.Count(permission => permission.Kind == PermissionKind.Menu));
+        Assert.Equal(15, permissions.Count(permission => permission.Kind == PermissionKind.Action));
     }
 
     [Fact]
@@ -31,9 +31,17 @@ public sealed class PermissionCatalogTests
         Assert.Contains("menu.users", admin);
         Assert.Contains("action.users.manage", admin);
         Assert.Contains("action.purchasing.manage", manager);
+        Assert.Contains("action.receiving.manage", manager);
+        Assert.Contains("action.sales.manage", manager);
+        Assert.Contains("action.inventory.adjust", manager);
         Assert.DoesNotContain("action.users.manage", manager);
+        Assert.DoesNotContain("menu.master.products", manager);
         Assert.Contains("menu.purchase-orders", staff);
+        Assert.Contains("menu.sales-orders", staff);
+        Assert.Contains("menu.reports", staff);
         Assert.DoesNotContain("action.purchasing.manage", staff);
+        Assert.DoesNotContain("action.inventory.adjust", staff);
+        Assert.DoesNotContain("menu.users", staff);
         Assert.Empty(PermissionCatalog.DefaultsFor("Custom"));
     }
 }
