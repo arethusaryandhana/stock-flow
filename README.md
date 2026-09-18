@@ -23,17 +23,18 @@ Demo login: `admin@stockflow.local` / `StockFlow123!`
 - PostgreSQL EF Core model with foreign keys, safe delete behaviors, indexes, and seed data
 - Bearer JWT authentication, server-side session revocation, role authorization, auth rate limiting, correlation IDs, structured logging, exception handling, CORS, health checks
 - Fail-closed authorization: every endpoint requires authentication by default, with only login and password-recovery routes explicitly anonymous
-- Dashboard and product/category/supplier/customer APIs, including Admin-only master-data CRUD (soft delete)
-- Responsive Vue 3 + TypeScript + Tailwind shell, login, actionable dashboard, product inventory table, operational purchasing and sales screens, plus separate Admin-only master-data menus
+- Dashboard and product/category/supplier/customer APIs, including permission-controlled master-data CRUD (soft delete)
+- Responsive Vue 3 + TypeScript + Tailwind shell, login, actionable dashboard, product inventory table, operational purchasing and sales screens, plus permission-driven menus
 - Purchase order lifecycle APIs (Draft, Submitted, Approved, Received, Cancelled) with paginated search/filtering and atomic goods receipt updates for inventory and movement audit
 - Sales order lifecycle APIs (Draft, Confirmed, Processing, Completed, Cancelled) with paginated search/filtering and atomic stock deduction on completion
 - Report page and authenticated request/status/download APIs backed by an idle-friendly worker and PostgreSQL `FOR UPDATE SKIP LOCKED` queue claims
 - Per-user notification center with unread state, ownership checks, report-ready events, deduplicated low-stock alerts, and account-synced delivery/category/sound/refresh preferences
 - Account and security settings for profile updates, password changes, role visibility, and server-side revocation of every active session
 - Display and regional settings for language, theme, time zone, date and number formats, and a shared default table page size
-- Admin-only inventory settings for product defaults, effective global low-stock warnings, and optional negative-stock transactions
-- Admin-only company profile for business identity, contacts, primary currency, and report/document branding
-- Admin-only user management for account creation, role assignment, active status, password reset, and last-admin protection
+- Permission-controlled inventory settings for product defaults, effective global low-stock warnings, and optional negative-stock transactions
+- Permission-controlled company profile for business identity, contacts, primary currency, and report/document branding
+- User management for account creation, role assignment, active status, password reset, and last-admin protection
+- Role management and menu/action access matrix with protected built-in roles and database-backed authorization
 - Immutable Admin audit history for business entities, including actor and safe before/after field values without authentication secrets
 - Database constraints and row locking for concurrent inventory adjustments, goods receipts, and sales completion
 - Automated unit/integration tests and GitHub Actions CI for backend, PostgreSQL concurrency, and frontend builds

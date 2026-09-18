@@ -38,7 +38,7 @@ const { t } = useI18n()
 const auth = useAuthStore()
 const { settings: inventorySettings, loadSettings: loadInventorySettings } = useInventorySettings()
 const toast = useToastStore()
-const canManage = computed(() => auth.isAdmin)
+const canManage = computed(() => auth.can('action.products.manage'))
 watch(openMenu, (value) => { if (value && !canManage.value) openMenu.value = '' })
 
 const money = (value: number) => displayPreferences.formatNumber(value, { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
@@ -72,7 +72,7 @@ async function load() {
       countResponses[2],
       countResponses[3],
       api.get<PagedResponse<Category>>('/categories', { params: { page: 1, pageSize: 100 } }),
-      canManage.value ? loadInventorySettings() : Promise.resolve(null),
+      auth.can('action.inventory.settings') ? loadInventorySettings() : Promise.resolve(null),
     ])
     items.value = productsResponse.data.items
     page.value = productsResponse.data.page

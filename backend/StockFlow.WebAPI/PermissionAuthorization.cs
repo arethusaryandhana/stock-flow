@@ -15,6 +15,7 @@ public static class PermissionPolicies
     public const string CustomersRead = "read.customers";
     public const string PurchaseOrdersRead = "read.purchase-orders";
     public const string GoodsReceiptsRead = "read.receiving";
+    public const string RolesRead = "read.roles";
 
     private static readonly IReadOnlyDictionary<string, string[]> ReadAlternatives =
         new Dictionary<string, string[]>
@@ -25,7 +26,8 @@ public static class PermissionPolicies
             [SuppliersRead] = ["menu.master.suppliers", "menu.suppliers", "menu.purchase-orders", "menu.receiving"],
             [CustomersRead] = ["menu.master.customers", "menu.sales-orders"],
             [PurchaseOrdersRead] = ["menu.purchase-orders", "menu.receiving"],
-            [GoodsReceiptsRead] = ["menu.receiving", "menu.purchase-orders"]
+            [GoodsReceiptsRead] = ["menu.receiving", "menu.purchase-orders"],
+            [RolesRead] = ["menu.roles", "menu.access"]
         };
 
     public static void Register(AuthorizationOptions options)

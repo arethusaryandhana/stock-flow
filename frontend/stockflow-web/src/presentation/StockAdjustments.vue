@@ -5,6 +5,7 @@ import type { PagedResponse } from '../infrastructure/api'
 import { useI18n } from '../i18n'
 import { useDisplayPreferences } from '../preferences'
 import { useToastStore } from '../stores/toast'
+import { useAuthStore } from '../stores/auth'
 import PaginationControls from '../components/PaginationControls.vue'
 import FormattedNumberInput from '../components/FormattedNumberInput.vue'
 
@@ -27,6 +28,8 @@ const totalCount = ref(0)
 const totalPages = ref(0)
 const { t } = useI18n()
 const toast = useToastStore()
+const auth = useAuthStore()
+const canAdjust = computed(() => auth.can('action.inventory.adjust'))
 const activeProducts = computed(() => products.value.filter((product) => product.isActive))
 const selectedProduct = computed(() => products.value.find((product) => product.id === form.value.productId))
 const quantityDelta = computed(() => parseQuantity(form.value.quantityDelta))
@@ -74,6 +77,7 @@ function setDirection(direction: 'in' | 'out') {
   form.value.quantityDelta = `${direction === 'in' ? '' : '-'}${formatQuantityInput(magnitude)}`
 }
 async function submit() {
+  if (!canAdjust.value) return
   formError.value = ''
   if (quantityDelta.value === null) { formError.value = t('adjustments.invalidChange'); return }
   if (newBalance.value < 0) { formError.value = t('adjustments.invalidBalance'); return }
@@ -118,7 +122,7 @@ onMounted(load)
     <div class="page-heading"><div><p class="eyebrow">{{ t('adjustments.eyebrow') }}</p><h1>{{ t('adjustments.title') }}</h1><p class="subtitle">{{ t('adjustments.subtitle') }}</p></div><div class="header-actions"><button class="secondary" type="button" @click="exportCsv">{{ t('common.exportCsv') }}</button></div></div>
     <p v-if="error" class="alert error-banner">{{ error }}</p>
 
-    <section class="surface-card form-panel">
+    <section v-if="canAdjust" class="surface-card form-panel">
       <div class="surface-card-head"><div><h2>{{ t('adjustments.newTitle') }}</h2><p>{{ t('adjustments.newDescription') }}</p></div><span class="badge neutral">{{ t('adjustments.auditActive') }}</span></div>
       <form class="adjustment-grid" @submit.prevent="submit">
         <label class="field-label">{{ t('adjustments.product') }}<select v-model="form.productId" required :disabled="loading || !activeProducts.length"><option v-for="product in activeProducts" :key="product.id" :value="product.id">{{ product.name }} · {{ product.sku }}</option></select></label>

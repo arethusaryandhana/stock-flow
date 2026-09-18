@@ -65,7 +65,7 @@ const form = reactive(emptyForm())
 const entityKey = computed(() => props.entity === 'categories' ? 'master.categoryEntity' : props.entity === 'products' ? 'master.productEntity' : props.entity === 'suppliers' ? 'master.supplierEntity' : 'master.customerEntity')
 const entityLabel = computed(() => t(entityKey.value))
 const endpoint = computed(() => `/${props.entity}`)
-const canManage = computed(() => auth.isAdmin)
+const canManage = computed(() => auth.can(`action.${props.entity}.manage`))
 const filtered = computed(() => items.value)
 const categoryItems = computed(() => filtered.value as Category[])
 const productItems = computed(() => filtered.value as Product[])
@@ -76,11 +76,6 @@ const money = (value: number) => displayPreferences.formatNumber(value, { style:
 const shortName = (value: string) => value.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase()
 
 async function load() {
-  if (!canManage.value) {
-    loading.value = false
-    return
-  }
-
   loading.value = true
   error.value = ''
   try {
@@ -214,18 +209,14 @@ watch(() => props.entity, () => {
 </script>
 
 <template>
-  <div v-if="!canManage" class="page">
-    <section class="surface-card empty access-denied"><strong>{{ t('master.accessDenied') }}</strong></section>
-  </div>
-
-  <div v-else class="page">
+  <div class="page">
     <div class="page-heading">
       <div>
         <p class="eyebrow">{{ t('master.eyebrow') }}</p>
         <h1>{{ entityLabel }}</h1>
         <p class="subtitle">{{ t('master.subtitle') }}</p>
       </div>
-      <button class="primary" type="button" @click="openCreate"><span class="button-plus">+</span> {{ t('master.add') }} {{ entityLabel }}</button>
+      <button v-if="canManage" class="primary" type="button" @click="openCreate"><span class="button-plus">+</span> {{ t('master.add') }} {{ entityLabel }}</button>
     </div>
 
     <p v-if="error" class="alert error-banner">{{ error }}</p>
@@ -236,11 +227,11 @@ watch(() => props.entity, () => {
       <div v-if="loading" class="empty">{{ t('master.loading') }}</div>
       <div v-else-if="!filtered.length" class="empty">{{ t('master.empty') }}</div>
 
-      <div v-else-if="props.entity === 'categories'" class="table-wrap"><table><thead><tr><th>{{ t('master.name') }}</th><th>{{ t('master.description') }}</th><th>{{ t('master.status') }}</th><th><span class="sr-only">{{ t('master.edit') }}</span></th></tr></thead><tbody><tr v-for="item in categoryItems" :key="item.id"><td><div class="product-cell"><span class="product-avatar">{{ shortName(item.name) }}</span><strong>{{ item.name }}</strong></div></td><td>{{ item.description || '—' }}</td><td><span class="badge" :class="item.isActive ? 'ok' : 'neutral'">{{ item.isActive ? t('master.active') : t('master.inactive') }}</span></td><td><div class="master-actions"><button type="button" @click="openEdit(item)">{{ t('master.edit') }}</button><button type="button" @click="toggleActive(item)">{{ item.isActive ? t('master.deactivate') : t('master.activate') }}</button><button type="button" @click="remove(item)">{{ t('master.delete') }}</button></div></td></tr></tbody></table></div>
+      <div v-else-if="props.entity === 'categories'" class="table-wrap"><table><thead><tr><th>{{ t('master.name') }}</th><th>{{ t('master.description') }}</th><th>{{ t('master.status') }}</th><th v-if="canManage"><span class="sr-only">{{ t('master.edit') }}</span></th></tr></thead><tbody><tr v-for="item in categoryItems" :key="item.id"><td><div class="product-cell"><span class="product-avatar">{{ shortName(item.name) }}</span><strong>{{ item.name }}</strong></div></td><td>{{ item.description || '—' }}</td><td><span class="badge" :class="item.isActive ? 'ok' : 'neutral'">{{ item.isActive ? t('master.active') : t('master.inactive') }}</span></td><td v-if="canManage"><div class="master-actions"><button type="button" @click="openEdit(item)">{{ t('master.edit') }}</button><button type="button" @click="toggleActive(item)">{{ item.isActive ? t('master.deactivate') : t('master.activate') }}</button><button type="button" @click="remove(item)">{{ t('master.delete') }}</button></div></td></tr></tbody></table></div>
 
-      <div v-else-if="props.entity === 'products'" class="table-wrap"><table><thead><tr><th>{{ t('master.sku') }} / {{ t('master.name') }}</th><th>{{ t('master.category') }}</th><th>{{ t('master.sellingPrice') }}</th><th>{{ t('master.status') }}</th><th><span class="sr-only">{{ t('master.edit') }}</span></th></tr></thead><tbody><tr v-for="item in productItems" :key="item.id"><td><div class="product-cell"><span class="product-avatar">{{ shortName(item.name) }}</span><span><strong>{{ item.name }}</strong><small>{{ item.sku }}</small></span></div></td><td>{{ item.category }}</td><td class="stock-value">{{ money(item.sellingPrice) }}</td><td><span class="badge" :class="item.isActive ? 'ok' : 'neutral'">{{ item.isActive ? t('master.active') : t('master.inactive') }}</span></td><td><div class="master-actions"><button type="button" @click="openEdit(item)">{{ t('master.edit') }}</button><button type="button" @click="toggleActive(item)">{{ item.isActive ? t('master.deactivate') : t('master.activate') }}</button><button type="button" @click="remove(item)">{{ t('master.delete') }}</button></div></td></tr></tbody></table></div>
+      <div v-else-if="props.entity === 'products'" class="table-wrap"><table><thead><tr><th>{{ t('master.sku') }} / {{ t('master.name') }}</th><th>{{ t('master.category') }}</th><th>{{ t('master.sellingPrice') }}</th><th>{{ t('master.status') }}</th><th v-if="canManage"><span class="sr-only">{{ t('master.edit') }}</span></th></tr></thead><tbody><tr v-for="item in productItems" :key="item.id"><td><div class="product-cell"><span class="product-avatar">{{ shortName(item.name) }}</span><span><strong>{{ item.name }}</strong><small>{{ item.sku }}</small></span></div></td><td>{{ item.category }}</td><td class="stock-value">{{ money(item.sellingPrice) }}</td><td><span class="badge" :class="item.isActive ? 'ok' : 'neutral'">{{ item.isActive ? t('master.active') : t('master.inactive') }}</span></td><td v-if="canManage"><div class="master-actions"><button type="button" @click="openEdit(item)">{{ t('master.edit') }}</button><button type="button" @click="toggleActive(item)">{{ item.isActive ? t('master.deactivate') : t('master.activate') }}</button><button type="button" @click="remove(item)">{{ t('master.delete') }}</button></div></td></tr></tbody></table></div>
 
-      <div v-else class="table-wrap"><table><thead><tr><th>{{ t('master.code') }}</th><th>{{ t('master.name') }}</th><th>{{ t('master.email') }}</th><th>{{ t('master.phone') }}</th><th>{{ t('master.status') }}</th><th><span class="sr-only">{{ t('master.edit') }}</span></th></tr></thead><tbody><tr v-for="item in partnerItems" :key="item.id"><td class="stock-value">{{ item.code }}</td><td><strong>{{ item.name }}</strong><small>{{ item.address || '—' }}</small></td><td>{{ item.email || '—' }}</td><td>{{ item.phone || '—' }}</td><td><span class="badge" :class="item.isActive ? 'ok' : 'neutral'">{{ item.isActive ? t('master.active') : t('master.inactive') }}</span></td><td><div class="master-actions"><button type="button" @click="openEdit(item)">{{ t('master.edit') }}</button><button type="button" @click="toggleActive(item)">{{ item.isActive ? t('master.deactivate') : t('master.activate') }}</button><button type="button" @click="remove(item)">{{ t('master.delete') }}</button></div></td></tr></tbody></table></div>
+      <div v-else class="table-wrap"><table><thead><tr><th>{{ t('master.code') }}</th><th>{{ t('master.name') }}</th><th>{{ t('master.email') }}</th><th>{{ t('master.phone') }}</th><th>{{ t('master.status') }}</th><th v-if="canManage"><span class="sr-only">{{ t('master.edit') }}</span></th></tr></thead><tbody><tr v-for="item in partnerItems" :key="item.id"><td class="stock-value">{{ item.code }}</td><td><strong>{{ item.name }}</strong><small>{{ item.address || '—' }}</small></td><td>{{ item.email || '—' }}</td><td>{{ item.phone || '—' }}</td><td><span class="badge" :class="item.isActive ? 'ok' : 'neutral'">{{ item.isActive ? t('master.active') : t('master.inactive') }}</span></td><td v-if="canManage"><div class="master-actions"><button type="button" @click="openEdit(item)">{{ t('master.edit') }}</button><button type="button" @click="toggleActive(item)">{{ item.isActive ? t('master.deactivate') : t('master.activate') }}</button><button type="button" @click="remove(item)">{{ t('master.delete') }}</button></div></td></tr></tbody></table></div>
 
       <PaginationControls v-if="!loading && filtered.length" :page="page" :page-size="pageSize" :total-count="totalCount" :total-pages="totalPages" @page-change="page = $event" @page-size-change="changePageSize" />
     </section>

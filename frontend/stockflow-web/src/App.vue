@@ -26,53 +26,55 @@ const sessionRedirecting = ref(false)
 const groups = [
   {
     labelKey: 'app.workspace',
-    adminOnly: false,
-    items: [{ labelKey: 'app.dashboard', path: '/', icon: '⌂', badge: '' }],
+    items: [{ labelKey: 'app.dashboard', path: '/', icon: '⌂', badge: '', permission: 'menu.dashboard' }],
   },
   {
     labelKey: 'app.administration',
-    adminOnly: true,
     items: [
-      { labelKey: 'app.masterCategories', path: '/master-data/categories', icon: '◫', badge: '' },
-      { labelKey: 'app.masterProducts', path: '/master-data/products', icon: '▦', badge: '' },
-      { labelKey: 'app.masterSuppliers', path: '/master-data/suppliers', icon: '◎', badge: '' },
-      { labelKey: 'app.masterCustomers', path: '/master-data/customers', icon: '◌', badge: '' },
-      { labelKey: 'app.auditHistory', path: '/admin/audit-history', icon: '≡', badge: '' },
+      { labelKey: 'app.masterCategories', path: '/master-data/categories', icon: '◫', badge: '', permission: 'menu.master.categories' },
+      { labelKey: 'app.masterProducts', path: '/master-data/products', icon: '▦', badge: '', permission: 'menu.master.products' },
+      { labelKey: 'app.masterSuppliers', path: '/master-data/suppliers', icon: '◎', badge: '', permission: 'menu.master.suppliers' },
+      { labelKey: 'app.masterCustomers', path: '/master-data/customers', icon: '◌', badge: '', permission: 'menu.master.customers' },
+      { labelKey: 'app.auditHistory', path: '/admin/audit-history', icon: '≡', badge: '', permission: 'menu.audit' },
     ],
   },
   {
     labelKey: 'app.accessManagement',
-    adminOnly: true,
-    items: [{ labelKey: 'app.users', path: '/admin/users', icon: '♙', badge: '' }],
+    items: [
+      { labelKey: 'app.users', path: '/admin/users', icon: '♙', badge: '', permission: 'menu.users' },
+      { labelKey: 'app.roles', path: '/admin/roles', icon: '◇', badge: '', permission: 'menu.roles' },
+      { labelKey: 'app.menuAccess', path: '/admin/access', icon: '◈', badge: '', permission: 'menu.access' },
+    ],
   },
   {
     labelKey: 'app.inventory',
-    adminOnly: false,
     items: [
-      { labelKey: 'app.products', path: '/products', icon: '▦', badge: '' },
-      { labelKey: 'app.movements', path: '/inventory/movements', icon: '↕', badge: '' },
-      { labelKey: 'app.adjustments', path: '/inventory/adjustments', icon: '△', badge: '' },
+      { labelKey: 'app.products', path: '/products', icon: '▦', badge: '', permission: 'menu.products' },
+      { labelKey: 'app.movements', path: '/inventory/movements', icon: '↕', badge: '', permission: 'menu.movements' },
+      { labelKey: 'app.adjustments', path: '/inventory/adjustments', icon: '△', badge: '', permission: 'menu.adjustments' },
     ],
   },
   {
     labelKey: 'app.operations',
-    adminOnly: false,
     items: [
-      { labelKey: 'app.purchaseOrders', path: '/operations/purchase-orders', icon: '▤', badge: '' },
-      { labelKey: 'app.salesOrders', path: '/operations/sales-orders', icon: '↑', badge: '' },
-      { labelKey: 'app.receiving', path: '/operations/receiving', icon: '↓', badge: '' },
-      { labelKey: 'app.suppliers', path: '/operations/suppliers', icon: '◎', badge: '' },
+      { labelKey: 'app.purchaseOrders', path: '/operations/purchase-orders', icon: '▤', badge: '', permission: 'menu.purchase-orders' },
+      { labelKey: 'app.salesOrders', path: '/operations/sales-orders', icon: '↑', badge: '', permission: 'menu.sales-orders' },
+      { labelKey: 'app.receiving', path: '/operations/receiving', icon: '↓', badge: '', permission: 'menu.receiving' },
+      { labelKey: 'app.suppliers', path: '/operations/suppliers', icon: '◎', badge: '', permission: 'menu.suppliers' },
     ],
   },
   {
     labelKey: 'app.insight',
-    adminOnly: false,
     items: [
-      { labelKey: 'app.reports', path: '/reports', icon: '◷', badge: '' },
-      { labelKey: 'app.settings', path: '/settings', icon: '⚙', badge: '' },
+      { labelKey: 'app.reports', path: '/reports', icon: '◷', badge: '', permission: 'menu.reports' },
+      { labelKey: 'app.settings', path: '/settings', icon: '⚙', badge: '', permission: 'menu.settings' },
     ],
   },
 ]
+const visibleGroups = computed(() => groups.map((group) => ({
+  ...group,
+  items: group.items.filter((item) => auth.can(item.permission)),
+})).filter((group) => group.items.length > 0))
 
 const breadcrumbGroupLabels: Record<string, string> = {
   'app.administration': 'app.masterDataBreadcrumb',
@@ -84,7 +86,7 @@ const breadcrumbGroupLabels: Record<string, string> = {
 
 const breadcrumbs = computed(() => {
   const items = [{ labelKey: 'app.workspaceName', to: '/' }]
-  const group = groups.find((entry) => entry.items.some((item) => item.path === route.path))
+  const group = visibleGroups.value.find((entry) => entry.items.some((item) => item.path === route.path))
   if (!group) return items
 
   const groupHome = group.items[0]
@@ -258,9 +260,8 @@ onBeforeUnmount(() => {
       </button>
 
       <nav class="sidebar-nav" :aria-label="t('app.mainNav')">
-        <template v-for="group in groups" :key="group.labelKey">
+        <template v-for="group in visibleGroups" :key="group.labelKey">
           <section
-            v-if="!group.adminOnly || auth.isAdmin"
             class="nav-group"
             :class="{ 'nav-group-collapsed': !isMenuGroupOpen(group.labelKey) }"
           >

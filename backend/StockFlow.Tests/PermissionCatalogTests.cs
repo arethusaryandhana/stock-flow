@@ -44,4 +44,22 @@ public sealed class PermissionCatalogTests
         Assert.DoesNotContain("menu.users", staff);
         Assert.Empty(PermissionCatalog.DefaultsFor("Custom"));
     }
+
+    [Fact]
+    public void EveryActionRequiresAnExistingMenuAndBuiltInDefaultsIncludeIt()
+    {
+        var codes = PermissionCatalog.All.Select(permission => permission.Code).ToHashSet();
+        var actions = PermissionCatalog.All.Where(permission => permission.Kind == PermissionKind.Action);
+
+        foreach (var action in actions)
+        {
+            Assert.True(PermissionCatalog.RequiredMenuForAction.TryGetValue(action.Code, out var menu));
+            Assert.Contains(menu!, codes);
+            foreach (var role in new[] { "Admin", "Manager", "Staff" })
+            {
+                var defaults = PermissionCatalog.DefaultsFor(role);
+                if (defaults.Contains(action.Code)) Assert.Contains(menu!, defaults);
+            }
+        }
+    }
 }

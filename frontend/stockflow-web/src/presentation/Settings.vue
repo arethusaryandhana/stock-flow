@@ -108,7 +108,8 @@ const enabledNotificationCategories = computed(() => [
   notificationPreferences.value.reportReadyEnabled,
   notificationPreferences.value.systemEnabled,
 ].filter(Boolean).length)
-const isAdmin = computed(() => auth.isAdmin)
+const canInventorySettings = computed(() => auth.can('action.inventory.settings'))
+const canCompanySettings = computed(() => auth.can('action.company.manage'))
 const inventoryDirty = computed(() => {
   const reorder = inventoryDraft.value.defaultReorderLevel.trim()
   const threshold = inventoryDraft.value.globalLowStockThreshold.trim()
@@ -232,7 +233,7 @@ function applyInventorySettings(settings: InventorySettings) {
 }
 
 async function loadInventoryConfiguration() {
-  if (!isAdmin.value) return
+  if (!canInventorySettings.value) return
   inventoryLoading.value = true
   inventoryError.value = ''
   try {
@@ -290,7 +291,7 @@ function applyCompanyProfile(profile: CompanyProfile) {
 }
 
 async function loadCompanyConfiguration() {
-  if (!isAdmin.value) return
+  if (!canCompanySettings.value) return
   companyLoading.value = true
   companyError.value = ''
   try {
@@ -445,13 +446,13 @@ onMounted(async () => {
           </span>
           <span><strong>{{ t('settings.notifications') }}</strong><small>{{ t('settings.notificationsHint') }}</small></span>
         </button>
-        <button v-if="isAdmin" class="settings-nav-item" :class="{ active: activeSection === 'inventory' }" type="button" :aria-current="activeSection === 'inventory' ? 'page' : undefined" @click="activeSection = 'inventory'">
+        <button v-if="canInventorySettings" class="settings-nav-item" :class="{ active: activeSection === 'inventory' }" type="button" :aria-current="activeSection === 'inventory' ? 'page' : undefined" @click="activeSection = 'inventory'">
           <span class="settings-nav-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v13H4z" /><path d="m4 7 3-4h10l3 4M9 11h6" /></svg>
           </span>
           <span><strong>{{ t('settings.inventory') }}</strong><small>{{ t('settings.inventoryHint') }}</small></span>
         </button>
-        <button v-if="isAdmin" class="settings-nav-item" :class="{ active: activeSection === 'company' }" type="button" :aria-current="activeSection === 'company' ? 'page' : undefined" @click="activeSection = 'company'">
+        <button v-if="canCompanySettings" class="settings-nav-item" :class="{ active: activeSection === 'company' }" type="button" :aria-current="activeSection === 'company' ? 'page' : undefined" @click="activeSection = 'company'">
           <span class="settings-nav-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4h11v17M15 9h5v12M8 8h3M8 12h3M8 16h3M18 13h.01M18 17h.01" /></svg>
           </span>
@@ -798,7 +799,7 @@ onMounted(async () => {
         </template>
       </main>
 
-      <main v-else-if="activeSection === 'inventory' && isAdmin" class="settings-content">
+      <main v-else-if="activeSection === 'inventory' && canInventorySettings" class="settings-content">
         <section class="surface-card inventory-summary">
           <div class="inventory-summary-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v13H4z" /><path d="m4 7 3-4h10l3 4M9 11h6" /></svg>
@@ -808,7 +809,6 @@ onMounted(async () => {
             <h2>{{ t('settings.inventorySummaryTitle') }}</h2>
             <p>{{ t('settings.inventorySummaryDescription') }}</p>
           </div>
-          <span class="admin-badge">{{ t('settings.adminOnly') }}</span>
         </section>
 
         <p v-if="inventoryError" class="alert error-banner" role="alert">{{ inventoryError }}</p>
@@ -884,7 +884,7 @@ onMounted(async () => {
         </form>
       </main>
 
-      <main v-else-if="activeSection === 'company' && isAdmin" class="settings-content">
+      <main v-else-if="activeSection === 'company' && canCompanySettings" class="settings-content">
         <section class="surface-card inventory-summary company-summary">
           <div class="inventory-summary-icon company-summary-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4h11v17M15 9h5v12M8 8h3M8 12h3M8 16h3M18 13h.01M18 17h.01" /></svg>
@@ -894,7 +894,6 @@ onMounted(async () => {
             <h2>{{ t('settings.companySummaryTitle') }}</h2>
             <p>{{ t('settings.companySummaryDescription') }}</p>
           </div>
-          <span class="admin-badge">{{ t('settings.adminOnly') }}</span>
         </section>
 
         <p v-if="companyError" class="alert error-banner" role="alert">{{ companyError }}</p>

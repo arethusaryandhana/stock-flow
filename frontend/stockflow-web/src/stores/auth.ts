@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { api, clearAccessToken, getAccessToken, redirectToLoginWithLoading, setAccessToken } from '../infrastructure/api'
 
 type SessionProfile = { fullName: string; email: string; role: string }
+type AccessSnapshot = { role: string; permissions: string[] }
 
 const sessionKeys = ['stockflow_authenticated', 'stockflow_name', 'stockflow_email', 'stockflow_role']
 
@@ -11,15 +12,30 @@ export const useAuthStore = defineStore('auth', {
     name: sessionStorage.getItem('stockflow_name') ?? '',
     email: sessionStorage.getItem('stockflow_email') ?? '',
     role: sessionStorage.getItem('stockflow_role') ?? '',
+    permissions: [] as string[],
   }),
   getters: {
     isAdmin: (state) => state.role.trim().toLowerCase() === 'admin',
+    can: (state) => (code: string) => state.permissions.includes(code),
   },
   actions: {
     async login(email: string, password: string, rememberMe: boolean) {
       const { data } = await api.post<SessionProfile & { token: string }>('/auth/login', { email, password, rememberMe })
       setAccessToken(data.token, rememberMe)
       this.setSession(data)
+      try {
+        await this.refreshAccess()
+      } catch (error) {
+        this.clearSession()
+        throw error
+      }
+    },
+    async refreshAccess() {
+      const { data } = await api.get<AccessSnapshot>('/auth/access')
+      this.role = data.role
+      this.permissions = data.permissions
+      this.authenticated = true
+      sessionStorage.setItem('stockflow_role', data.role)
     },
     setSession(profile: SessionProfile) {
       this.authenticated = true
@@ -38,6 +54,7 @@ export const useAuthStore = defineStore('auth', {
       this.name = ''
       this.email = ''
       this.role = ''
+      this.permissions = []
     },
     async logout() {
       try {

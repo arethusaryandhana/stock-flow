@@ -4,9 +4,12 @@ import PaginationControls from '../components/PaginationControls.vue'
 import { useI18n } from '../i18n'
 import { useDisplayPreferences } from '../preferences'
 import { useToastStore } from '../stores/toast'
+import { useAuthStore } from '../stores/auth'
 import { useUserManagement, type ManagedUser, type ManagedUserRequest } from '../userManagement'
 
 const toast = useToastStore()
+const auth = useAuthStore()
+const canManage = computed(() => auth.can('action.users.manage'))
 const { t } = useI18n()
 const { defaultPageSize, formatDate } = useDisplayPreferences()
 const {
@@ -30,9 +33,10 @@ const editingUserId = ref<string | null>(null)
 const userDraft = ref<ManagedUserRequest>({
   fullName: '', email: '', password: '', role: 'Staff', isActive: true,
 })
-const roleOptions = computed(() => managedRoles.value.length
+const roleOptions = computed(() => (managedRoles.value.length
   ? managedRoles.value
   : [{ name: 'Admin' }, { name: 'Manager' }, { name: 'Staff' }])
+  .filter((role) => auth.isAdmin || role.name !== 'Admin'))
 
 const userEditorTitle = computed(() => editingUserId.value ? t('settings.editUserTitle') : t('settings.addUserTitle'))
 
@@ -77,6 +81,7 @@ async function refreshUsers() {
 }
 
 function openUserEditor(user?: ManagedUser) {
+  if (!canManage.value) return
   editingUserId.value = user?.id ?? null
   userDraft.value = {
     fullName: user?.fullName ?? '',
@@ -95,6 +100,7 @@ function closeUserEditor() {
 }
 
 async function saveUserConfiguration() {
+  if (!canManage.value) return
   usersError.value = ''
   const fullName = userDraft.value.fullName.trim().replace(/\s+/g, ' ')
   const email = userDraft.value.email.trim().toLowerCase()
@@ -163,12 +169,12 @@ onMounted(() => {
             <h2>{{ t('settings.usersSummaryTitle') }}</h2>
             <p>{{ t('settings.usersSummaryDescription') }}</p>
           </div>
-          <button class="primary users-add-button" type="button" @click="openUserEditor()"><span class="button-plus">+</span>{{ t('settings.addUser') }}</button>
+          <button v-if="canManage" class="primary users-add-button" type="button" @click="openUserEditor()"><span class="button-plus">+</span>{{ t('settings.addUser') }}</button>
         </section>
 
         <p v-if="usersError" class="alert error-banner" role="alert">{{ usersError }}</p>
 
-        <section v-if="userEditorOpen" class="surface-card settings-card user-editor-card">
+        <section v-if="userEditorOpen && canManage" class="surface-card settings-card user-editor-card">
           <div class="settings-card-head"><div><h2>{{ userEditorTitle }}</h2><p>{{ editingUserId ? t('settings.editUserDescription') : t('settings.addUserDescription') }}</p></div><button class="ghost-button" type="button" :disabled="usersSaving" @click="closeUserEditor">{{ t('common.cancel') }}</button></div>
           <form class="user-editor-form" :aria-busy="usersSaving" @submit.prevent="saveUserConfiguration">
             <div class="user-fields">
@@ -187,14 +193,10 @@ onMounted(() => {
           <div class="toolbar users-toolbar"><label class="search-input"><span>⌕</span><input v-model="usersSearch" :aria-label="t('settings.userSearchAria')" :placeholder="t('settings.userSearchPlaceholder')" @keyup.enter="changeUsersFilter"></label><div class="toolbar-actions"><select v-model="usersRoleFilter" class="filter-select wide" :aria-label="t('settings.userRoleFilterAria')" @change="changeUsersFilter"><option value="all">{{ t('settings.allRoles') }}</option><option v-for="roleOption in roleOptions" :key="roleOption.name" :value="roleOption.name">{{ roleOption.name }}</option></select><select v-model="usersStatusFilter" class="filter-select wide" :aria-label="t('settings.userStatusFilterAria')" @change="changeUsersFilter"><option value="all">{{ t('settings.allStatuses') }}</option><option value="active">{{ t('settings.active') }}</option><option value="inactive">{{ t('settings.inactive') }}</option></select><button class="secondary" type="button" :disabled="usersLoading" @click="changeUsersFilter">{{ t('settings.applyFilters') }}</button></div></div>
           <div v-if="usersLoading" class="empty">{{ t('settings.loadingUsers') }}</div>
           <div v-else-if="!managedUsers.items.length" class="empty"><strong>{{ t('settings.usersEmptyTitle') }}</strong>{{ t('settings.usersEmptyHint') }}</div>
-          <div v-else class="table-wrap users-table-wrap"><table><thead><tr><th>{{ t('settings.userIdentity') }}</th><th>{{ t('settings.userRole') }}</th><th>{{ t('settings.userStatus') }}</th><th>{{ t('settings.userCreated') }}</th><th>{{ t('settings.userActions') }}</th></tr></thead><tbody><tr v-for="user in managedUsers.items" :key="user.id"><td><strong>{{ user.fullName }}</strong><small>{{ user.email }}</small></td><td><span class="role-pill" :class="`role-${user.role.toLowerCase()}`">{{ user.role }}</span></td><td><span class="badge" :class="user.isActive ? 'ok' : 'neutral'">{{ user.isActive ? t('settings.active') : t('settings.inactive') }}</span></td><td class="date-cell">{{ formatDate(user.createdAt) }}</td><td><button class="secondary compact-action" type="button" @click="openUserEditor(user)">{{ t('settings.editUser') }}</button></td></tr></tbody></table></div>
+          <div v-else class="table-wrap users-table-wrap"><table><thead><tr><th>{{ t('settings.userIdentity') }}</th><th>{{ t('settings.userRole') }}</th><th>{{ t('settings.userStatus') }}</th><th>{{ t('settings.userCreated') }}</th><th v-if="canManage">{{ t('settings.userActions') }}</th></tr></thead><tbody><tr v-for="user in managedUsers.items" :key="user.id"><td><strong>{{ user.fullName }}</strong><small>{{ user.email }}</small></td><td><span class="role-pill" :class="`role-${user.role.toLowerCase()}`">{{ user.role }}</span></td><td><span class="badge" :class="user.isActive ? 'ok' : 'neutral'">{{ user.isActive ? t('settings.active') : t('settings.inactive') }}</span></td><td class="date-cell">{{ formatDate(user.createdAt) }}</td><td v-if="canManage"><button v-if="auth.isAdmin || user.role !== 'Admin'" class="secondary compact-action" type="button" @click="openUserEditor(user)">{{ t('settings.editUser') }}</button></td></tr></tbody></table></div>
           <PaginationControls v-if="!usersLoading && managedUsers.items.length" :page="managedUsers.page" :page-size="managedUsers.pageSize" :total-count="managedUsers.totalCount" :total-pages="managedUsers.totalPages" @page-change="changeUsersPage" @page-size-change="changeUsersPageSize" />
         </section>
 
-        <section class="surface-card settings-card permissions-card">
-          <div class="settings-card-head"><div><h2>{{ t('settings.permissionsTitle') }}</h2><p>{{ t('settings.permissionsDescription') }}</p></div><span class="settings-card-icon teal" aria-hidden="true">✓</span></div>
-          <div class="permissions-grid"><article><span class="role-pill role-admin">Admin</span><strong>{{ t('settings.adminPermissionsTitle') }}</strong><p>{{ t('settings.adminPermissionsDescription') }}</p></article><article><span class="role-pill role-manager">Manager</span><strong>{{ t('settings.managerPermissionsTitle') }}</strong><p>{{ t('settings.managerPermissionsDescription') }}</p></article><article><span class="role-pill role-staff">Staff</span><strong>{{ t('settings.staffPermissionsTitle') }}</strong><p>{{ t('settings.staffPermissionsDescription') }}</p></article></div>
-        </section>
     </main>
   </div>
 </template>

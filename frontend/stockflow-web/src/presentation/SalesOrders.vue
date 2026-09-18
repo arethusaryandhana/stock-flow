@@ -40,7 +40,7 @@ const { t } = useI18n()
 const auth = useAuthStore()
 const toast = useToastStore()
 
-const canManage = computed(() => ['admin', 'manager'].includes(auth.role.trim().toLowerCase()))
+const canManage = computed(() => auth.can('action.sales.manage'))
 const activeCustomers = computed(() => customers.value.filter((customer) => customer.isActive))
 const activeProducts = computed(() => products.value.filter((product) => product.isActive))
 const totalAmount = computed(() => lines.value.reduce((total, line) => total + parseAmount(line.quantity) * parseAmount(line.unitPrice), 0))

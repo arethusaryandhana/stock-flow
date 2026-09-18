@@ -33,7 +33,7 @@ const pageSize = ref<number>(displayPreferences.defaultPageSize.value)
 const totalCount = ref(0)
 const totalPages = ref(0)
 
-const canManage = computed(() => ['admin', 'manager'].includes(auth.role.trim().toLowerCase()))
+const canManage = computed(() => auth.can('action.receiving.manage'))
 const selectedOrder = computed(() => orders.value.find((order) => order.id === selectedOrderId.value))
 const receivableOrders = computed(() => orders.value.filter((order) => order.status === 'Approved'))
 const receivedUnits = computed(() => receipts.value.reduce((total, receipt) => total + receipt.items.reduce((subtotal, item) => subtotal + item.quantity, 0), 0))

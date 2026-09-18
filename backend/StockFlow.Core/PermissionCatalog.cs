@@ -10,6 +10,26 @@ public sealed record PermissionDefinition(
 
 public static class PermissionCatalog
 {
+    public static IReadOnlyDictionary<string, string> RequiredMenuForAction { get; } =
+        new Dictionary<string, string>
+        {
+            ["action.categories.manage"] = "menu.master.categories",
+            ["action.products.manage"] = "menu.master.products",
+            ["action.suppliers.manage"] = "menu.master.suppliers",
+            ["action.customers.manage"] = "menu.master.customers",
+            ["action.audit.view"] = "menu.audit",
+            ["action.users.manage"] = "menu.users",
+            ["action.roles.manage"] = "menu.roles",
+            ["action.access.manage"] = "menu.access",
+            ["action.inventory.adjust"] = "menu.adjustments",
+            ["action.inventory.settings"] = "menu.settings",
+            ["action.purchasing.manage"] = "menu.purchase-orders",
+            ["action.receiving.manage"] = "menu.receiving",
+            ["action.sales.manage"] = "menu.sales-orders",
+            ["action.reports.export"] = "menu.reports",
+            ["action.company.manage"] = "menu.settings"
+        };
+
     public static IReadOnlyList<PermissionDefinition> All { get; } =
     [
         new("menu.dashboard", "workspace", "Dashboard", PermissionKind.Menu, true, true),

@@ -102,6 +102,37 @@ public sealed class EndpointAuthorizationTests
         }
     }
 
+    [Fact]
+    public async Task RoleMutationsRequireTheMatchingActionPermission()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Configuration["ConnectionStrings:Database"] =
+            "Host=localhost;Database=stockflow_endpoint_metadata_tests;Username=unused;Password=unused";
+        builder.Services.AddInfrastructure(builder.Configuration);
+        builder.Services.AddAuthorization(PermissionPolicies.Register);
+        builder.Services.AddStockFlowEndpoints();
+
+        await using var app = builder.Build();
+        app.MapStockFlowEndpoints();
+        var endpoints = ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(source => source.Endpoints).OfType<RouteEndpoint>().ToArray();
+
+        void AssertPolicies(string route, string method, params string[] expected)
+        {
+            var endpoint = Assert.Single(endpoints, item => item.RoutePattern.RawText == route &&
+                item.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.SingleOrDefault() == method);
+            var policies = endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>()
+                .Select(item => item.Policy).Where(item => item is not null).ToArray();
+            Assert.All(expected, policy => Assert.Contains(policy, policies));
+        }
+
+        AssertPolicies("/api/access/roles", "POST", "menu.roles", "action.roles.manage");
+        AssertPolicies("/api/access/roles/{id:guid}", "PUT", "menu.roles", "action.roles.manage");
+        AssertPolicies("/api/access/roles/{id:guid}/permissions", "PUT", "menu.access", "action.access.manage");
+        AssertPolicies("/api/users/", "POST", "menu.users", "action.users.manage");
+        AssertPolicies("/api/users/", "GET", "menu.users");
+    }
+
     [Theory]
     [InlineData(StatusCodes.Status401Unauthorized)]
     [InlineData(StatusCodes.Status403Forbidden)]

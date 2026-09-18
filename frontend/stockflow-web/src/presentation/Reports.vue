@@ -4,6 +4,7 @@ import { api } from '../infrastructure/api'
 import { useI18n } from '../i18n'
 import { useDisplayPreferences } from '../preferences'
 import { useToastStore } from '../stores/toast'
+import { useAuthStore } from '../stores/auth'
 import PaginationControls from '../components/PaginationControls.vue'
 
 type ReportJob = {
@@ -43,6 +44,8 @@ const downloadingId = ref('')
 const error = ref('')
 const { t } = useI18n()
 const toast = useToastStore()
+const auth = useAuthStore()
+const canExport = computed(() => auth.can('action.reports.export'))
 let pollTimer: number | undefined
 
 const hasActiveJobs = computed(() => statusCounts.value.queued + statusCounts.value.processing > 0)
@@ -82,6 +85,7 @@ async function load(showLoading = true) {
 }
 
 async function createReport() {
+  if (!canExport.value) return
   creating.value = true
   try {
     const { data } = await api.post<ReportJob>('/report-exports', {
@@ -154,7 +158,7 @@ onBeforeUnmount(() => {
   <div class="page">
     <div class="page-heading">
       <div><p class="eyebrow">{{ t('reports.eyebrow') }}</p><h1>{{ t('reports.title') }}</h1><p class="subtitle">{{ t('reports.subtitle') }}</p></div>
-      <div class="header-actions"><button class="primary" type="button" :disabled="creating || hasActiveJobs" @click="createReport"><span class="button-plus">+</span> {{ creating ? t('reports.creating') : t('reports.create') }}</button></div>
+      <div v-if="canExport" class="header-actions"><button class="primary" type="button" :disabled="creating || hasActiveJobs" @click="createReport"><span class="button-plus">+</span> {{ creating ? t('reports.creating') : t('reports.create') }}</button></div>
     </div>
     <p v-if="error" class="alert error-banner">{{ error }}</p>
 
