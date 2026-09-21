@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import PaginationControls from '../components/PaginationControls.vue'
 import { useI18n } from '../i18n'
 import { useDisplayPreferences } from '../preferences'
@@ -95,8 +95,13 @@ function openUserEditor(user?: ManagedUser) {
 }
 
 function closeUserEditor() {
+  if (usersSaving.value) return
   userEditorOpen.value = false
   editingUserId.value = null
+}
+
+function closeUserEditorOnEscape(event: KeyboardEvent) {
+  if (event.key === 'Escape' && userEditorOpen.value) closeUserEditor()
 }
 
 async function saveUserConfiguration() {
@@ -146,8 +151,11 @@ function changeUsersPage(nextPage: number) {
 }
 
 onMounted(() => {
+  document.addEventListener('keydown', closeUserEditorOnEscape)
   void loadUserConfiguration()
 })
+
+onBeforeUnmount(() => document.removeEventListener('keydown', closeUserEditorOnEscape))
 </script>
 
 <template>
@@ -172,21 +180,7 @@ onMounted(() => {
           <button v-if="canManage" class="primary users-add-button" type="button" @click="openUserEditor()"><span class="button-plus">+</span>{{ t('settings.addUser') }}</button>
         </section>
 
-        <p v-if="usersError" class="alert error-banner" role="alert">{{ usersError }}</p>
-
-        <section v-if="userEditorOpen && canManage" class="surface-card settings-card user-editor-card">
-          <div class="settings-card-head"><div><h2>{{ userEditorTitle }}</h2><p>{{ editingUserId ? t('settings.editUserDescription') : t('settings.addUserDescription') }}</p></div><button class="ghost-button" type="button" :disabled="usersSaving" @click="closeUserEditor">{{ t('common.cancel') }}</button></div>
-          <form class="user-editor-form" :aria-busy="usersSaving" @submit.prevent="saveUserConfiguration">
-            <div class="user-fields">
-              <label class="field-label">{{ t('settings.userFullName') }}<input v-model="userDraft.fullName" maxlength="160" autocomplete="name" required :disabled="usersSaving"><small class="field-hint">{{ t('settings.userFullNameHint') }}</small></label>
-              <label class="field-label">{{ t('settings.userEmail') }}<input v-model="userDraft.email" type="email" maxlength="254" autocomplete="email" required :disabled="usersSaving"><small class="field-hint">{{ t('settings.userEmailHint') }}</small></label>
-              <label class="field-label">{{ t('settings.userRole') }}<select v-model="userDraft.role" :disabled="usersSaving"><option v-for="roleOption in roleOptions" :key="roleOption.name" :value="roleOption.name">{{ roleOption.name }}</option></select><small class="field-hint">{{ t('settings.userRoleHint') }}</small></label>
-              <label class="field-label">{{ editingUserId ? t('settings.userNewPassword') : t('settings.userPassword') }}<input v-model="userDraft.password" type="password" minlength="12" autocomplete="new-password" :required="!editingUserId" :disabled="usersSaving"><small class="field-hint">{{ editingUserId ? t('settings.userNewPasswordHint') : t('settings.userPasswordHint') }}</small></label>
-            </div>
-            <label class="user-active-toggle"><input v-model="userDraft.isActive" type="checkbox" :disabled="usersSaving"><span><strong>{{ t('settings.userActive') }}</strong><small>{{ t('settings.userActiveHint') }}</small></span></label>
-            <div class="profile-actions"><button class="secondary" type="button" :disabled="usersSaving" @click="closeUserEditor">{{ t('common.cancel') }}</button><button class="primary" type="submit" :disabled="usersSaving"><span v-if="usersSaving" class="button-spinner" aria-hidden="true" />{{ usersSaving ? t('settings.savingUser') : t('settings.saveUser') }}</button></div>
-          </form>
-        </section>
+        <p v-if="usersError && !userEditorOpen" class="alert error-banner" role="alert">{{ usersError }}</p>
 
         <section class="surface-card settings-card users-list-card">
           <div class="settings-card-head"><div><h2>{{ t('settings.usersListTitle') }}</h2><p>{{ t('settings.usersListDescription') }}</p></div><span class="admin-badge">{{ managedUsers.totalCount }} {{ t('settings.usersCount') }}</span></div>
@@ -198,6 +192,39 @@ onMounted(() => {
         </section>
 
     </main>
+
+    <Teleport to="body">
+      <div v-if="userEditorOpen && canManage" class="modal-backdrop" @click.self="closeUserEditor">
+        <form
+          class="modal user-editor-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="user-editor-title"
+          :aria-busy="usersSaving"
+          @submit.prevent="saveUserConfiguration"
+        >
+          <div class="modal-head">
+            <div>
+              <p class="eyebrow">{{ t('app.users') }}</p>
+              <h2 id="user-editor-title">{{ userEditorTitle }}</h2>
+              <p>{{ editingUserId ? t('settings.editUserDescription') : t('settings.addUserDescription') }}</p>
+            </div>
+            <button class="close-button" type="button" :disabled="usersSaving" :aria-label="t('common.close')" @click="closeUserEditor">×</button>
+          </div>
+          <div class="modal-body user-editor-form">
+            <div class="user-fields">
+              <label class="field-label">{{ t('settings.userFullName') }}<input v-model="userDraft.fullName" maxlength="160" autocomplete="name" required autofocus :disabled="usersSaving"><small class="field-hint">{{ t('settings.userFullNameHint') }}</small></label>
+              <label class="field-label">{{ t('settings.userEmail') }}<input v-model="userDraft.email" type="email" maxlength="254" autocomplete="email" required :disabled="usersSaving"><small class="field-hint">{{ t('settings.userEmailHint') }}</small></label>
+              <label class="field-label">{{ t('settings.userRole') }}<select v-model="userDraft.role" :disabled="usersSaving"><option v-for="roleOption in roleOptions" :key="roleOption.name" :value="roleOption.name">{{ roleOption.name }}</option></select><small class="field-hint">{{ t('settings.userRoleHint') }}</small></label>
+              <label class="field-label">{{ editingUserId ? t('settings.userNewPassword') : t('settings.userPassword') }}<input v-model="userDraft.password" type="password" minlength="12" autocomplete="new-password" :required="!editingUserId" :disabled="usersSaving"><small class="field-hint">{{ editingUserId ? t('settings.userNewPasswordHint') : t('settings.userPasswordHint') }}</small></label>
+            </div>
+            <label class="user-active-toggle"><input v-model="userDraft.isActive" type="checkbox" :disabled="usersSaving"><span><strong>{{ t('settings.userActive') }}</strong><small>{{ t('settings.userActiveHint') }}</small></span></label>
+            <p v-if="usersError" class="alert modal-form-alert" role="alert">{{ usersError }}</p>
+            <div class="modal-actions"><button class="secondary" type="button" :disabled="usersSaving" @click="closeUserEditor">{{ t('common.cancel') }}</button><button class="primary" type="submit" :disabled="usersSaving"><span v-if="usersSaving" class="button-spinner" aria-hidden="true" />{{ usersSaving ? t('settings.savingUser') : t('settings.saveUser') }}</button></div>
+          </div>
+        </form>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -214,8 +241,9 @@ onMounted(() => {
 .admin-badge { display: inline-flex; flex: 0 0 auto; align-items: center; padding: 7px 10px; border: 1px solid color-mix(in srgb, var(--amber) 20%, var(--line)); border-radius: 999px; color: var(--amber); background: var(--amber-soft); font-size: .57rem; font-weight: 800; }
 .users-summary-icon { color: var(--teal); background: var(--teal-soft); }
 .users-add-button { flex: 0 0 auto; white-space: nowrap; }
-.user-editor-card, .users-list-card, .permissions-card { overflow: hidden; }
-.user-editor-form { padding: 20px; }
+.users-list-card, .permissions-card { overflow: hidden; }
+.user-editor-modal { width: min(100%, 720px); }
+.user-editor-form { padding-top: 4px; }
 .user-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .user-fields input, .user-fields select { width: 100%; }
 .user-active-toggle { display: flex; align-items: flex-start; gap: 10px; margin-top: 18px; color: var(--control-text); }
@@ -243,7 +271,6 @@ onMounted(() => {
 .settings-card-head p { max-width: 600px; margin-top: 5px; color: var(--muted); font-size: .66rem; line-height: 1.5; }
 .settings-card-icon { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; border-radius: 9px; }
 .settings-card-icon.teal { color: var(--teal); background: var(--teal-soft); }
-.profile-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 19px; padding-top: 17px; border-top: 1px solid var(--line); }
 @media (max-width: 600px) {
   .inventory-summary { align-items: flex-start; flex-wrap: wrap; }
   .inventory-summary > div:nth-child(2) { flex: 0 0 calc(100% - 72px); }
@@ -254,6 +281,6 @@ onMounted(() => {
   .users-toolbar .toolbar-actions > * { flex: 1; }
   .user-fields { grid-template-columns: 1fr; }
   .permissions-grid { grid-template-columns: 1fr; }
-  .profile-actions button { flex: 1; }
+  .user-editor-form .modal-actions button { flex: 1; }
 }
 </style>
