@@ -249,7 +249,15 @@ onBeforeUnmount(() => {
         :title="sidebarCollapsed ? t('app.openSidebar') : t('app.closeSidebar')"
         @click="toggleSidebar"
       >
-        <span class="sidebar-toggle-icon" aria-hidden="true">{{ sidebarCollapsed ? '>' : '<' }}</span>
+        <svg
+          class="sidebar-toggle-icon"
+          :class="{ 'sidebar-toggle-icon-collapsed': sidebarCollapsed }"
+          viewBox="0 0 16 16"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path d="M10 3.5 5.5 8l4.5 4.5" />
+        </svg>
       </button>
 
       <button class="workspace-switcher" type="button" :aria-label="t('app.workspaceName')" @click="notify(t('app.workspaceToast'))">
