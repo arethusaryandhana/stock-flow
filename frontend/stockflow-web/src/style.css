@@ -69,7 +69,7 @@ h3 { font-size: .9rem; font-weight: 800; }
 }
 
 .app-shell { display: flex; min-height: 100vh; background: var(--canvas); }
-.sidebar { position: sticky; top: 0; z-index: 30; display: flex; width: 254px; height: 100vh; height: 100dvh; min-height: 100vh; flex: 0 0 254px; flex-direction: column; padding: 24px 15px 17px; color: #d8e0ed; background: var(--navy); transition: width .22s ease, flex-basis .22s ease, padding .22s ease, transform .22s ease; }
+.sidebar { position: sticky; top: 0; z-index: 50; display: flex; width: 254px; height: 100vh; height: 100dvh; min-height: 100vh; flex: 0 0 254px; flex-direction: column; padding: 24px 15px 17px; color: #d8e0ed; background: var(--navy); transition: width .22s ease, flex-basis .22s ease, padding .22s ease, transform .22s ease; }
 .sidebar-head { display: flex; min-height: 34px; align-items: center; }
 .brand-lockup { display: flex; align-items: center; gap: 11px; padding: 0 10px; border-radius: 10px; }
 .sidebar-head .brand-lockup { min-width: 0; flex: 1; }
