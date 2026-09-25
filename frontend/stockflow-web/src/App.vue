@@ -23,6 +23,7 @@ const profileOpen = ref(false)
 const changePasswordOpen = ref(false)
 const profileWrap = ref<HTMLElement | null>(null)
 const sessionRedirecting = ref(false)
+const topbarScrolled = ref(false)
 
 const groups = [
   {
@@ -193,16 +194,23 @@ function showSessionRedirectLoading() {
   sessionRedirecting.value = true
 }
 
+function updateTopbarScrollState() {
+  topbarScrolled.value = window.scrollY > 8
+}
+
 onMounted(() => {
   document.addEventListener('click', closeProfileOnOutsideClick)
   document.addEventListener('keydown', closeProfileOnEscape)
   window.addEventListener(SESSION_REDIRECT_EVENT, showSessionRedirectLoading)
+  window.addEventListener('scroll', updateTopbarScrollState, { passive: true })
+  updateTopbarScrollState()
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeProfileOnOutsideClick)
   document.removeEventListener('keydown', closeProfileOnEscape)
   window.removeEventListener(SESSION_REDIRECT_EVENT, showSessionRedirectLoading)
+  window.removeEventListener('scroll', updateTopbarScrollState)
 })
 </script>
 
@@ -318,7 +326,7 @@ onBeforeUnmount(() => {
     </aside>
 
     <div class="app-main">
-      <header class="topbar">
+      <header class="topbar" :class="{ 'topbar-scrolled': topbarScrolled }">
         <div class="topbar-left">
           <button class="mobile-menu" type="button" :aria-label="t('app.mainNav')" @click="mobileOpen = true">☰</button>
           <router-link class="mobile-brand" to="/" :aria-label="t('app.brandAria')">
