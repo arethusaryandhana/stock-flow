@@ -74,9 +74,8 @@ secrets/environment variables. The worker needs write access to report storage w
 needs read access for downloads.
 Bearer tokens are valid for 8 hours by default; override this with `Jwt__LifetimeMinutes`
 when a different lifetime is required (maximum `480` minutes). The web client sends tokens
-through the `Authorization: Bearer <token>` header. "Remember me" stores the token in local
-storage for the configured `Jwt__RememberMeLifetimeDays` (default `30`); otherwise it uses
-session storage.
+through the `Authorization: Bearer <token>` header. "Remember me" only stores the same token
+in local storage instead of session storage; it does not extend the token lifetime.
 Run EF migrations as a controlled release step. `Database__ApplyMigrations`, `SeedData__Demo`, and
 `PasswordReset__ExposeResetToken` should remain `false` in production.
 The access-history permission is added by migration `20260918090000_AddAccessHistoryPermission`.

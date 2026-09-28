@@ -21,7 +21,7 @@ export const useAuthStore = defineStore('auth', {
   },
   actions: {
     async login(email: string, password: string, rememberMe: boolean) {
-      const { data } = await api.post<SessionProfile & { token: string }>('/auth/login', { email, password, rememberMe })
+      const { data } = await api.post<SessionProfile & { token: string }>('/auth/login', { email, password })
       setAccessToken(data.token, rememberMe)
       this.setSession(data)
       try {

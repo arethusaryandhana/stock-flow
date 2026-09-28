@@ -9,18 +9,18 @@ namespace StockFlow.Tests;
 public sealed class AuthUseCaseTests
 {
     [Fact]
-    public async Task Login_ForwardsRememberMePreferenceToTokenService()
+    public async Task Login_CreatesTokenForValidCredentials()
     {
         var user = CreateUser("OldStockFlow123!");
         var tokenService = new StubTokenService();
         var useCase = CreateUseCase(new StubUserRepository(user), user.Id, tokenService);
 
         var result = await useCase.LoginAsync(
-            new LoginRequest(user.Email, "OldStockFlow123!", true),
+            new LoginRequest(user.Email, "OldStockFlow123!"),
             CancellationToken.None);
 
         Assert.Equal(200, result.StatusCode);
-        Assert.True(tokenService.RememberMe);
+        Assert.Equal(1, tokenService.CreateCalls);
     }
 
     [Fact]
@@ -203,11 +203,11 @@ public sealed class AuthUseCaseTests
 
     private sealed class StubTokenService : ITokenService
     {
-        public bool RememberMe { get; private set; }
+        public int CreateCalls { get; private set; }
 
-        public string Create(User user, bool rememberMe = false)
+        public string Create(User user)
         {
-            RememberMe = rememberMe;
+            CreateCalls++;
             return "token";
         }
     }
