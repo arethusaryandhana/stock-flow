@@ -55,9 +55,10 @@ public sealed class AuthEndpoints : IEndpoint
             .Produces<MessageResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized);
 
-        group.MapPost("/logout", Logout)
+        group.MapPost("/logout", LogoutAsync)
             .RequireAuthorization()
-            .Produces(StatusCodes.Status204NoContent);
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status401Unauthorized);
 
         group.MapGet("/session", GetSessionAsync)
             .RequireAuthorization()
@@ -111,7 +112,21 @@ public sealed class AuthEndpoints : IEndpoint
         CancellationToken cancellationToken) =>
         (await useCase.RevokeAllSessionsAsync(cancellationToken)).ToHttpResult();
 
-    private static IResult Logout() => Results.NoContent();
+    private static async Task<IResult> LogoutAsync(
+        HttpContext context,
+        ISessionTokenRevocationService tokenRevocations,
+        CancellationToken cancellationToken)
+    {
+        var tokenId = context.User.FindFirstValue("session_id");
+        var rawExpiresAt = context.User.FindFirstValue("session_expires_at");
+        if (string.IsNullOrWhiteSpace(tokenId) ||
+            !long.TryParse(rawExpiresAt, out var expiresAtUnixSeconds))
+            return Results.Unauthorized();
+
+        var expiresAt = DateTimeOffset.FromUnixTimeSeconds(expiresAtUnixSeconds).UtcDateTime;
+        await tokenRevocations.RevokeAsync(tokenId, expiresAt, cancellationToken);
+        return Results.NoContent();
+    }
 
     private static async Task<IResult> GetSessionAsync(
         IAuthUseCase useCase,

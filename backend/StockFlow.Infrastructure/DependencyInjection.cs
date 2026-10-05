@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<IPasswordService, PasswordService>();
         services.AddScoped<IPasswordResetTokenService, PasswordResetTokenService>();
         services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<ISessionTokenRevocationService, SessionTokenRevocationService>();
         services.AddScoped<IUserAccessReader, UserAccessReader>();
     }
 

@@ -78,15 +78,27 @@ builder.Services
                 var rawUserId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
                     ?? context.Principal?.FindFirstValue(JwtRegisteredClaimNames.Sub);
                 var rawTokenVersion = context.Principal?.FindFirstValue("token_version");
+                var rawTokenId = context.Principal?.FindFirstValue("session_id");
+                var rawTokenExpiry = context.Principal?.FindFirstValue("session_expires_at");
 
                 if (!Guid.TryParse(rawUserId, out var userId) ||
-                    !int.TryParse(rawTokenVersion, out var tokenVersion))
+                    !int.TryParse(rawTokenVersion, out var tokenVersion) ||
+                    string.IsNullOrWhiteSpace(rawTokenId) ||
+                    !long.TryParse(rawTokenExpiry, out _))
                 {
                     context.Fail("Token tidak memiliki identitas sesi yang valid.");
                     return;
                 }
 
                 var db = context.HttpContext.RequestServices.GetRequiredService<StockFlowDbContext>();
+                var tokenRevocations = context.HttpContext.RequestServices
+                    .GetRequiredService<ISessionTokenRevocationService>();
+                if (await tokenRevocations.IsRevokedAsync(rawTokenId, context.HttpContext.RequestAborted))
+                {
+                    context.Fail("Sesi sudah tidak berlaku.");
+                    return;
+                }
+
                 var sessionIsValid = await db.UsersSet.AsNoTracking().AnyAsync(
                     user => user.Id == userId && user.IsActive && user.Role.IsActive && user.TokenVersion == tokenVersion,
                     context.HttpContext.RequestAborted);

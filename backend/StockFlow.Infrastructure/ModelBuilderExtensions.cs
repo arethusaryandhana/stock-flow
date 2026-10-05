@@ -22,6 +22,7 @@ internal static class ModelBuilderExtensions
         modelBuilder.Entity<RolePermission>().ToTable("role_permissions", StockFlowDbContext.Schemas.Identity);
         modelBuilder.Entity<User>().ToTable("users", StockFlowDbContext.Schemas.Identity);
         modelBuilder.Entity<PasswordResetToken>().ToTable("password_reset_tokens", StockFlowDbContext.Schemas.Identity);
+        modelBuilder.Entity<RevokedSessionToken>().ToTable("revoked_session_tokens", StockFlowDbContext.Schemas.Identity);
         modelBuilder.Entity<Notification>().ToTable("notifications", StockFlowDbContext.Schemas.Identity);
         modelBuilder.Entity<AuditLog>().ToTable("audit_logs", StockFlowDbContext.Schemas.Identity);
 
@@ -59,6 +60,8 @@ internal static class ModelBuilderExtensions
         modelBuilder.Entity<User>().HasIndex(entity => entity.Email).IsUnique();
         modelBuilder.Entity<PasswordResetToken>().HasIndex(entity => entity.TokenHash).IsUnique();
         modelBuilder.Entity<PasswordResetToken>().HasIndex(entity => new { entity.UserId, entity.ExpiresAt });
+        modelBuilder.Entity<RevokedSessionToken>().HasIndex(entity => entity.TokenId).IsUnique();
+        modelBuilder.Entity<RevokedSessionToken>().HasIndex(entity => entity.ExpiresAt);
         modelBuilder.Entity<Notification>().HasIndex(entity => new { entity.UserId, entity.IsRead, entity.CreatedAt });
         modelBuilder.Entity<Notification>()
             .HasIndex(entity => entity.DeduplicationKey)
@@ -217,6 +220,7 @@ internal static class ModelBuilderExtensions
         modelBuilder.Entity<User>().Property(entity => entity.PasswordHash).HasMaxLength(255);
 
         modelBuilder.Entity<PasswordResetToken>().Property(entity => entity.TokenHash).HasMaxLength(128);
+        modelBuilder.Entity<RevokedSessionToken>().Property(entity => entity.TokenId).HasMaxLength(64);
 
         modelBuilder.Entity<Notification>().Property(entity => entity.Title).HasMaxLength(160);
         modelBuilder.Entity<Notification>().Property(entity => entity.Message).HasMaxLength(1000);
