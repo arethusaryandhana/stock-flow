@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import PaginationControls from '../components/PaginationControls.vue'
+import { useModalFocus } from '../composables/useModalFocus'
 import { useI18n } from '../i18n'
 import { useDisplayPreferences } from '../preferences'
 import { useToastStore } from '../stores/toast'
@@ -29,6 +30,7 @@ const usersStatusFilter = ref('all')
 const usersPage = ref(1)
 const usersPageSize = ref<number>(defaultPageSize.value)
 const userEditorOpen = ref(false)
+const userEditorElement = ref<HTMLElement | null>(null)
 const editingUserId = ref<string | null>(null)
 const userDraft = ref<ManagedUserRequest>({
   fullName: '', email: '', password: '', role: 'Staff', isActive: true,
@@ -100,9 +102,7 @@ function closeUserEditor() {
   editingUserId.value = null
 }
 
-function closeUserEditorOnEscape(event: KeyboardEvent) {
-  if (event.key === 'Escape' && userEditorOpen.value) closeUserEditor()
-}
+useModalFocus(userEditorOpen, userEditorElement, closeUserEditor)
 
 async function saveUserConfiguration() {
   if (!canManage.value) return
@@ -151,11 +151,8 @@ function changeUsersPage(nextPage: number) {
 }
 
 onMounted(() => {
-  document.addEventListener('keydown', closeUserEditorOnEscape)
   void loadUserConfiguration()
 })
-
-onBeforeUnmount(() => document.removeEventListener('keydown', closeUserEditorOnEscape))
 </script>
 
 <template>
@@ -196,6 +193,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', closeUserEditorOnE
     <Teleport to="body">
       <div v-if="userEditorOpen && canManage" class="modal-backdrop" @click.self="closeUserEditor">
         <form
+          ref="userEditorElement"
           class="modal user-editor-modal"
           role="dialog"
           aria-modal="true"

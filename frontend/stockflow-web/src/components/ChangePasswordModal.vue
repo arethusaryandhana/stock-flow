@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { api } from '../infrastructure/api'
 import { useI18n } from '../i18n'
 import { useToastStore } from '../stores/toast'
 import { useAuthStore } from '../stores/auth'
+import { useModalFocus } from '../composables/useModalFocus'
 
 const emit = defineEmits<{ close: [] }>()
 const { t } = useI18n()
@@ -17,14 +18,14 @@ const showNewPassword = ref(false)
 const showConfirmPassword = ref(false)
 const error = ref('')
 const saving = ref(false)
+const dialogOpen = ref(true)
+const dialogElement = ref<HTMLElement | null>(null)
 
 function close() {
   if (!saving.value) emit('close')
 }
 
-function closeOnEscape(event: KeyboardEvent) {
-  if (event.key === 'Escape') close()
-}
+useModalFocus(dialogOpen, dialogElement, close)
 
 async function submit() {
   error.value = ''
@@ -59,14 +60,13 @@ async function submit() {
   }
 }
 
-onMounted(() => document.addEventListener('keydown', closeOnEscape))
-onBeforeUnmount(() => document.removeEventListener('keydown', closeOnEscape))
 </script>
 
 <template>
   <Teleport to="body">
     <div class="modal-backdrop" @click.self="close">
       <form
+        ref="dialogElement"
         class="modal change-password-modal"
         role="dialog"
         aria-modal="true"

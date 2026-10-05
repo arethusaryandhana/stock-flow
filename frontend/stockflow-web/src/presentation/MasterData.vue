@@ -8,6 +8,7 @@ import { useI18n } from '../i18n'
 import { useDisplayPreferences } from '../preferences'
 import PaginationControls from '../components/PaginationControls.vue'
 import FormattedNumberInput from '../components/FormattedNumberInput.vue'
+import { useModalFocus } from '../composables/useModalFocus'
 
 type EntityType = 'categories' | 'products' | 'suppliers' | 'customers'
 type Category = { id: string; name: string; description?: string | null; isActive: boolean }
@@ -40,6 +41,7 @@ const error = ref('')
 const formError = ref('')
 const saving = ref(false)
 const showForm = ref(false)
+const modalElement = ref<HTMLElement | null>(null)
 const editingId = ref<string | null>(null)
 const page = ref(1)
 const pageSize = ref<number>(displayPreferences.defaultPageSize.value)
@@ -136,6 +138,8 @@ function closeForm() {
   editingId.value = null
   resetForm()
 }
+
+useModalFocus(showForm, modalElement, closeForm)
 
 function payload() {
   if (props.entity === 'categories') return { name: form.name, description: form.description || null }
@@ -236,7 +240,7 @@ watch(() => props.entity, () => {
       <PaginationControls v-if="!loading && filtered.length" :page="page" :page-size="pageSize" :total-count="totalCount" :total-pages="totalPages" @page-change="page = $event" @page-size-change="changePageSize" />
     </section>
 
-    <Teleport to="body"><div v-if="showForm" class="modal-backdrop" @click.self="closeForm"><form class="modal" @submit.prevent="save"><div class="modal-head"><div><p class="eyebrow">{{ t('master.eyebrow') }}</p><h2>{{ editingId ? t('master.editTitle', { entity: entityLabel }) : t('master.createTitle', { entity: entityLabel }) }}</h2></div><button class="close-button" type="button" :aria-label="t('common.close')" @click="closeForm">×</button></div><div class="modal-body">
+    <Teleport to="body"><div v-if="showForm" class="modal-backdrop" @click.self="closeForm"><form ref="modalElement" class="modal" role="dialog" aria-modal="true" aria-labelledby="master-data-modal-title" @submit.prevent="save"><div class="modal-head"><div><p class="eyebrow">{{ t('master.eyebrow') }}</p><h2 id="master-data-modal-title">{{ editingId ? t('master.editTitle', { entity: entityLabel }) : t('master.createTitle', { entity: entityLabel }) }}</h2></div><button class="close-button" type="button" :aria-label="t('common.close')" @click="closeForm">×</button></div><div class="modal-body">
       <div v-if="props.entity === 'categories'" class="form-grid"><label class="field-label">{{ t('master.name') }}<input v-model.trim="form.name" required maxlength="160"></label><label class="field-label full">{{ t('master.description') }}<textarea v-model.trim="form.description" rows="3" maxlength="500" /></label></div>
       <div v-else-if="props.entity === 'products'" class="form-grid"><label class="field-label">{{ t('master.sku') }}<input v-model.trim="form.sku" required maxlength="80"></label><label class="field-label">{{ t('master.name') }}<input v-model.trim="form.name" required maxlength="160"></label><label class="field-label full">{{ t('master.category') }}<select v-model="form.categoryId" required><option disabled value="">{{ t('master.noCategories') }}</option><option v-for="category in categoryOptions" :key="category.id" :value="category.id">{{ category.name }}{{ !category.isActive ? ` (${t('master.inactive')})` : '' }}</option></select></label><label class="field-label">{{ t('master.purchasePrice') }}<FormattedNumberInput v-model="form.purchasePrice" required></FormattedNumberInput></label><label class="field-label">{{ t('master.sellingPrice') }}<FormattedNumberInput v-model="form.sellingPrice" required></FormattedNumberInput></label><label class="field-label">{{ t('master.reorderLevel') }}<FormattedNumberInput v-model="form.reorderLevel" :decimal-scale="2" required></FormattedNumberInput></label><label class="field-label">{{ t('master.unit') }}<input v-model.trim="form.unit" required maxlength="24"></label></div>
       <div v-else class="form-grid"><label class="field-label">{{ t('master.code') }}<input v-model.trim="form.code" required maxlength="80"></label><label class="field-label">{{ t('master.name') }}<input v-model.trim="form.name" required maxlength="160"></label><label class="field-label">{{ t('master.email') }}<input v-model.trim="form.email" type="email" maxlength="160"></label><label class="field-label">{{ t('master.phone') }}<input v-model.trim="form.phone" maxlength="40"></label><label class="field-label full">{{ t('master.address') }}<textarea v-model.trim="form.address" rows="3" maxlength="300" /></label></div>
