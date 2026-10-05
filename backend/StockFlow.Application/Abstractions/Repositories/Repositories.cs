@@ -169,8 +169,9 @@ public interface IPurchasingRepository
         Guid id,
         CancellationToken cancellationToken = default);
 
-    Task<PurchaseOrder?> FindPurchaseOrderAsync(
+    Task<PurchaseOrderStatusUpdateStatus> UpdatePurchaseOrderStatusAsync(
         Guid id,
+        PurchaseOrderStatus nextStatus,
         CancellationToken cancellationToken = default);
 
     Task AddPurchaseOrderAsync(
@@ -189,6 +190,13 @@ public interface IPurchasingRepository
         CancellationToken cancellationToken = default);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public enum PurchaseOrderStatusUpdateStatus
+{
+    Updated,
+    NotFound,
+    InvalidTransition
 }
 
 public enum GoodsReceiptCreationStatus

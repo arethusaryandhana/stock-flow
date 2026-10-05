@@ -85,14 +85,36 @@ public sealed class PurchasingRepository(StockFlowDbContext db) : IPurchasingRep
         return ToResponse(order, receivedTotals);
     }
 
-    public Task<PurchaseOrder?> FindPurchaseOrderAsync(
+    public async Task<PurchaseOrderStatusUpdateStatus> UpdatePurchaseOrderStatusAsync(
         Guid id,
-        CancellationToken cancellationToken = default) =>
-        db.PurchaseOrders
-            .Include(order => order.Supplier)
-            .Include(order => order.Items)
-            .ThenInclude(item => item.Product)
-            .SingleOrDefaultAsync(order => order.Id == id, cancellationToken);
+        PurchaseOrderStatus nextStatus,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT id FROM purchasing.purchase_orders WHERE id = {id} FOR UPDATE",
+            cancellationToken);
+
+        var purchaseOrder = await db.PurchaseOrders.SingleOrDefaultAsync(
+            order => order.Id == id,
+            cancellationToken);
+        if (purchaseOrder is null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return PurchaseOrderStatusUpdateStatus.NotFound;
+        }
+
+        if (!purchaseOrder.CanTransitionTo(nextStatus))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return PurchaseOrderStatusUpdateStatus.InvalidTransition;
+        }
+
+        purchaseOrder.Status = nextStatus;
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return PurchaseOrderStatusUpdateStatus.Updated;
+    }
 
     public Task AddPurchaseOrderAsync(
         PurchaseOrder purchaseOrder,

@@ -104,25 +104,12 @@ public sealed class PurchasingUseCase(
         if (!Enum.TryParse<PurchaseOrderStatus>(status, true, out var nextStatus))
             return UseCaseResult<PurchaseOrderResponse>.BadRequest("Status purchase order tidak valid.");
 
-        var purchaseOrder = await purchasing.FindPurchaseOrderAsync(id, cancellationToken);
-        if (purchaseOrder is null)
+        var updateStatus = await purchasing.UpdatePurchaseOrderStatusAsync(id, nextStatus, cancellationToken);
+        if (updateStatus == PurchaseOrderStatusUpdateStatus.NotFound)
             return UseCaseResult<PurchaseOrderResponse>.NotFound("Purchase order tidak ditemukan.");
-
-        var canTransition = (purchaseOrder.Status, nextStatus) switch
-        {
-            (PurchaseOrderStatus.Draft, PurchaseOrderStatus.Submitted) => true,
-            (PurchaseOrderStatus.Draft, PurchaseOrderStatus.Cancelled) => true,
-            (PurchaseOrderStatus.Submitted, PurchaseOrderStatus.Approved) => true,
-            (PurchaseOrderStatus.Submitted, PurchaseOrderStatus.Cancelled) => true,
-            (PurchaseOrderStatus.Approved, PurchaseOrderStatus.Cancelled) => true,
-            _ => false
-        };
-
-        if (!canTransition)
+        if (updateStatus == PurchaseOrderStatusUpdateStatus.InvalidTransition)
             return UseCaseResult<PurchaseOrderResponse>.BadRequest("Perubahan status purchase order tidak diizinkan.");
 
-        purchaseOrder.Status = nextStatus;
-        await purchasing.SaveChangesAsync(cancellationToken);
         var response = await purchasing.GetPurchaseOrderAsync(id, cancellationToken);
 
         return response is null
