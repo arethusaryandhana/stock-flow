@@ -14,7 +14,7 @@ services:
   stockflow-api:
     build: { context: ./backend, dockerfile: ../docker/api.Dockerfile }
     environment: { ASPNETCORE_ENVIRONMENT: Development, ASPNETCORE_URLS: http://+:8080, ConnectionStrings__Database: "Host=stockflow-db;Port=5432;Database=stockflow;Username=postgres;Password=postgres;Pooling=true", Jwt__LifetimeMinutes: "480", WebOrigin: "http://localhost:5173", ReportStorage: /app/reports }
-    ports: ["8080:8080"]
+    ports: ["127.0.0.1:8080:8080"]
     volumes: [stockflow_reports:/app/reports:ro]
     depends_on:
       stockflow-db: { condition: service_healthy }
@@ -26,6 +26,6 @@ services:
       stockflow-db: { condition: service_healthy }
   stockflow-web:
     build: { context: ./frontend/stockflow-web, dockerfile: ../../docker/web.Dockerfile }
-    ports: ["5173:80"]
+    ports: ["127.0.0.1:5173:80"]
     depends_on: [stockflow-api]
 volumes: { stockflow_db: {}, stockflow_reports: {} }
