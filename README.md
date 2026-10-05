@@ -43,7 +43,7 @@ Demo login: `admin@stockflow.local` / `StockFlow123!`
 
 ## Next slices
 
-Additional report types, email notification delivery, and broader end-to-end browser coverage.
+Additional report types, email delivery for general notifications, and broader end-to-end browser coverage.
 
 ## Run tests
 
@@ -68,10 +68,14 @@ dotnet test backend/StockFlow.sln
 ## Production configuration
 
 Production does not auto-migrate or seed demo data. Supply `ConnectionStrings__Database`, a unique
-`Jwt__Key` of at least 32 bytes, `WebOrigin`, a shared `ReportStorage` path, and an optional
+`Jwt__Key` of at least 32 bytes, an HTTPS `WebOrigin`, a shared `ReportStorage` path, and an optional
 `Notifications__LowStockIntervalMinutes` (default `5`) through deployment
-secrets/environment variables. The worker needs write access to report storage while the API only
-needs read access for downloads.
+secrets/environment variables. Password recovery also requires `PasswordReset__Smtp__Host`,
+`PasswordReset__Smtp__Port` (STARTTLS, usually `587`), `PasswordReset__Smtp__Username`,
+`PasswordReset__Smtp__Password`, and `PasswordReset__Smtp__FromAddress`. Store SMTP credentials
+in deployment secrets; without valid mail settings the recovery endpoint returns `503` for all
+addresses. The worker needs write access to report storage while the API only needs read access for
+downloads.
 Bearer tokens are valid for 8 hours by default; override this with `Jwt__LifetimeMinutes`
 when a different lifetime is required (maximum `480` minutes). The web client sends tokens
 through the `Authorization: Bearer <token>` header. "Remember me" only stores the same token

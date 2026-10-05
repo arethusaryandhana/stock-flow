@@ -12,7 +12,11 @@ const email = ref('')
 const password = ref('')
 const rememberMe = ref(true)
 const forgotEmail = ref('')
-const resetToken = ref(new URLSearchParams(window.location.search).get('resetToken') ?? '')
+const resetToken = ref(
+  new URLSearchParams(window.location.hash.slice(1)).get('resetToken') ??
+  new URLSearchParams(window.location.search).get('resetToken') ?? '',
+)
+if (resetToken.value) window.history.replaceState(window.history.state, '', '/login')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const mode = ref<AuthMode>(resetToken.value ? 'reset' : 'login')
@@ -32,7 +36,7 @@ function clearMessages() {
 }
 
 function updateUrlWithoutToken() {
-  window.history.replaceState({}, '', '/login')
+  window.history.replaceState(window.history.state, '', '/login')
 }
 
 function showLogin() {
@@ -60,7 +64,7 @@ async function submitForgot() {
     if (data.resetToken) {
       resetToken.value = data.resetToken
       mode.value = 'reset'
-      window.history.replaceState({}, '', `/login?resetToken=${encodeURIComponent(data.resetToken)}`)
+      window.history.replaceState(window.history.state, '', '/login')
     }
   } catch (requestError) { error.value = (requestError as Error).message } finally { busy.value = false }
 }

@@ -32,3 +32,10 @@ public interface IPasswordResetTokenService
 
     string Hash(string token);
 }
+
+public interface IPasswordResetEmailSender
+{
+    bool IsConfigured { get; }
+
+    Task<bool> SendAsync(string email, string fullName, string token, CancellationToken cancellationToken = default);
+}

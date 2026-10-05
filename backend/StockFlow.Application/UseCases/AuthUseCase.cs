@@ -11,6 +11,7 @@ public sealed class AuthUseCase(
     IPasswordService passwords,
     ITokenService tokens,
     IPasswordResetTokenService resetTokens,
+    IPasswordResetEmailSender resetEmail,
     ICurrentUserService currentUser) : IAuthUseCase
 {
     public async Task<UseCaseResult<SessionResponse>> GetProfileAsync(
@@ -92,6 +93,10 @@ public sealed class AuthUseCase(
         if (string.IsNullOrWhiteSpace(request.Email) || request.Email.Trim().Length > 254)
             return UseCaseResult<PasswordResetRequestResponse>.BadRequest("Email wajib diisi.");
 
+        if (!exposeResetToken && !resetEmail.IsConfigured)
+            return UseCaseResult<PasswordResetRequestResponse>.ServiceUnavailable(
+                "Layanan reset password belum tersedia. Hubungi administrator.");
+
         var email = request.Email.Trim().ToLowerInvariant();
         var user = await users.GetActiveByEmailAsync(email, cancellationToken);
 
@@ -107,6 +112,12 @@ public sealed class AuthUseCase(
             ExpiresAt = DateTime.UtcNow.AddMinutes(30),
         }, cancellationToken);
         await users.SaveChangesAsync(cancellationToken);
+
+        if (!exposeResetToken && !await resetEmail.SendAsync(user.Email, user.FullName, rawToken, cancellationToken))
+        {
+            await users.InvalidatePasswordResetTokensAsync(user.Id, cancellationToken);
+            await users.SaveChangesAsync(cancellationToken);
+        }
 
         return UseCaseResult<PasswordResetRequestResponse>.Ok(
             new PasswordResetRequestResponse(message, exposeResetToken ? rawToken : null));

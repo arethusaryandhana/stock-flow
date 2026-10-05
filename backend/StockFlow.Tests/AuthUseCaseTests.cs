@@ -145,6 +145,7 @@ public sealed class AuthUseCaseTests
             new StubPasswordService(),
             tokenService ?? new StubTokenService(),
             new StubResetTokenService(),
+            new StubPasswordResetEmailSender(),
             new StubCurrentUserService(currentUserId));
 
     private static User CreateUser(string password) => new()
@@ -216,6 +217,17 @@ public sealed class AuthUseCaseTests
     {
         public string Generate() => "token";
         public string Hash(string token) => $"hash:{token}";
+    }
+
+    private sealed class StubPasswordResetEmailSender : IPasswordResetEmailSender
+    {
+        public bool IsConfigured => true;
+
+        public Task<bool> SendAsync(
+            string email,
+            string fullName,
+            string token,
+            CancellationToken cancellationToken = default) => Task.FromResult(true);
     }
 
     private sealed class StubCurrentUserService(Guid userId) : ICurrentUserService

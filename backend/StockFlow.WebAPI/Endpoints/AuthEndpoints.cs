@@ -28,6 +28,7 @@ public sealed class AuthEndpoints : IEndpoint
             .AllowAnonymous()
             .RequireRateLimiting(AuthRateLimitPolicy)
             .Produces<PasswordResetRequestResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status503ServiceUnavailable)
             .Produces(StatusCodes.Status429TooManyRequests);
 
         group.MapPost("/reset-password", ResetPasswordAsync)

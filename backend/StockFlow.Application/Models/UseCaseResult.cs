@@ -22,6 +22,9 @@ public sealed record UseCaseResult<T>(
 
     public static UseCaseResult<T> NotFound(string message) =>
         new(404, Message: message);
+
+    public static UseCaseResult<T> ServiceUnavailable(string message) =>
+        new(503, Message: message);
 }
 
 public sealed record UseCaseResult(int StatusCode, string? Message = null)
