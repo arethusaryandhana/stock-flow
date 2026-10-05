@@ -152,8 +152,20 @@ public sealed class UserManagementUseCaseTests
         public Task<bool> ExistsByEmailAsync(string email, Guid? exceptId = null, CancellationToken cancellationToken = default) =>
             Task.FromResult(_users.Any(user => user.Email == email && user.Id != exceptId));
 
-        public Task<bool> HasAnotherActiveAdminAsync(Guid exceptId, CancellationToken cancellationToken = default) =>
-            Task.FromResult(_users.Any(user => user.Id != exceptId && user.IsActive && user.Role.Name == "Admin"));
+        public Task<bool> SaveChangesPreservingActiveAdminAsync(
+            Guid changingUserId,
+            Action applyChanges,
+            CancellationToken cancellationToken = default)
+        {
+            var hasAnotherActiveAdmin = _users.Any(
+                user => user.Id != changingUserId && user.IsActive && user.Role.Name == "Admin");
+            if (hasAnotherActiveAdmin)
+            {
+                applyChanges();
+                SaveCalls++;
+            }
+            return Task.FromResult(hasAnotherActiveAdmin);
+        }
 
         public Task AddAsync(User user, CancellationToken cancellationToken = default)
         {

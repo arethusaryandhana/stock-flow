@@ -75,22 +75,38 @@ public sealed class UserManagementUseCase(
 
         var removesAdmin = user.IsActive && user.Role.Name == "Admin" &&
             (!normalized.IsActive || role.Name != "Admin");
-        if (removesAdmin && !await users.HasAnotherActiveAdminAsync(user.Id, cancellationToken))
-            return UseCaseResult<ManagedUserResponse>.Conflict("Minimal satu Admin aktif harus dipertahankan.");
 
-        user.FullName = normalized.FullName;
-        user.Email = normalized.Email;
-        if (user.RoleId != role.Id || user.IsActive != normalized.IsActive)
-            user.TokenVersion++;
-        user.IsActive = normalized.IsActive;
-        user.RoleId = role.Id;
-        user.Role = role;
-        if (!string.IsNullOrWhiteSpace(normalized.Password))
+        var roleOrStatusChanged = user.RoleId != role.Id || user.IsActive != normalized.IsActive;
+        var passwordHash = string.IsNullOrWhiteSpace(normalized.Password)
+            ? null
+            : passwords.Hash(normalized.Password);
+
+        void ApplyChanges()
         {
-            user.PasswordHash = passwords.Hash(normalized.Password);
-            user.TokenVersion++;
+            user.FullName = normalized.FullName;
+            user.Email = normalized.Email;
+            if (roleOrStatusChanged)
+                user.TokenVersion++;
+            user.IsActive = normalized.IsActive;
+            user.RoleId = role.Id;
+            user.Role = role;
+            if (passwordHash is not null)
+            {
+                user.PasswordHash = passwordHash;
+                user.TokenVersion++;
+            }
         }
-        await users.SaveChangesAsync(cancellationToken);
+
+        if (removesAdmin)
+        {
+            if (!await users.SaveChangesPreservingActiveAdminAsync(user.Id, ApplyChanges, cancellationToken))
+                return UseCaseResult<ManagedUserResponse>.Conflict("Minimal satu Admin aktif harus dipertahankan.");
+        }
+        else
+        {
+            ApplyChanges();
+            await users.SaveChangesAsync(cancellationToken);
+        }
         return UseCaseResult<ManagedUserResponse>.Ok(ToResponse(user));
     }
 

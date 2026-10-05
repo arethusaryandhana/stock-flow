@@ -90,7 +90,10 @@ public interface IUserManagementRepository
 
     Task<bool> ExistsByEmailAsync(string email, Guid? exceptId = null, CancellationToken cancellationToken = default);
 
-    Task<bool> HasAnotherActiveAdminAsync(Guid exceptId, CancellationToken cancellationToken = default);
+    Task<bool> SaveChangesPreservingActiveAdminAsync(
+        Guid changingUserId,
+        Action applyChanges,
+        CancellationToken cancellationToken = default);
 
     Task AddAsync(User user, CancellationToken cancellationToken = default);
 

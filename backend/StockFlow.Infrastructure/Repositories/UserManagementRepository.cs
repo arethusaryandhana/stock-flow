@@ -61,8 +61,31 @@ public sealed class UserManagementRepository(StockFlowDbContext db) : IUserManag
     public Task<bool> ExistsByEmailAsync(string email, Guid? exceptId = null, CancellationToken cancellationToken = default) =>
         db.UsersSet.AnyAsync(user => user.Email == email && (!exceptId.HasValue || user.Id != exceptId.Value), cancellationToken);
 
-    public Task<bool> HasAnotherActiveAdminAsync(Guid exceptId, CancellationToken cancellationToken = default) =>
-        db.UsersSet.AnyAsync(user => user.Id != exceptId && user.IsActive && user.Role.Name == "Admin", cancellationToken);
+    public async Task<bool> SaveChangesPreservingActiveAdminAsync(
+        Guid changingUserId,
+        Action applyChanges,
+        CancellationToken cancellationToken = default)
+    {
+        const long adminMembershipLockId = 0x5354464C4F57;
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock({adminMembershipLockId})",
+            cancellationToken);
+
+        var hasAnotherActiveAdmin = await db.UsersSet.AsNoTracking().AnyAsync(
+            user => user.Id != changingUserId && user.IsActive && user.Role.Name == "Admin",
+            cancellationToken);
+        if (!hasAnotherActiveAdmin)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        applyChanges();
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return true;
+    }
 
     public Task AddAsync(User user, CancellationToken cancellationToken = default) =>
         db.UsersSet.AddAsync(user, cancellationToken).AsTask();
