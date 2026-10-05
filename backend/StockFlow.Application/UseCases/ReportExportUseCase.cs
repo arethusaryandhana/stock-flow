@@ -156,7 +156,20 @@ public sealed class ReportExportUseCase(IReportExportRepository reports) : IRepo
         }
     }
 
-    private static string EscapeCsv(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
+    private static string EscapeCsv(string value)
+    {
+        var firstNonWhitespace = 0;
+        while (firstNonWhitespace < value.Length &&
+               (char.IsWhiteSpace(value[firstNonWhitespace]) || char.IsControl(value[firstNonWhitespace])))
+            firstNonWhitespace++;
+
+        var startsWithFormula = value.Length > 0 && value[0] is '\t' or '\r' or '\n';
+        var beginsWithFormulaAfterWhitespace = firstNonWhitespace < value.Length &&
+            value[firstNonWhitespace] is '=' or '+' or '-' or '@' or '＝' or '＋' or '－' or '＠';
+        var safeValue = startsWithFormula || beginsWithFormulaAfterWhitespace ? $"'{value}" : value;
+
+        return $"\"{safeValue.Replace("\"", "\"\"")}\"";
+    }
 
     private static string FormatDecimal(decimal value) =>
         value.ToString("0.##", CultureInfo.InvariantCulture);

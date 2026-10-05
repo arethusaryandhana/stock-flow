@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../infrastructure/api'
+import { serializeCsv } from '../infrastructure/csv'
 import type { PagedResponse } from '../infrastructure/api'
 import { useI18n } from '../i18n'
 import { useDisplayPreferences } from '../preferences'
@@ -44,7 +45,7 @@ async function load() {
 }
 function exportCsv() {
   const rows = [[t('common.date'), t('products.product'), 'SKU', t('movements.activityType'), t('movements.quantity'), t('movements.balance'), t('movements.reference'), t('movements.note')], ...filtered.value.map((item) => [date(item.createdAt), item.productName, item.productSku, label(item), String(item.quantity), String(item.balanceAfter), item.referenceNumber, item.reason ?? ''])]
-  const csv = rows.map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(',')).join('\n')
+  const csv = serializeCsv(rows)
   const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = 'stockflow-pergerakan.csv'; link.click(); URL.revokeObjectURL(link.href)
 }
 function changePageSize(nextPageSize: number) {

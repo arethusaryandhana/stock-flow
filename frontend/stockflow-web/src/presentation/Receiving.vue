@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../infrastructure/api'
+import { serializeCsv } from '../infrastructure/csv'
 import type { PagedResponse } from '../infrastructure/api'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
@@ -119,7 +120,7 @@ async function submit() {
 
 function exportCsv() {
   const rows = [[t('receiving.date'), t('receiving.number'), t('receiving.orderNumber'), t('receiving.supplier'), t('receiving.items')], ...receipts.value.map((receipt) => [date(receipt.receivedAt), receipt.number, receipt.purchaseOrderNumber, receipt.supplierName, String(receipt.items.length)])]
-  const csv = rows.map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(',')).join('\n')
+  const csv = serializeCsv(rows)
   const link = document.createElement('a')
   link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
   link.download = 'stockflow-goods-receipts.csv'

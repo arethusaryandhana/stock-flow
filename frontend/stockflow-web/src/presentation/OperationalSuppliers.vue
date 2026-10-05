@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../infrastructure/api'
 import type { PagedResponse } from '../infrastructure/api'
+import { serializeCsv } from '../infrastructure/csv'
 import { useAuthStore } from '../stores/auth'
 import { useI18n } from '../i18n'
 import { useDisplayPreferences } from '../preferences'
@@ -42,7 +43,7 @@ async function load() {
 
 function exportCsv() {
   const rows = [[t('suppliersView.code'), t('suppliersView.name'), t('suppliersView.contact'), t('suppliersView.address'), t('suppliersView.status')], ...filtered.value.map((supplier) => [supplier.code, supplier.name, [supplier.email, supplier.phone].filter(Boolean).join(' · '), supplier.address ?? '', supplier.isActive ? t('suppliersView.activeLabel') : t('suppliersView.inactiveLabel')])]
-  const csv = rows.map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(',')).join('\n')
+  const csv = serializeCsv(rows)
   const link = document.createElement('a')
   link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
   link.download = 'stockflow-operational-suppliers.csv'

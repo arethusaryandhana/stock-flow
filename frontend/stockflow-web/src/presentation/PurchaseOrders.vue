@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '../infrastructure/api'
+import { serializeCsv } from '../infrastructure/csv'
 import type { PagedResponse } from '../infrastructure/api'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
@@ -168,7 +169,7 @@ async function updateStatus(order: PurchaseOrder, nextStatus: string) {
 
 function exportCsv() {
   const rows = [[t('operations.date'), t('operations.number'), t('operations.supplier'), t('operations.items'), t('operations.totalAmount'), t('operations.status')], ...filtered.value.map((order) => [date(order.orderDate), order.number, order.supplierName, String(order.items.length), money(order.totalAmount), statusLabel(order.status)])]
-  const csv = rows.map((row) => row.map((value) => `"${value.replaceAll('"', '""')}"`).join(',')).join('\n')
+  const csv = serializeCsv(rows)
   const link = document.createElement('a')
   link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
   link.download = 'stockflow-purchase-orders.csv'
