@@ -146,12 +146,14 @@ public sealed class ReportExportUseCase(IReportExportRepository reports) : IRepo
             DeleteIfExists(temporaryPath);
             throw;
         }
-        catch (Exception exception)
+        catch (Exception)
         {
             DeleteIfExists(temporaryPath);
             DeleteIfExists(filePath);
-            var message = exception.Message[..Math.Min(exception.Message.Length, 1000)];
-            await reports.FailAsync(job, message, cancellationToken);
+            await reports.FailAsync(
+                job,
+                "Laporan gagal dibuat. Silakan coba kembali.",
+                cancellationToken);
             throw;
         }
     }
