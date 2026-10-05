@@ -510,6 +510,9 @@ th.purchase-order-expand-cell { z-index: 3; background: var(--surface-subtle); }
 :root[data-theme='dark'] .notice-strip strong { color: #9bb8ff; }
 :root[data-theme='dark'] .chart { background: repeating-linear-gradient(to bottom, transparent 0, transparent 41px, var(--chart-grid) 42px, transparent 43px); }
 :root[data-theme='dark'] .health-note { color: #e2c995; background: #3a301e; }
+:root[data-theme='dark'] .badge.ok { color: var(--teal); }
+:root[data-theme='dark'] .badge.warn { color: var(--amber); }
+:root[data-theme='dark'] .badge.danger { color: var(--red); }
 :root[data-theme='dark'] .badge.neutral { color: #aeb9c9; background: #293548; }
 :root[data-theme='dark'] .activity-icon { border-color: var(--surface); }
 :root[data-theme='dark'] .activity-item:not(:last-child)::after { background: var(--line); }
