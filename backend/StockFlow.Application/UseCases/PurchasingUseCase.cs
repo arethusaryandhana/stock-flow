@@ -33,6 +33,9 @@ public sealed class PurchasingUseCase(
         if (request.Notes?.Trim().Length > 500)
             return UseCaseResult<PurchaseOrderResponse>.BadRequest("Catatan maksimal 500 karakter.");
 
+        if (request.Items?.Count > 100)
+            return UseCaseResult<PurchaseOrderResponse>.BadRequest("Purchase order maksimal memiliki 100 produk.");
+
         var supplier = await suppliers.FindAsync(request.SupplierId, cancellationToken);
         if (supplier is null)
             return UseCaseResult<PurchaseOrderResponse>.NotFound("Supplier tidak ditemukan.");
