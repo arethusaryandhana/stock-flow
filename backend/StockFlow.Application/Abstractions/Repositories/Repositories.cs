@@ -16,6 +16,11 @@ public interface IUserRepository
 
     Task<PasswordResetToken?> GetPasswordResetTokenAsync(string tokenHash, CancellationToken cancellationToken = default);
 
+    Task<bool> ConsumePasswordResetTokenAsync(
+        Guid tokenId,
+        string newPasswordHash,
+        CancellationToken cancellationToken = default);
+
     Task InvalidatePasswordResetTokensAsync(Guid userId, CancellationToken cancellationToken = default);
 
     Task AddPasswordResetTokenAsync(PasswordResetToken token, CancellationToken cancellationToken = default);

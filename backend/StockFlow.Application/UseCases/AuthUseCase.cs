@@ -140,11 +140,12 @@ public sealed class AuthUseCase(
         if (resetToken is null || resetToken.UsedAt is not null || resetToken.ExpiresAt <= DateTime.UtcNow || !resetToken.User.IsActive)
             return UseCaseResult<MessageResponse>.BadRequest("Link reset password tidak valid atau sudah kedaluwarsa.");
 
-        resetToken.User.PasswordHash = passwords.Hash(request.NewPassword);
-        resetToken.User.TokenVersion++;
-        resetToken.UsedAt = DateTime.UtcNow;
-        await users.InvalidatePasswordResetTokensAsync(resetToken.UserId, cancellationToken);
-        await users.SaveChangesAsync(cancellationToken);
+        var consumed = await users.ConsumePasswordResetTokenAsync(
+            resetToken.Id,
+            passwords.Hash(request.NewPassword),
+            cancellationToken);
+        if (!consumed)
+            return UseCaseResult<MessageResponse>.BadRequest("Link reset password tidak valid atau sudah kedaluwarsa.");
 
         return UseCaseResult<MessageResponse>.Ok(new MessageResponse("Password berhasil diperbarui. Silakan login kembali."));
     }

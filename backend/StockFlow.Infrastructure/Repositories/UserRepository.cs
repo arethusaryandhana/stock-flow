@@ -33,8 +33,38 @@ public sealed class UserRepository(StockFlowDbContext db) : IUserRepository
         CancellationToken cancellationToken = default)
     {
         return db.PasswordResetTokens
+            .AsNoTracking()
             .Include(token => token.User)
             .SingleOrDefaultAsync(token => token.TokenHash == tokenHash, cancellationToken);
+    }
+
+    public async Task<bool> ConsumePasswordResetTokenAsync(
+        Guid tokenId,
+        string newPasswordHash,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT id FROM identity.password_reset_tokens WHERE id = {tokenId} FOR UPDATE",
+            cancellationToken);
+
+        var resetToken = await db.PasswordResetTokens
+            .Include(token => token.User)
+            .SingleOrDefaultAsync(token => token.Id == tokenId, cancellationToken);
+        var now = DateTime.UtcNow;
+        if (resetToken is null || resetToken.UsedAt is not null || resetToken.ExpiresAt <= now || !resetToken.User.IsActive)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        resetToken.User.PasswordHash = newPasswordHash;
+        resetToken.User.TokenVersion++;
+        resetToken.UsedAt = now;
+        await InvalidatePasswordResetTokensAsync(resetToken.UserId, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return true;
     }
 
     public async Task InvalidatePasswordResetTokensAsync(

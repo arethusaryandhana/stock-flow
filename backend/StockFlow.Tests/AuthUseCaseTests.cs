@@ -178,6 +178,11 @@ public sealed class AuthUseCaseTests
             string tokenHash, CancellationToken cancellationToken = default) =>
             Task.FromResult<PasswordResetToken?>(null);
 
+        public Task<bool> ConsumePasswordResetTokenAsync(
+            Guid tokenId,
+            string newPasswordHash,
+            CancellationToken cancellationToken = default) => Task.FromResult(false);
+
         public Task InvalidatePasswordResetTokensAsync(
             Guid userId, CancellationToken cancellationToken = default)
         {
