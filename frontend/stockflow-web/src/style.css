@@ -28,8 +28,9 @@
 }
 
 * { box-sizing: border-box; }
-html { min-width: 320px; overflow-x: clip; background: var(--canvas); }
-body { min-width: 320px; margin: 0; overflow-x: clip; color: var(--ink); background: var(--canvas); font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }
+html, body { overflow-x: clip; }
+html { min-width: 320px; background: var(--canvas); }
+body { min-width: 320px; margin: 0; color: var(--ink); background: var(--canvas); font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }
 button, input, select { font: inherit; }
 button { cursor: pointer; border: 0; }
 button:disabled { cursor: not-allowed; opacity: .55; }
