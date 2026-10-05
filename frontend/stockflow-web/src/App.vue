@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { SESSION_REDIRECT_EVENT } from './infrastructure/api'
 import { isRequestPending } from './infrastructure/requestActivity'
@@ -16,6 +16,11 @@ const auth = useAuthStore()
 const toast = useToastStore()
 const { language, t, toggleLanguage } = useI18n()
 const mobileOpen = ref(false)
+const mobileMenuButton = ref<HTMLButtonElement | null>(null)
+const sidebarElement = ref<HTMLElement | null>(null)
+const mobileViewportQuery = window.matchMedia('(max-width: 930px)')
+const isMobileViewport = ref(mobileViewportQuery.matches)
+let previousBodyOverflow = ''
 const sidebarCollapsed = ref(localStorage.getItem('stockflow_sidebar_collapsed') === 'true')
 const menuGroupsStorageKey = 'stockflow_open_menu_groups'
 const search = ref('')
@@ -139,6 +144,53 @@ function closeMobileNav() {
   mobileOpen.value = false
 }
 
+function openMobileNav() {
+  if (isMobileViewport.value) mobileOpen.value = true
+}
+
+function toggleMobileNav() {
+  if (mobileOpen.value) closeMobileNav()
+  else openMobileNav()
+}
+
+function handleMobileNavKeydown(event: KeyboardEvent) {
+  if (!mobileOpen.value || !isMobileViewport.value) return
+
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeMobileNav()
+    return
+  }
+
+  if (event.key !== 'Tab') return
+
+  const focusableElements = Array.from(
+    sidebarElement.value?.querySelectorAll<HTMLElement>(
+      'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+    ) ?? [],
+  ).filter((element) => element.getClientRects().length > 0)
+  if (!focusableElements.length) {
+    event.preventDefault()
+    return
+  }
+
+  const first = focusableElements[0]
+  const last = focusableElements[focusableElements.length - 1]
+  const activeIndex = focusableElements.indexOf(document.activeElement as HTMLElement)
+  if (event.shiftKey && activeIndex <= 0) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && (activeIndex === -1 || activeIndex === focusableElements.length - 1)) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
+function handleMobileViewportChange(event: MediaQueryListEvent) {
+  isMobileViewport.value = event.matches
+  if (!event.matches) closeMobileNav()
+}
+
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
   localStorage.setItem('stockflow_sidebar_collapsed', String(sidebarCollapsed.value))
@@ -160,6 +212,7 @@ function toggleMenuGroup(labelKey: string) {
 watch(
   () => route.path,
   () => {
+    closeMobileNav()
     const activeGroupKey = findActiveGroupKey()
     if (!activeGroupKey || openMenuGroups.value.has(activeGroupKey)) return
 
@@ -167,6 +220,22 @@ watch(
     localStorage.setItem(menuGroupsStorageKey, JSON.stringify([...openMenuGroups.value]))
   },
 )
+
+watch(mobileOpen, async (isOpen, wasOpen) => {
+  if (isOpen && isMobileViewport.value) {
+    previousBodyOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    await nextTick()
+    sidebarElement.value?.querySelector<HTMLElement>('.brand-lockup')?.focus()
+    return
+  }
+
+  document.body.style.overflow = previousBodyOverflow
+  if (wasOpen && isMobileViewport.value) {
+    await nextTick()
+    mobileMenuButton.value?.focus()
+  }
+})
 
 function handleSearch() {
   if (search.value.trim()) notify(t('app.searchToast', { term: search.value.trim() }))
@@ -201,6 +270,8 @@ function updateTopbarScrollState() {
 onMounted(() => {
   document.addEventListener('click', closeProfileOnOutsideClick)
   document.addEventListener('keydown', closeProfileOnEscape)
+  document.addEventListener('keydown', handleMobileNavKeydown)
+  mobileViewportQuery.addEventListener('change', handleMobileViewportChange)
   window.addEventListener(SESSION_REDIRECT_EVENT, showSessionRedirectLoading)
   window.addEventListener('scroll', updateTopbarScrollState, { passive: true })
   updateTopbarScrollState()
@@ -209,8 +280,11 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeProfileOnOutsideClick)
   document.removeEventListener('keydown', closeProfileOnEscape)
+  document.removeEventListener('keydown', handleMobileNavKeydown)
+  mobileViewportQuery.removeEventListener('change', handleMobileViewportChange)
   window.removeEventListener(SESSION_REDIRECT_EVENT, showSessionRedirectLoading)
   window.removeEventListener('scroll', updateTopbarScrollState)
+  document.body.style.overflow = previousBodyOverflow
 })
 </script>
 
@@ -238,8 +312,18 @@ onBeforeUnmount(() => {
   <router-view v-if="route.path === '/login'" />
 
   <div v-else class="app-shell">
-    <div v-if="mobileOpen" class="mobile-backdrop" @click="closeMobileNav" />
-    <aside class="sidebar" :class="{ 'sidebar-open': mobileOpen, 'sidebar-collapsed': sidebarCollapsed }">
+    <div v-if="mobileOpen" class="mobile-backdrop" aria-hidden="true" @click="closeMobileNav" />
+    <aside
+      id="mobile-navigation"
+      ref="sidebarElement"
+      class="sidebar"
+      :class="{ 'sidebar-open': mobileOpen, 'sidebar-collapsed': sidebarCollapsed }"
+      :inert="isMobileViewport && !mobileOpen"
+      :aria-hidden="isMobileViewport && !mobileOpen ? 'true' : undefined"
+      :role="isMobileViewport && mobileOpen ? 'dialog' : undefined"
+      :aria-modal="isMobileViewport && mobileOpen ? 'true' : undefined"
+      :aria-label="isMobileViewport && mobileOpen ? t('app.mainNav') : undefined"
+    >
       <div class="sidebar-head">
         <router-link class="brand-lockup" to="/" :aria-label="t('app.brandAria')" @click="closeMobileNav">
           <img class="brand-logo" src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
@@ -328,7 +412,15 @@ onBeforeUnmount(() => {
     <div class="app-main">
       <header class="topbar" :class="{ 'topbar-scrolled': topbarScrolled }">
         <div class="topbar-left">
-          <button class="mobile-menu" type="button" :aria-label="t('app.mainNav')" @click="mobileOpen = true">☰</button>
+          <button
+            ref="mobileMenuButton"
+            class="mobile-menu"
+            type="button"
+            :aria-label="t(mobileOpen ? 'app.closeSidebar' : 'app.openSidebar')"
+            aria-controls="mobile-navigation"
+            :aria-expanded="mobileOpen"
+            @click="toggleMobileNav"
+          >☰</button>
           <router-link class="mobile-brand" to="/" :aria-label="t('app.brandAria')">
             <img src="/stockflow-logo.svg?v=20260827" alt="" aria-hidden="true">
             <strong>StockFlow</strong>
