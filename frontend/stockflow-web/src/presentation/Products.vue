@@ -199,10 +199,10 @@ onMounted(load)
 
     <section class="surface-card page-panel">
       <div class="tab-row">
-        <button class="tab-button" :class="{ active: statusFilter === 'all' }" type="button" @click="statusFilter = 'all'">{{ t('products.all') }} <span class="count">{{ counts.all }}</span></button>
-        <button class="tab-button" :class="{ active: statusFilter === 'low' }" type="button" @click="statusFilter = 'low'">{{ t('products.low') }} <span class="count">{{ counts.low }}</span></button>
-        <button class="tab-button" :class="{ active: statusFilter === 'out' }" type="button" @click="statusFilter = 'out'">{{ t('products.out') }} <span class="count">{{ counts.out }}</span></button>
-        <button class="tab-button" :class="{ active: statusFilter === 'inactive' }" type="button" @click="statusFilter = 'inactive'">{{ t('products.inactive') }} <span class="count">{{ counts.inactive }}</span></button>
+        <button class="tab-button" :class="{ active: statusFilter === 'all' }" :aria-pressed="statusFilter === 'all'" type="button" @click="statusFilter = 'all'">{{ t('products.all') }} <span class="count">{{ counts.all }}</span></button>
+        <button class="tab-button" :class="{ active: statusFilter === 'low' }" :aria-pressed="statusFilter === 'low'" type="button" @click="statusFilter = 'low'">{{ t('products.low') }} <span class="count">{{ counts.low }}</span></button>
+        <button class="tab-button" :class="{ active: statusFilter === 'out' }" :aria-pressed="statusFilter === 'out'" type="button" @click="statusFilter = 'out'">{{ t('products.out') }} <span class="count">{{ counts.out }}</span></button>
+        <button class="tab-button" :class="{ active: statusFilter === 'inactive' }" :aria-pressed="statusFilter === 'inactive'" type="button" @click="statusFilter = 'inactive'">{{ t('products.inactive') }} <span class="count">{{ counts.inactive }}</span></button>
       </div>
       <div class="toolbar">
         <label class="search-input"><span>⌕</span><input v-model="q" :aria-label="t('products.searchAria')" :placeholder="t('products.searchPlaceholder')"></label>
