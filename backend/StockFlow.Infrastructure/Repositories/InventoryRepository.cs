@@ -7,6 +7,8 @@ namespace StockFlow.Infrastructure.Repositories;
 
 public sealed class InventoryRepository(StockFlowDbContext db) : IInventoryRepository
 {
+    private const int MaxMovementPeriodDays = 3650;
+
     public async Task<StockMovementPageResponse> GetMovementsAsync(
         int page,
         int pageSize,
@@ -36,7 +38,8 @@ public sealed class InventoryRepository(StockFlowDbContext db) : IInventoryRepos
 
         if (periodDays is > 0)
         {
-            var since = DateTime.UtcNow.AddDays(-periodDays.Value);
+            var boundedPeriodDays = Math.Min(periodDays.Value, MaxMovementPeriodDays);
+            var since = DateTime.UtcNow.AddDays(-boundedPeriodDays);
             query = query.Where(movement => movement.CreatedAt >= since);
         }
 
