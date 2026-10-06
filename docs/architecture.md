@@ -11,11 +11,15 @@ locks the target product with `FOR UPDATE`, recalculates the balance, and writes
 movement, and product balance atomically. Database check constraints provide a final guard against
 negative balances and invalid quantities.
 
-All protected API requests require a JWT in the `Authorization: Bearer` header. The web client
-stores the token in session storage, or local storage when "Remember me" is selected. Cookies
-cannot authenticate API requests. Each JWT contains the user's token version; changing or resetting a
-password increments that version so previously issued sessions are rejected. Authentication
-endpoints are rate-limited by client address.
+Protected API requests accept bearer JWTs for service clients. The web client receives its JWT only
+in a secure, HttpOnly, SameSite=None cookie scoped to `/api`; it never reads or stores the token in
+JavaScript storage. "Remember me" makes the cookie persistent for the token lifetime; otherwise it
+is a browser-session cookie. Cookie-authenticated mutations require an `Origin` header from the
+configured web origin or the API's own origin; requests from other origins are rejected. Each JWT
+contains the user's token version;
+changing or resetting a password invalidates previously issued sessions. Authentication endpoints
+are rate-limited by client address, and account login is locked for 15 minutes after five failed
+password attempts.
 
 Large reports are queued in PostgreSQL. Workers claim one row with `FOR UPDATE SKIP LOCKED`, commit the claim, and write product rows to a temporary UTF-8 CSV in batches before atomically renaming it and updating status. A partial unique index allows only one queued or processing job per user and report type, including under concurrent requests. Processing jobs use a unique lease token, renew their 15-minute inactivity lease between batches, and can only be completed or failed by the worker holding the current token. Each attempt writes to a distinct file so a stale worker cannot overwrite the active worker's output. The API lists only the current user's jobs and accepts a download only when the stored file resolves to the exact expected path under the configured report directory. API and worker share that directory; the Docker API mount is read-only. Product-stock CSV exports include the current company name, primary currency, and logo URL as metadata comments.
 

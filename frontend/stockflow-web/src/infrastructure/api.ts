@@ -10,23 +10,16 @@ export type PagedResponse<T> = {
 }
 
 const sessionKeys = ['stockflow_authenticated', 'stockflow_name', 'stockflow_email', 'stockflow_role']
-const tokenKey = 'stockflow_token'
+const legacyTokenKey = 'stockflow_token'
 export const SESSION_REDIRECT_EVENT = 'stockflow:session-redirect'
 
-export function getAccessToken() {
-  return sessionStorage.getItem(tokenKey) ?? localStorage.getItem(tokenKey)
+export function clearLegacyToken() {
+  sessionStorage.removeItem(legacyTokenKey)
+  localStorage.removeItem(legacyTokenKey)
 }
 
-export function setAccessToken(token: string, rememberMe: boolean) {
-  clearAccessToken()
-  const storage = rememberMe ? localStorage : sessionStorage
-  storage.setItem(tokenKey, token)
-}
-
-export function clearAccessToken() {
-  sessionStorage.removeItem(tokenKey)
-  localStorage.removeItem(tokenKey)
-}
+clearLegacyToken()
+sessionKeys.forEach((key) => sessionStorage.removeItem(key))
 
 const loginRedirectDelayMs = 900
 let loginRedirectPending = false
@@ -41,12 +34,11 @@ export function redirectToLoginWithLoading() {
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api',
+  withCredentials: true,
 })
 
 api.interceptors.request.use((config) => {
   beginRequest()
-  const token = getAccessToken()
-  if (token) config.headers.set('Authorization', `Bearer ${token}`)
   return config
 })
 
@@ -66,7 +58,7 @@ api.interceptors.response.use(
 
     if (status === 401 && !isPublicAuthRequest) {
       sessionKeys.forEach((key) => sessionStorage.removeItem(key))
-      clearAccessToken()
+      clearLegacyToken()
       if (!isSessionProbe) redirectToLoginWithLoading()
     }
 

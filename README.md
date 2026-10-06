@@ -76,10 +76,10 @@ secrets/environment variables. Password recovery also requires `PasswordReset__S
 in deployment secrets; without valid mail settings the recovery endpoint returns `503` for all
 addresses. The worker needs write access to report storage while the API only needs read access for
 downloads.
-Bearer tokens are valid for 8 hours by default; override this with `Jwt__LifetimeMinutes`
-when a different lifetime is required (maximum `480` minutes). The web client sends tokens
-through the `Authorization: Bearer <token>` header. "Remember me" only stores the same token
-in local storage instead of session storage; it does not extend the token lifetime.
+JWTs are valid for 8 hours by default; override this with `Jwt__LifetimeMinutes` when a different
+lifetime is required (maximum `480` minutes). Service clients may send tokens through the
+`Authorization: Bearer <token>` header. The browser client uses an HttpOnly secure cookie, and
+"Remember me" keeps that cookie until its JWT expires without extending the token lifetime.
 Run EF migrations as a controlled release step. `Database__ApplyMigrations`, `SeedData__Demo`, and
 `PasswordReset__ExposeResetToken` should remain `false` in production.
 The access-history permission is added by migration `20260918090000_AddAccessHistoryPermission`.

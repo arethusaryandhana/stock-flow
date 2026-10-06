@@ -55,6 +55,7 @@ builder.Services.AddCors(options =>
         "web",
         policy => policy
             .WithOrigins(builder.Configuration["WebOrigin"] ?? "http://localhost:5173")
+            .AllowCredentials()
             .AllowAnyHeader()
             .AllowAnyMethod()));
 builder.Services
@@ -75,6 +76,12 @@ builder.Services
         };
         options.Events = new JwtBearerEvents
         {
+            OnMessageReceived = context =>
+            {
+                if (!context.Request.Headers.ContainsKey("Authorization"))
+                    context.Token = context.Request.Cookies[SessionCookie.Name];
+                return Task.CompletedTask;
+            },
             OnTokenValidated = async context =>
             {
                 var rawUserId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -113,6 +120,8 @@ builder.Services
                 // The JWT handler returns an empty 401 response by default.
                 // Always return the API's JSON error contract instead.
                 context.HandleResponse();
+                if (!context.Request.Headers.ContainsKey("Authorization"))
+                    SessionCookie.Clear(context.HttpContext);
                 await SecurityErrorResponseWriter.WriteAsync(
                     context.HttpContext,
                     StatusCodes.Status401Unauthorized,
@@ -151,6 +160,20 @@ if (app.Environment.IsDevelopment())
 
 app.UseRouting();
 app.UseCors("web");
+var configuredWebOrigin = builder.Configuration["WebOrigin"] ?? "http://localhost:5173";
+app.Use(async (context, next) =>
+{
+    if (!MutationOriginPolicy.IsAllowed(context.Request, configuredWebOrigin))
+    {
+        await SecurityErrorResponseWriter.WriteAsync(
+            context,
+            StatusCodes.Status403Forbidden,
+            "Permintaan perubahan data harus berasal dari aplikasi StockFlow.");
+        return;
+    }
+
+    await next();
+});
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

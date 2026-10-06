@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { hasPermission } from '../accessPolicy'
-import { api, clearAccessToken, getAccessToken, redirectToLoginWithLoading, setAccessToken } from '../infrastructure/api'
+import { api, clearLegacyToken, redirectToLoginWithLoading } from '../infrastructure/api'
 
 type SessionProfile = { fullName: string; email: string; role: string }
 type AccessSnapshot = { role: string; permissions: string[] }
@@ -9,7 +9,7 @@ const sessionKeys = ['stockflow_authenticated', 'stockflow_name', 'stockflow_ema
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    authenticated: Boolean(getAccessToken()) && sessionStorage.getItem('stockflow_authenticated') === 'true',
+    authenticated: sessionStorage.getItem('stockflow_authenticated') === 'true',
     name: sessionStorage.getItem('stockflow_name') ?? '',
     email: sessionStorage.getItem('stockflow_email') ?? '',
     role: sessionStorage.getItem('stockflow_role') ?? '',
@@ -21,8 +21,7 @@ export const useAuthStore = defineStore('auth', {
   },
   actions: {
     async login(email: string, password: string, rememberMe: boolean) {
-      const { data } = await api.post<SessionProfile & { token: string }>('/auth/login', { email, password })
-      setAccessToken(data.token, rememberMe)
+      const { data } = await api.post<SessionProfile>('/auth/login', { email, password, rememberMe })
       this.setSession(data)
       try {
         await this.refreshAccess()
@@ -50,7 +49,7 @@ export const useAuthStore = defineStore('auth', {
     },
     clearSession() {
       sessionKeys.forEach((key) => sessionStorage.removeItem(key))
-      clearAccessToken()
+      clearLegacyToken()
       this.authenticated = false
       this.name = ''
       this.email = ''

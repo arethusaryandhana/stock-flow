@@ -20,7 +20,7 @@ public sealed class AuthEndpoints : IEndpoint
         group.MapPost("/login", LoginAsync)
             .AllowAnonymous()
             .RequireRateLimiting(AuthRateLimitPolicy)
-            .Produces<LoginResponse>(StatusCodes.Status200OK)
+            .Produces<SessionResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status429TooManyRequests);
 
@@ -74,9 +74,24 @@ public sealed class AuthEndpoints : IEndpoint
 
     private static async Task<IResult> LoginAsync(
         LoginRequest request,
+        HttpContext context,
         IAuthUseCase useCase,
-        CancellationToken cancellationToken) =>
-        (await useCase.LoginAsync(request, cancellationToken)).ToHttpResult();
+        IConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        var result = await useCase.LoginAsync(request, cancellationToken);
+        if (result.StatusCode != StatusCodes.Status200OK || result.Data is null)
+            return result.ToHttpResult();
+
+        context.Response.Cookies.Append(
+            SessionCookie.Name,
+            result.Data.Token,
+            SessionCookie.CreateOptions(configuration, request.RememberMe));
+        return Results.Ok(new SessionResponse(
+            result.Data.FullName,
+            result.Data.Email,
+            result.Data.Role));
+    }
 
     private static async Task<IResult> ForgotPasswordAsync(
         ForgotPasswordRequest request,
@@ -92,15 +107,27 @@ public sealed class AuthEndpoints : IEndpoint
 
     private static async Task<IResult> ResetPasswordAsync(
         ResetPasswordRequest request,
+        HttpContext context,
         IAuthUseCase useCase,
-        CancellationToken cancellationToken) =>
-        (await useCase.ResetPasswordAsync(request, cancellationToken)).ToHttpResult();
+        CancellationToken cancellationToken)
+    {
+        var result = await useCase.ResetPasswordAsync(request, cancellationToken);
+        if (result.StatusCode == StatusCodes.Status200OK)
+            SessionCookie.Clear(context);
+        return result.ToHttpResult();
+    }
 
     private static async Task<IResult> ChangePasswordAsync(
         ChangePasswordRequest request,
+        HttpContext context,
         IAuthUseCase useCase,
-        CancellationToken cancellationToken) =>
-        (await useCase.ChangePasswordAsync(request, cancellationToken)).ToHttpResult();
+        CancellationToken cancellationToken)
+    {
+        var result = await useCase.ChangePasswordAsync(request, cancellationToken);
+        if (result.StatusCode == StatusCodes.Status200OK)
+            SessionCookie.Clear(context);
+        return result.ToHttpResult();
+    }
 
     private static async Task<IResult> UpdateProfileAsync(
         UpdateAccountProfileRequest request,
@@ -109,9 +136,15 @@ public sealed class AuthEndpoints : IEndpoint
         (await useCase.UpdateProfileAsync(request, cancellationToken)).ToHttpResult();
 
     private static async Task<IResult> LogoutAllAsync(
+        HttpContext context,
         IAuthUseCase useCase,
-        CancellationToken cancellationToken) =>
-        (await useCase.RevokeAllSessionsAsync(cancellationToken)).ToHttpResult();
+        CancellationToken cancellationToken)
+    {
+        var result = await useCase.RevokeAllSessionsAsync(cancellationToken);
+        if (result.StatusCode == StatusCodes.Status200OK)
+            SessionCookie.Clear(context);
+        return result.ToHttpResult();
+    }
 
     private static async Task<IResult> LogoutAsync(
         HttpContext context,
@@ -126,6 +159,7 @@ public sealed class AuthEndpoints : IEndpoint
 
         var expiresAt = DateTimeOffset.FromUnixTimeSeconds(expiresAtUnixSeconds).UtcDateTime;
         await tokenRevocations.RevokeAsync(tokenId, expiresAt, cancellationToken);
+        SessionCookie.Clear(context);
         return Results.NoContent();
     }
 

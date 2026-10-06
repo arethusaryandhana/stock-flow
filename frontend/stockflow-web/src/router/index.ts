@@ -16,7 +16,7 @@ import Users from '../presentation/Users.vue'
 import RoleAccess from '../presentation/RoleAccess.vue'
 import AccessHistory from '../presentation/AccessHistory.vue'
 import { useAuthStore } from '../stores/auth'
-import { api, getAccessToken } from '../infrastructure/api'
+import { api } from '../infrastructure/api'
 
 const sessionKeys = ['stockflow_authenticated', 'stockflow_name', 'stockflow_email', 'stockflow_role']
 
@@ -48,30 +48,24 @@ const router = createRouter({
   ],
 })
 
-async function restoreSession() {
-  if (!getAccessToken()) {
-    sessionKeys.forEach((key) => sessionStorage.removeItem(key))
-    return false
-  }
+async function restoreSession(auth: ReturnType<typeof useAuthStore>) {
   if (sessionStorage.getItem('stockflow_authenticated') === 'true') return true
 
   try {
     const { data } = await api.get<{ fullName: string; email: string; role: string }>('/auth/session')
-    sessionStorage.setItem('stockflow_authenticated', 'true')
-    sessionStorage.setItem('stockflow_name', data.fullName)
-    sessionStorage.setItem('stockflow_email', data.email)
-    sessionStorage.setItem('stockflow_role', data.role)
+    auth.setSession(data)
     return true
   } catch {
+    sessionKeys.forEach((key) => sessionStorage.removeItem(key))
     return false
   }
 }
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
-  const hasSession = to.meta.auth ? await restoreSession() :
-    Boolean(getAccessToken()) && sessionStorage.getItem('stockflow_authenticated') === 'true'
+  const hasSession = await restoreSession(auth)
 
+  if (to.path === '/login') return hasSession ? '/' : true
   if (to.meta.auth && !hasSession) return '/login'
   if (to.meta.auth) {
     try {
