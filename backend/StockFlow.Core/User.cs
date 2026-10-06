@@ -6,6 +6,8 @@ public sealed class User : ActivatableEntity
     public string FullName { get; set; } = "";
     public string PasswordHash { get; set; } = "";
     public int TokenVersion { get; set; }
+    public int FailedLoginAttempts { get; set; }
+    public DateTime? LoginLockoutEnd { get; set; }
     public bool InAppNotificationsEnabled { get; set; } = true;
     public bool LowStockNotificationsEnabled { get; set; } = true;
     public bool ReportReadyNotificationsEnabled { get; set; } = true;

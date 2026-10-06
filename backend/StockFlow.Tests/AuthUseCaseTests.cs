@@ -24,6 +24,77 @@ public sealed class AuthUseCaseTests
     }
 
     [Fact]
+    public async Task Login_RecordsFailedPasswordAttempts()
+    {
+        var user = CreateUser("OldStockFlow123!");
+        var users = new StubUserRepository(user);
+        var useCase = CreateUseCase(users, user.Id);
+
+        var result = await useCase.LoginAsync(
+            new LoginRequest(user.Email, "incorrect"),
+            CancellationToken.None);
+
+        Assert.Equal(401, result.StatusCode);
+        Assert.Equal(1, user.FailedLoginAttempts);
+        Assert.Equal(1, users.RecordFailedLoginCalls);
+    }
+
+    [Fact]
+    public async Task Login_LocksAccountAfterMaximumFailedAttempts()
+    {
+        var user = CreateUser("OldStockFlow123!");
+        var users = new StubUserRepository(user);
+        var useCase = CreateUseCase(users, user.Id);
+
+        for (var attempt = 0; attempt < LoginSecurityPolicy.MaximumFailedAttempts; attempt++)
+        {
+            var result = await useCase.LoginAsync(
+                new LoginRequest(user.Email, "incorrect"),
+                CancellationToken.None);
+            Assert.Equal(401, result.StatusCode);
+        }
+
+        Assert.Equal(LoginSecurityPolicy.MaximumFailedAttempts, user.FailedLoginAttempts);
+        Assert.NotNull(user.LoginLockoutEnd);
+    }
+
+    [Fact]
+    public async Task Login_DoesNotVerifyOrIssueTokenWhileAccountIsLocked()
+    {
+        var user = CreateUser("OldStockFlow123!");
+        user.LoginLockoutEnd = DateTime.UtcNow.AddMinutes(5);
+        var users = new StubUserRepository(user);
+        var tokens = new StubTokenService();
+        var useCase = CreateUseCase(users, user.Id, tokens);
+
+        var result = await useCase.LoginAsync(
+            new LoginRequest(user.Email, "OldStockFlow123!"),
+            CancellationToken.None);
+
+        Assert.Equal(401, result.StatusCode);
+        Assert.Equal(0, tokens.CreateCalls);
+        Assert.Equal(0, users.RecordFailedLoginCalls);
+    }
+
+    [Fact]
+    public async Task Login_ResetsFailedAttemptsAfterSuccessfulAuthentication()
+    {
+        var user = CreateUser("OldStockFlow123!");
+        user.FailedLoginAttempts = 2;
+        var users = new StubUserRepository(user);
+        var useCase = CreateUseCase(users, user.Id);
+
+        var result = await useCase.LoginAsync(
+            new LoginRequest(user.Email, "OldStockFlow123!"),
+            CancellationToken.None);
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal(0, user.FailedLoginAttempts);
+        Assert.Null(user.LoginLockoutEnd);
+        Assert.Equal(1, users.ResetFailedLoginCalls);
+    }
+
+    [Fact]
     public async Task GetProfile_ReturnsCurrentAccountDetails()
     {
         var user = CreateUser("OldStockFlow123!");
@@ -161,9 +232,34 @@ public sealed class AuthUseCaseTests
         public string? OtherUserEmail { get; init; }
         public int InvalidateCalls { get; private set; }
         public int SaveCalls { get; private set; }
+        public int RecordFailedLoginCalls { get; private set; }
+        public int ResetFailedLoginCalls { get; private set; }
 
         public Task<User?> GetActiveByEmailAsync(string email, CancellationToken cancellationToken = default) =>
             Task.FromResult<User?>(user.Email == email ? user : null);
+
+        public Task RecordFailedLoginAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            RecordFailedLoginCalls++;
+            if (user.LoginLockoutEnd > DateTime.UtcNow)
+                return Task.CompletedTask;
+
+            user.FailedLoginAttempts = user.LoginLockoutEnd is not null
+                ? 1
+                : user.FailedLoginAttempts + 1;
+            user.LoginLockoutEnd = user.FailedLoginAttempts >= LoginSecurityPolicy.MaximumFailedAttempts
+                ? DateTime.UtcNow.Add(LoginSecurityPolicy.LockoutDuration)
+                : null;
+            return Task.CompletedTask;
+        }
+
+        public Task ResetFailedLoginsAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            ResetFailedLoginCalls++;
+            user.FailedLoginAttempts = 0;
+            user.LoginLockoutEnd = null;
+            return Task.CompletedTask;
+        }
 
         public Task<User?> GetActiveByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult<User?>(user.Id == id ? user : null);

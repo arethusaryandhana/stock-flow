@@ -172,6 +172,7 @@ public sealed class StockFlowDbContext(
         if (propertyName is nameof(Entity.CreatedAt) or nameof(Entity.CreatedById) or
             nameof(Entity.UpdatedAt) or nameof(Entity.UpdatedById) or
             nameof(User.PasswordHash) or nameof(User.TokenVersion) or
+            nameof(User.FailedLoginAttempts) or nameof(User.LoginLockoutEnd) or
             nameof(User.InAppNotificationsEnabled) or nameof(User.LowStockNotificationsEnabled) or
             nameof(User.ReportReadyNotificationsEnabled) or nameof(User.SystemNotificationsEnabled) or
             nameof(User.NotificationSoundEnabled) or nameof(User.NotificationPollingIntervalSeconds))

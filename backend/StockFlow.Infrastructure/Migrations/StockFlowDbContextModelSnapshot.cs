@@ -1287,6 +1287,10 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("character varying(160)")
                         .HasColumnName("full_name");
 
+                    b.Property<int>("FailedLoginAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("failed_login_attempts");
+
                     b.Property<bool>("InAppNotificationsEnabled")
                         .HasColumnType("boolean")
                         .HasColumnName("in_app_notifications_enabled");
@@ -1294,6 +1298,10 @@ namespace StockFlow.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
+
+                    b.Property<DateTime?>("LoginLockoutEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("login_lockout_end");
 
                     b.Property<bool>("LowStockNotificationsEnabled")
                         .HasColumnType("boolean")

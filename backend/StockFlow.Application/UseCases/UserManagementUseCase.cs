@@ -94,6 +94,8 @@ public sealed class UserManagementUseCase(
             {
                 user.PasswordHash = passwordHash;
                 user.TokenVersion++;
+                user.FailedLoginAttempts = 0;
+                user.LoginLockoutEnd = null;
             }
         }
 

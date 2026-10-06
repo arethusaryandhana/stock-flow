@@ -33,11 +33,22 @@ public sealed class AuthUseCase(
 
         var user = await users.GetActiveByEmailAsync(email, cancellationToken);
 
-        if (user is null || !passwords.Verify(request.Password, user.PasswordHash))
+        if (user is null)
         {
             return UseCaseResult<LoginResponse>.Unauthorized(
                 "Email atau kata sandi tidak sesuai.");
         }
+
+        if (user.LoginLockoutEnd > DateTime.UtcNow || !passwords.Verify(request.Password, user.PasswordHash))
+        {
+            if (user.LoginLockoutEnd is null || user.LoginLockoutEnd <= DateTime.UtcNow)
+                await users.RecordFailedLoginAsync(user.Id, cancellationToken);
+
+            return UseCaseResult<LoginResponse>.Unauthorized(
+                "Email atau kata sandi tidak sesuai.");
+        }
+
+        await users.ResetFailedLoginsAsync(user.Id, cancellationToken);
 
         return UseCaseResult<LoginResponse>.Ok(
             new LoginResponse(tokens.Create(user), user.FullName, user.Email, user.Role.Name));
@@ -176,6 +187,8 @@ public sealed class AuthUseCase(
 
         user.PasswordHash = passwords.Hash(request.NewPassword);
         user.TokenVersion++;
+        user.FailedLoginAttempts = 0;
+        user.LoginLockoutEnd = null;
         await users.InvalidatePasswordResetTokensAsync(user.Id, cancellationToken);
         await users.SaveChangesAsync(cancellationToken);
 

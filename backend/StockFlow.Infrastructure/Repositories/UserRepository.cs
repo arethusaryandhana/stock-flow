@@ -6,6 +6,44 @@ namespace StockFlow.Infrastructure.Repositories;
 
 public sealed class UserRepository(StockFlowDbContext db) : IUserRepository
 {
+    public async Task RecordFailedLoginAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var maximumAttempts = LoginSecurityPolicy.MaximumFailedAttempts;
+        var lockoutMinutes = (int)LoginSecurityPolicy.LockoutDuration.TotalMinutes;
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE identity.users
+            SET failed_login_attempts = CASE
+                    WHEN login_lockout_end IS NOT NULL AND login_lockout_end <= NOW() THEN 1
+                    ELSE failed_login_attempts + 1
+                END,
+                login_lockout_end = CASE
+                    WHEN (CASE
+                            WHEN login_lockout_end IS NOT NULL AND login_lockout_end <= NOW() THEN 1
+                            ELSE failed_login_attempts + 1
+                          END) >= {maximumAttempts}
+                    THEN NOW() + ({lockoutMinutes} * INTERVAL '1 minute')
+                    ELSE NULL
+                END
+            WHERE id = {userId}
+              AND (login_lockout_end IS NULL OR login_lockout_end <= NOW())
+            """, cancellationToken);
+    }
+
+    public async Task ResetFailedLoginsAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE identity.users
+            SET failed_login_attempts = 0,
+                login_lockout_end = NULL
+            WHERE id = {userId}
+              AND (failed_login_attempts <> 0 OR login_lockout_end IS NOT NULL)
+            """, cancellationToken);
+    }
+
     public Task<User?> GetActiveByEmailAsync(
         string email,
         CancellationToken cancellationToken = default)
@@ -60,6 +98,8 @@ public sealed class UserRepository(StockFlowDbContext db) : IUserRepository
 
         resetToken.User.PasswordHash = newPasswordHash;
         resetToken.User.TokenVersion++;
+        resetToken.User.FailedLoginAttempts = 0;
+        resetToken.User.LoginLockoutEnd = null;
         resetToken.UsedAt = now;
         await InvalidatePasswordResetTokensAsync(resetToken.UserId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);

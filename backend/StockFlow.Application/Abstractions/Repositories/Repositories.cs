@@ -7,6 +7,10 @@ public interface IUserRepository
 {
     Task<User?> GetActiveByEmailAsync(string email, CancellationToken cancellationToken = default);
 
+    Task RecordFailedLoginAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    Task ResetFailedLoginsAsync(Guid userId, CancellationToken cancellationToken = default);
+
     Task<User?> GetActiveByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task<bool> EmailExistsForOtherUserAsync(
