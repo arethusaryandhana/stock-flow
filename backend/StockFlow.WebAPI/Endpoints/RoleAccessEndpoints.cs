@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using StockFlow.Application.Abstractions.Services;
 using StockFlow.Application.Models;
 using StockFlow.Core;
 using StockFlow.Infrastructure;
@@ -120,7 +122,12 @@ public sealed class RoleAccessEndpoints : IEndpoint
     }
 
     private static async Task<IResult> UpdatePermissionsAsync(
-        Guid id, RolePermissionsRequest request, StockFlowDbContext db, CancellationToken cancellationToken)
+        Guid id,
+        RolePermissionsRequest request,
+        StockFlowDbContext db,
+        IUserAccessReader access,
+        HttpContext context,
+        CancellationToken cancellationToken)
     {
         var role = await db.Roles.Include(item => item.Permissions)
             .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
@@ -142,6 +149,15 @@ public sealed class RoleAccessEndpoints : IEndpoint
         if (PermissionCatalog.RequiredMenuForAction.Any(dependency =>
             selected.Contains(dependency.Key) && !selected.Contains(dependency.Value)))
             return Results.BadRequest(new { message = "Setiap izin tindakan memerlukan akses menu terkait." });
+
+        var rawActorId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(rawActorId, out var actorId))
+            return Results.Unauthorized();
+
+        var actor = await access.GetAsync(actorId, cancellationToken);
+        if (actor is null || (actor.Role != "Admin" &&
+            !PermissionDelegationPolicy.CanDelegate(actor.Permissions, selected)))
+            return Results.Forbid();
 
         db.RolePermissions.RemoveRange(role.Permissions.Where(item => !selected.Contains(item.PermissionCode)));
         foreach (var code in selected.Where(code => role.Permissions.All(item => item.PermissionCode != code)))

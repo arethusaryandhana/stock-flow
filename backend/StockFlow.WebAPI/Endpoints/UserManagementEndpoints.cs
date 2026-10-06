@@ -44,10 +44,10 @@ public sealed class UserManagementEndpoints : IEndpoint
 
     private static async Task<IResult> CreateAsync(
         ManagedUserRequest request, IUserManagementUseCase useCase,
-        IUserAccessReader access, HttpContext context, CancellationToken cancellationToken)
+        IUserAccessReader access, StockFlowDbContext db,
+        HttpContext context, CancellationToken cancellationToken)
     {
-        if (string.Equals(request.Role?.Trim(), "Admin", StringComparison.Ordinal) &&
-            !await ActorIsAdminAsync(context, access, cancellationToken))
+        if (!await ActorCanAssignRoleAsync(request.Role, access, db, context, cancellationToken))
             return Results.Forbid();
         return (await useCase.CreateAsync(request, cancellationToken)).ToHttpResult();
     }
@@ -64,6 +64,8 @@ public sealed class UserManagementEndpoints : IEndpoint
         if ((targetIsAdmin || string.Equals(request.Role?.Trim(), "Admin", StringComparison.Ordinal)) &&
             !await ActorIsAdminAsync(context, access, cancellationToken))
             return Results.Forbid();
+        if (!await ActorCanAssignRoleAsync(request.Role, access, db, context, cancellationToken))
+            return Results.Forbid();
         return (await useCase.UpdateAsync(id, request, actorId, cancellationToken)).ToHttpResult();
     }
 
@@ -73,5 +75,30 @@ public sealed class UserManagementEndpoints : IEndpoint
         var rawActorId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
         return Guid.TryParse(rawActorId, out var actorId) &&
             (await access.GetAsync(actorId, cancellationToken))?.Role == "Admin";
+    }
+
+    private static async Task<bool> ActorCanAssignRoleAsync(
+        string? roleName,
+        IUserAccessReader access,
+        StockFlowDbContext db,
+        HttpContext context,
+        CancellationToken cancellationToken)
+    {
+        var rawActorId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(rawActorId, out var actorId))
+            return false;
+
+        var actor = await access.GetAsync(actorId, cancellationToken);
+        if (actor is null)
+            return false;
+        if (actor.Role == "Admin")
+            return true;
+
+        var requestedPermissions = await db.Roles.AsNoTracking()
+            .Where(role => role.Name == roleName && role.IsActive)
+            .SelectMany(role => role.Permissions.Select(permission => permission.PermissionCode))
+            .ToListAsync(cancellationToken);
+
+        return PermissionDelegationPolicy.CanDelegate(actor.Permissions, requestedPermissions);
     }
 }
