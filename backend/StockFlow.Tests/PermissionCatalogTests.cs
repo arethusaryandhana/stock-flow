@@ -17,7 +17,7 @@ public sealed class PermissionCatalogTests
             Assert.True(permission.Code.Length <= 96);
         });
         Assert.Equal(19, permissions.Count(permission => permission.Kind == PermissionKind.Menu));
-        Assert.Equal(15, permissions.Count(permission => permission.Kind == PermissionKind.Action));
+        Assert.Equal(17, permissions.Count(permission => permission.Kind == PermissionKind.Action));
     }
 
     [Fact]

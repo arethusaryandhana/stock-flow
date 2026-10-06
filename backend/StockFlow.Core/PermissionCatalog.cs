@@ -10,6 +10,9 @@ public sealed record PermissionDefinition(
 
 public static class PermissionCatalog
 {
+    public const string PurchasingPriceOverride = "action.purchasing.price-override";
+    public const string SalesPriceOverride = "action.sales.price-override";
+
     public static IReadOnlyDictionary<string, string> RequiredMenuForAction { get; } =
         new Dictionary<string, string>
         {
@@ -24,8 +27,10 @@ public static class PermissionCatalog
             ["action.inventory.adjust"] = "menu.adjustments",
             ["action.inventory.settings"] = "menu.settings",
             ["action.purchasing.manage"] = "menu.purchase-orders",
+            [PurchasingPriceOverride] = "menu.purchase-orders",
             ["action.receiving.manage"] = "menu.receiving",
             ["action.sales.manage"] = "menu.sales-orders",
+            [SalesPriceOverride] = "menu.sales-orders",
             ["action.reports.export"] = "menu.reports",
             ["action.company.manage"] = "menu.settings"
         };
@@ -62,8 +67,10 @@ public static class PermissionCatalog
         new("action.inventory.adjust", "inventory", "Buat penyesuaian stok", PermissionKind.Action, true),
         new("action.inventory.settings", "inventory", "Kelola pengaturan inventori", PermissionKind.Action),
         new("action.purchasing.manage", "operations", "Kelola purchase order", PermissionKind.Action, true),
+        new(PurchasingPriceOverride, "operations", "Override harga purchase order", PermissionKind.Action),
         new("action.receiving.manage", "operations", "Catat penerimaan barang", PermissionKind.Action, true),
         new("action.sales.manage", "operations", "Kelola sales order", PermissionKind.Action, true),
+        new(SalesPriceOverride, "operations", "Override harga sales order", PermissionKind.Action),
         new("action.reports.export", "insight", "Ekspor laporan", PermissionKind.Action, true, true),
         new("action.company.manage", "insight", "Kelola profil perusahaan", PermissionKind.Action)
     ];

@@ -83,7 +83,9 @@ public sealed class PurchasingIntegrityTests
             var useCase = new PurchasingUseCase(
                 new PurchasingRepository(db),
                 new SupplierRepository(db),
-                new ProductRepository(db));
+                new ProductRepository(db),
+                SecurityTestDoubles.NoAccess,
+                SecurityTestDoubles.AnonymousUser);
             var result = await useCase.CreateGoodsReceiptAsync(
                 new GoodsReceiptRequest(orderId, [new GoodsReceiptItemRequest(productId, 6)]),
                 userId,

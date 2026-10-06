@@ -1,4 +1,5 @@
 using StockFlow.Application.Abstractions.Repositories;
+using StockFlow.Application.Abstractions.Services;
 using StockFlow.Application.Abstractions.UseCases;
 using StockFlow.Application.Models;
 using StockFlow.Core;
@@ -8,7 +9,9 @@ namespace StockFlow.Application.UseCases;
 public sealed class PurchasingUseCase(
     IPurchasingRepository purchasing,
     ISupplierRepository suppliers,
-    IProductRepository products) : IPurchasingUseCase
+    IProductRepository products,
+    IUserAccessReader access,
+    ICurrentUserService currentUser) : IPurchasingUseCase
 {
     public Task<PurchaseOrderPageResponse> GetPurchaseOrdersAsync(
         int page,
@@ -63,6 +66,10 @@ public sealed class PurchasingUseCase(
             Notes = Clean(request.Notes)
         };
 
+        var actorAccess = currentUser.UserId is Guid actorId
+            ? await access.GetAsync(actorId, cancellationToken)
+            : null;
+
         foreach (var requestedItem in requestedItems)
         {
             if (requestedItem.Quantity <= 0 || decimal.Round(requestedItem.Quantity, 2) != requestedItem.Quantity)
@@ -80,6 +87,16 @@ public sealed class PurchasingUseCase(
 
             if (!product.IsActive)
                 return UseCaseResult<PurchaseOrderResponse>.BadRequest("Produk tidak aktif tidak dapat dimasukkan ke purchase order.");
+
+            if (!PriceOverridePolicy.IsAllowed(
+                actorAccess?.Permissions,
+                PermissionCatalog.PurchasingPriceOverride,
+                product.PurchasePrice,
+                requestedItem.UnitPrice))
+            {
+                return UseCaseResult<PurchaseOrderResponse>.Forbidden(
+                    "Mengubah harga beli dari harga master memerlukan izin override harga purchase order.");
+            }
 
             purchaseOrder.Items.Add(new PurchaseOrderItem
             {

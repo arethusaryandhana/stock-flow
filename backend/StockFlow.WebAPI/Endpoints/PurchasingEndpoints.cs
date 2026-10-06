@@ -29,6 +29,7 @@ public sealed class PurchasingEndpoints : IEndpoint
         purchaseOrders.MapPost("/", CreatePurchaseOrderAsync)
             .RequireAuthorization(ManagePurchasingPolicies)
             .Produces<PurchaseOrderResponse>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status403Forbidden)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
 

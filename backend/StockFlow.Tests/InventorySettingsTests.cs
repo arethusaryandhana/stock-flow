@@ -154,7 +154,9 @@ public sealed class InventorySettingsTests
             var result = await new SalesUseCase(
                 new SalesRepository(salesDb),
                 new CustomerRepository(salesDb),
-                new ProductRepository(salesDb))
+                new ProductRepository(salesDb),
+                SecurityTestDoubles.NoAccess,
+                SecurityTestDoubles.AnonymousUser)
                 .UpdateStatusAsync(orderId, nameof(SalesOrderStatus.Completed), Guid.NewGuid());
             Assert.Equal(200, result.StatusCode);
         }

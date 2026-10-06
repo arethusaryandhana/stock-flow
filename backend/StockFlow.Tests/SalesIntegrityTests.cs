@@ -91,7 +91,9 @@ public sealed class SalesIntegrityTests
         var useCase = new SalesUseCase(
             new SalesRepository(db),
             new CustomerRepository(db),
-            new ProductRepository(db));
+            new ProductRepository(db),
+            SecurityTestDoubles.NoAccess,
+            SecurityTestDoubles.AnonymousUser);
         return await useCase.UpdateStatusAsync(
             orderId,
             nameof(SalesOrderStatus.Completed),

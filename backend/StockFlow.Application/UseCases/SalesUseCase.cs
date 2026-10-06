@@ -1,4 +1,5 @@
 using StockFlow.Application.Abstractions.Repositories;
+using StockFlow.Application.Abstractions.Services;
 using StockFlow.Application.Abstractions.UseCases;
 using StockFlow.Application.Models;
 using StockFlow.Core;
@@ -8,7 +9,9 @@ namespace StockFlow.Application.UseCases;
 public sealed class SalesUseCase(
     ISalesRepository sales,
     ICustomerRepository customers,
-    IProductRepository products) : ISalesUseCase
+    IProductRepository products,
+    IUserAccessReader access,
+    ICurrentUserService currentUser) : ISalesUseCase
 {
     public Task<SalesOrderPageResponse> GetSalesOrdersAsync(
         int page,
@@ -61,6 +64,10 @@ public sealed class SalesUseCase(
             Notes = Clean(request.Notes)
         };
 
+        var actorAccess = currentUser.UserId is Guid actorId
+            ? await access.GetAsync(actorId, cancellationToken)
+            : null;
+
         foreach (var requestedItem in requestedItems)
         {
             if (requestedItem.ProductId == Guid.Empty)
@@ -78,6 +85,16 @@ public sealed class SalesUseCase(
 
             if (!product.IsActive)
                 return UseCaseResult<SalesOrderResponse>.BadRequest("Produk tidak aktif tidak dapat dimasukkan ke sales order.");
+
+            if (!PriceOverridePolicy.IsAllowed(
+                actorAccess?.Permissions,
+                PermissionCatalog.SalesPriceOverride,
+                product.SellingPrice,
+                requestedItem.UnitPrice))
+            {
+                return UseCaseResult<SalesOrderResponse>.Forbidden(
+                    "Mengubah harga jual dari harga master memerlukan izin override harga sales order.");
+            }
 
             salesOrder.Items.Add(new SalesOrderItem
             {

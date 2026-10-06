@@ -29,6 +29,7 @@ public sealed class SalesEndpoints : IEndpoint
         salesOrders.MapPost("/", CreateSalesOrderAsync)
             .RequireAuthorization(ManageSalesPolicies)
             .Produces<SalesOrderResponse>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status403Forbidden)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
 
