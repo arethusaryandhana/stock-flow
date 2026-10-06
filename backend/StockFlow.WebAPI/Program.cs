@@ -17,6 +17,8 @@ Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
 
+RuntimeConfigurationGuard.Validate(builder.Environment, builder.Configuration);
+
 var jwtKey = builder.Configuration["Jwt:Key"];
 if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
     throw new InvalidOperationException("Jwt:Key wajib diisi dengan secret minimal 32 byte.");
