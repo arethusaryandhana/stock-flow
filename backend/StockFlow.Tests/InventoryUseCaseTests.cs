@@ -13,7 +13,7 @@ public sealed class InventoryUseCaseTests
         var useCase = new InventoryUseCase(repository);
 
         var result = await useCase.CreateAdjustmentAsync(
-            new StockAdjustmentRequest(Guid.NewGuid(), 0, "Stock count"), Guid.NewGuid(),
+            new StockAdjustmentRequest(Guid.NewGuid(), 0, "Stock count", Guid.NewGuid()), Guid.NewGuid(),
             CancellationToken.None);
 
         Assert.Equal(400, result.StatusCode);
@@ -30,7 +30,7 @@ public sealed class InventoryUseCaseTests
         var useCase = new InventoryUseCase(repository);
 
         var result = await useCase.CreateAdjustmentAsync(
-            new StockAdjustmentRequest(Guid.NewGuid(), -20, "Damaged"), Guid.NewGuid(),
+            new StockAdjustmentRequest(Guid.NewGuid(), -20, "Damaged", Guid.NewGuid()), Guid.NewGuid(),
             CancellationToken.None);
 
         Assert.Equal(400, result.StatusCode);
@@ -52,12 +52,47 @@ public sealed class InventoryUseCaseTests
         var useCase = new InventoryUseCase(repository);
 
         var result = await useCase.CreateAdjustmentAsync(
-            new StockAdjustmentRequest(productId, 2, "  Count  "), Guid.NewGuid(),
+            new StockAdjustmentRequest(productId, 2, "  Count  ", Guid.NewGuid()), Guid.NewGuid(),
             CancellationToken.None);
 
         Assert.Equal(201, result.StatusCode);
         Assert.Equal($"/api/stock-adjustments/{adjustmentId}", result.Location);
         Assert.Equal("Count", repository.LastRequest?.Reason);
+    }
+
+    [Fact]
+    public async Task CreateAdjustment_RejectsMissingIdempotencyKey()
+    {
+        var repository = new StubInventoryRepository();
+        var useCase = new InventoryUseCase(repository);
+
+        var result = await useCase.CreateAdjustmentAsync(
+            new StockAdjustmentRequest(Guid.NewGuid(), 2, "Count", Guid.Empty), Guid.NewGuid(),
+            CancellationToken.None);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal(0, repository.CreateCalls);
+    }
+
+    [Fact]
+    public async Task CreateAdjustment_ReplaysExistingTransaction()
+    {
+        var adjustmentId = Guid.NewGuid();
+        var response = new StockAdjustmentResponse(
+            adjustmentId, "ADJ-1", Guid.NewGuid(), "SKU-1", "Product", "pcs", 2, "Count", DateTime.UtcNow);
+        var repository = new StubInventoryRepository
+        {
+            Result = new StockAdjustmentCreationResult(StockAdjustmentCreationStatus.AlreadyProcessed, response)
+        };
+        var useCase = new InventoryUseCase(repository);
+
+        var result = await useCase.CreateAdjustmentAsync(
+            new StockAdjustmentRequest(response.ProductId, 2, "Count", Guid.NewGuid()), Guid.NewGuid(),
+            CancellationToken.None);
+
+        Assert.Equal(201, result.StatusCode);
+        Assert.Equal($"/api/stock-adjustments/{adjustmentId}", result.Location);
+        Assert.Equal(adjustmentId, result.Data?.Id);
     }
 
     private sealed class StubInventoryRepository : IInventoryRepository

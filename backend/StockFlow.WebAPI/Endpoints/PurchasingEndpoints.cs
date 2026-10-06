@@ -51,6 +51,7 @@ public sealed class PurchasingEndpoints : IEndpoint
             .RequireAuthorization("menu.receiving", "action.receiving.manage")
             .Produces<GoodsReceiptResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status409Conflict)
             .Produces(StatusCodes.Status404NotFound);
     }
 

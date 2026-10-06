@@ -8,5 +8,7 @@ public sealed class GoodsReceipt : Entity
     public DateTime ReceivedAt { get; set; } = DateTime.UtcNow;
     public Guid ReceivedById { get; set; }
     public User ReceivedBy { get; set; } = null!;
+    public Guid? IdempotencyKey { get; set; }
+    public string? RequestHash { get; set; }
     public ICollection<GoodsReceiptItem> Items { get; set; } = [];
 }

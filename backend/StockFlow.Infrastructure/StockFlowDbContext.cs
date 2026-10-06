@@ -173,6 +173,8 @@ public sealed class StockFlowDbContext(
             nameof(Entity.UpdatedAt) or nameof(Entity.UpdatedById) or
             nameof(User.PasswordHash) or nameof(User.TokenVersion) or
             nameof(User.FailedLoginAttempts) or nameof(User.LoginLockoutEnd) or
+            nameof(StockAdjustment.IdempotencyKey) or nameof(StockAdjustment.RequestHash) or
+            nameof(GoodsReceipt.IdempotencyKey) or nameof(GoodsReceipt.RequestHash) or
             nameof(User.InAppNotificationsEnabled) or nameof(User.LowStockNotificationsEnabled) or
             nameof(User.ReportReadyNotificationsEnabled) or nameof(User.SystemNotificationsEnabled) or
             nameof(User.NotificationSoundEnabled) or nameof(User.NotificationPollingIntervalSeconds))

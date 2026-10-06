@@ -41,3 +41,5 @@ Sales orders move from Draft to Confirmed to Processing to Completed. Completion
 order and all affected products in deterministic order, checks availability, deducts every item,
 writes Sale movements, and records `completed_at` in one transaction. Concurrent completions
 therefore cannot oversell the same stock; an order with insufficient stock remains Processing.
+
+Stock adjustments and goods receipts require an `idempotencyKey` per submitted action. The server stores a normalized request hash with the inventory record and returns the original result for an identical retry. Reusing a key with different transaction contents returns `409 Conflict`; database unique indexes enforce this across concurrent requests and API instances.

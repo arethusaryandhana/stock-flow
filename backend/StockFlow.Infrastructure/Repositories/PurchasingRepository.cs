@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using StockFlow.Application.Abstractions.Repositories;
 using StockFlow.Application.Models;
 using StockFlow.Core;
@@ -7,6 +8,7 @@ namespace StockFlow.Infrastructure.Repositories;
 
 public sealed class PurchasingRepository(StockFlowDbContext db) : IPurchasingRepository
 {
+    private const string ReceiptIdempotencyIndex = "IX_goods_receipts_received_by_idempotency_key";
     public async Task<PurchaseOrderPageResponse> GetPurchaseOrdersAsync(
         int page,
         int pageSize,
@@ -166,6 +168,22 @@ public sealed class PurchasingRepository(StockFlowDbContext db) : IPurchasingRep
         CancellationToken cancellationToken = default)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var requestHash = HashGoodsReceiptRequest(request);
+        var existingReceipt = await db.GoodsReceipts
+            .AsNoTracking()
+            .Include(receipt => receipt.PurchaseOrder)
+            .ThenInclude(order => order.Supplier)
+            .Include(receipt => receipt.Items)
+            .ThenInclude(item => item.Product)
+            .SingleOrDefaultAsync(
+                receipt => receipt.ReceivedById == receivedById &&
+                    receipt.IdempotencyKey == request.IdempotencyKey,
+                cancellationToken);
+        if (existingReceipt is not null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return ResolveGoodsReceiptReplay(existingReceipt, requestHash);
+        }
 
         var purchaseOrder = await db.PurchaseOrders
             .Include(order => order.Supplier)
@@ -228,6 +246,8 @@ public sealed class PurchasingRepository(StockFlowDbContext db) : IPurchasingRep
             PurchaseOrder = purchaseOrder,
             ReceivedAt = receivedAt,
             ReceivedById = receivedById,
+            IdempotencyKey = request.IdempotencyKey,
+            RequestHash = requestHash,
             Items = []
         };
 
@@ -263,25 +283,54 @@ public sealed class PurchasingRepository(StockFlowDbContext db) : IPurchasingRep
             purchaseOrder.Status = PurchaseOrderStatus.Received;
 
         db.GoodsReceipts.Add(receipt);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (
+            exception.InnerException is PostgresException postgres &&
+            postgres.ConstraintName == ReceiptIdempotencyIndex)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            await transaction.DisposeAsync();
+            db.ChangeTracker.Clear();
+            var concurrentReceipt = await db.GoodsReceipts
+                .AsNoTracking()
+                .Include(item => item.PurchaseOrder)
+                .ThenInclude(order => order.Supplier)
+                .Include(item => item.Items)
+                .ThenInclude(item => item.Product)
+                .SingleOrDefaultAsync(
+                    item => item.ReceivedById == receivedById &&
+                        item.IdempotencyKey == request.IdempotencyKey,
+                    cancellationToken);
+            return ResolveGoodsReceiptReplay(concurrentReceipt, requestHash);
+        }
         await transaction.CommitAsync(cancellationToken);
 
-        var response = new GoodsReceiptResponse(
-            receipt.Id,
-            receipt.Number,
-            purchaseOrder.Id,
-            purchaseOrder.Number,
-            purchaseOrder.Supplier.Name,
-            receipt.ReceivedAt,
-            receipt.Items.Select(item => new GoodsReceiptItemResponse(
-                item.Id,
-                item.ProductId,
-                productsById[item.ProductId].Sku,
-                productsById[item.ProductId].Name,
-                productsById[item.ProductId].Unit,
-                item.Quantity)).ToList());
+        return new GoodsReceiptCreationResult(GoodsReceiptCreationStatus.Created, ToResponse(receipt));
+    }
 
-        return new GoodsReceiptCreationResult(GoodsReceiptCreationStatus.Created, response);
+    private static GoodsReceiptCreationResult ResolveGoodsReceiptReplay(
+        GoodsReceipt? receipt,
+        string requestHash)
+    {
+        if (receipt is null || receipt.RequestHash != requestHash)
+            return new GoodsReceiptCreationResult(GoodsReceiptCreationStatus.IdempotencyKeyConflict);
+
+        return new GoodsReceiptCreationResult(
+            GoodsReceiptCreationStatus.AlreadyProcessed,
+            ToResponse(receipt));
+    }
+
+    private static string HashGoodsReceiptRequest(GoodsReceiptRequest request)
+    {
+        var itemHash = string.Join('|', request.Items
+            .OrderBy(item => item.ProductId)
+            .Select(item => $"{item.ProductId:N}:{item.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture)}"));
+        var canonical = $"{request.PurchaseOrderId:N}|{itemHash}";
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(canonical)));
     }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>

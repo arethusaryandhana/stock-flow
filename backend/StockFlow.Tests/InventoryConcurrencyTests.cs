@@ -53,8 +53,8 @@ public sealed class InventoryConcurrencyTests
         }
 
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var add = ApplyAdjustmentAsync(options, productId, 10, start.Task, cancellationToken);
-        var subtract = ApplyAdjustmentAsync(options, productId, -5, start.Task, cancellationToken);
+        var add = ApplyAdjustmentAsync(options, productId, 10, Guid.NewGuid(), Guid.NewGuid(), start.Task, cancellationToken);
+        var subtract = ApplyAdjustmentAsync(options, productId, -5, Guid.NewGuid(), Guid.NewGuid(), start.Task, cancellationToken);
         start.SetResult();
 
         var results = await Task.WhenAll(add, subtract);
@@ -70,12 +70,36 @@ public sealed class InventoryConcurrencyTests
         Assert.Equal(15, productAfter.StockOnHand);
         Assert.Equal(2, movements.Count);
         Assert.Contains(movements, movement => movement.BalanceAfter == 15);
+
+        var duplicateStart = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var actorId = Guid.NewGuid();
+        var requestKey = Guid.NewGuid();
+        var duplicateOne = ApplyAdjustmentAsync(options, productId, 3, actorId, requestKey, duplicateStart.Task, cancellationToken);
+        var duplicateTwo = ApplyAdjustmentAsync(options, productId, 3, actorId, requestKey, duplicateStart.Task, cancellationToken);
+        duplicateStart.SetResult();
+
+        var duplicateResults = await Task.WhenAll(duplicateOne, duplicateTwo);
+        Assert.All(duplicateResults, result => Assert.Equal(201, result.StatusCode));
+        Assert.Equal(duplicateResults[0].Data?.Id, duplicateResults[1].Data?.Id);
+
+        await using var duplicateVerification = new StockFlowDbContext(options);
+        var finalStock = await duplicateVerification.ProductsSet.AsNoTracking()
+            .Where(product => product.Id == productId)
+            .Select(product => product.StockOnHand)
+            .SingleAsync(cancellationToken);
+        var finalMovementCount = await duplicateVerification.StockMovements.CountAsync(
+            movement => movement.ProductId == productId,
+            cancellationToken);
+        Assert.Equal(18, finalStock);
+        Assert.Equal(3, finalMovementCount);
     }
 
     private static async Task<UseCaseResult<StockAdjustmentResponse>> ApplyAdjustmentAsync(
         DbContextOptions<StockFlowDbContext> options,
         Guid productId,
         decimal quantity,
+        Guid actorId,
+        Guid requestKey,
         Task start,
         CancellationToken cancellationToken)
     {
@@ -84,8 +108,8 @@ public sealed class InventoryConcurrencyTests
         var repository = new InventoryRepository(db);
         var useCase = new StockFlow.Application.UseCases.InventoryUseCase(repository);
         return await useCase.CreateAdjustmentAsync(
-            new StockAdjustmentRequest(productId, quantity, "Concurrent stock count"),
-            Guid.NewGuid(),
+            new StockAdjustmentRequest(productId, quantity, "Concurrent stock count", requestKey),
+            actorId,
             cancellationToken);
     }
 }

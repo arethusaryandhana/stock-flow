@@ -158,7 +158,9 @@ public enum StockAdjustmentCreationStatus
     Created,
     ProductNotFound,
     ProductInactive,
-    NegativeBalance
+    NegativeBalance,
+    AlreadyProcessed,
+    IdempotencyKeyConflict
 }
 
 public sealed record StockAdjustmentCreationResult(
@@ -216,7 +218,9 @@ public enum GoodsReceiptCreationStatus
     InvalidItems,
     QuantityExceedsOutstanding,
     ProductNotFound,
-    ProductInactive
+    ProductInactive,
+    AlreadyProcessed,
+    IdempotencyKeyConflict
 }
 
 public sealed record GoodsReceiptCreationResult(

@@ -87,7 +87,7 @@ public sealed class PurchasingIntegrityTests
                 SecurityTestDoubles.NoAccess,
                 SecurityTestDoubles.AnonymousUser);
             var result = await useCase.CreateGoodsReceiptAsync(
-                new GoodsReceiptRequest(orderId, [new GoodsReceiptItemRequest(productId, 6)]),
+                new GoodsReceiptRequest(orderId, [new GoodsReceiptItemRequest(productId, 6)], Guid.NewGuid()),
                 userId,
                 CancellationToken.None);
 
@@ -95,12 +95,47 @@ public sealed class PurchasingIntegrityTests
             Assert.Contains("melebihi", result.Message, StringComparison.OrdinalIgnoreCase);
         }
 
+        await using (var afterRejected = new StockFlowDbContext(options))
+        {
+            Assert.Equal(10, await afterRejected.ProductsSet
+                .Where(product => product.Id == productId)
+                .Select(product => product.StockOnHand)
+                .SingleAsync(CancellationToken.None));
+            Assert.False(await afterRejected.GoodsReceipts.AnyAsync(CancellationToken.None));
+            Assert.False(await afterRejected.StockMovements.AnyAsync(CancellationToken.None));
+        }
+
+        var idempotencyKey = Guid.NewGuid();
+        var validRequest = new GoodsReceiptRequest(
+            orderId, [new GoodsReceiptItemRequest(productId, 2)], idempotencyKey);
+        await using (var db = new StockFlowDbContext(options))
+        {
+            var useCase = new PurchasingUseCase(
+                new PurchasingRepository(db),
+                new SupplierRepository(db),
+                new ProductRepository(db),
+                SecurityTestDoubles.NoAccess,
+                SecurityTestDoubles.AnonymousUser);
+
+            var created = await useCase.CreateGoodsReceiptAsync(validRequest, userId, CancellationToken.None);
+            var replayed = await useCase.CreateGoodsReceiptAsync(validRequest, userId, CancellationToken.None);
+            var mismatched = await useCase.CreateGoodsReceiptAsync(
+                validRequest with { Items = [new GoodsReceiptItemRequest(productId, 3)] },
+                userId,
+                CancellationToken.None);
+
+            Assert.Equal(201, created.StatusCode);
+            Assert.Equal(created.Data?.Id, replayed.Data?.Id);
+            Assert.Equal(201, replayed.StatusCode);
+            Assert.Equal(409, mismatched.StatusCode);
+        }
+
         await using var verification = new StockFlowDbContext(options);
-        Assert.Equal(10, await verification.ProductsSet
+        Assert.Equal(12, await verification.ProductsSet
             .Where(product => product.Id == productId)
             .Select(product => product.StockOnHand)
             .SingleAsync(CancellationToken.None));
-        Assert.False(await verification.GoodsReceipts.AnyAsync(CancellationToken.None));
-        Assert.False(await verification.StockMovements.AnyAsync(CancellationToken.None));
+        Assert.Equal(1, await verification.GoodsReceipts.CountAsync(CancellationToken.None));
+        Assert.Equal(1, await verification.StockMovements.CountAsync(CancellationToken.None));
     }
 }

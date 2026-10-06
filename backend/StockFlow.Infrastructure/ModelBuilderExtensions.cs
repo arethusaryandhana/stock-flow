@@ -75,8 +75,18 @@ internal static class ModelBuilderExtensions
         modelBuilder.Entity<SalesOrder>().HasIndex(entity => new { entity.Status, entity.OrderDate });
         modelBuilder.Entity<SalesOrder>().HasIndex(entity => entity.Number).IsUnique();
         modelBuilder.Entity<GoodsReceipt>().HasIndex(entity => entity.Number).IsUnique();
+        modelBuilder.Entity<GoodsReceipt>()
+            .HasIndex(entity => new { entity.ReceivedById, entity.IdempotencyKey })
+            .HasDatabaseName("IX_goods_receipts_received_by_idempotency_key")
+            .IsUnique()
+            .HasFilter("idempotency_key IS NOT NULL");
         modelBuilder.Entity<StockMovement>().HasIndex(entity => new { entity.ProductId, entity.CreatedAt });
         modelBuilder.Entity<StockAdjustment>().HasIndex(entity => entity.Number).IsUnique();
+        modelBuilder.Entity<StockAdjustment>()
+            .HasIndex(entity => new { entity.CreatedById, entity.IdempotencyKey })
+            .HasDatabaseName("IX_stock_adjustments_created_by_idempotency_key")
+            .IsUnique()
+            .HasFilter("idempotency_key IS NOT NULL");
 
         modelBuilder.Entity<InventorySettings>().Property(entity => entity.DefaultReorderLevel).HasPrecision(12, 2);
         modelBuilder.Entity<InventorySettings>().Property(entity => entity.DefaultUnit).HasMaxLength(24);
@@ -245,12 +255,14 @@ internal static class ModelBuilderExtensions
         modelBuilder.Entity<PurchaseOrder>().Property(entity => entity.Number).HasMaxLength(50);
         modelBuilder.Entity<PurchaseOrder>().Property(entity => entity.Notes).HasMaxLength(500);
         modelBuilder.Entity<GoodsReceipt>().Property(entity => entity.Number).HasMaxLength(50);
+        modelBuilder.Entity<GoodsReceipt>().Property(entity => entity.RequestHash).HasMaxLength(64);
         modelBuilder.Entity<SalesOrder>().Property(entity => entity.Number).HasMaxLength(50);
         modelBuilder.Entity<SalesOrder>().Property(entity => entity.Notes).HasMaxLength(500);
         modelBuilder.Entity<StockMovement>().Property(entity => entity.ReferenceNumber).HasMaxLength(50);
         modelBuilder.Entity<StockMovement>().Property(entity => entity.Reason).HasMaxLength(500);
         modelBuilder.Entity<StockAdjustment>().Property(entity => entity.Number).HasMaxLength(50);
         modelBuilder.Entity<StockAdjustment>().Property(entity => entity.Reason).HasMaxLength(300);
+        modelBuilder.Entity<StockAdjustment>().Property(entity => entity.RequestHash).HasMaxLength(64);
 
         modelBuilder.Entity<ReportExportJob>().Property(entity => entity.JobNumber).HasMaxLength(50);
         modelBuilder.Entity<ReportExportJob>().Property(entity => entity.ReportType).HasMaxLength(80);

@@ -31,6 +31,7 @@ public sealed class InventoryEndpoints : IEndpoint
             .RequireAuthorization("menu.adjustments", "action.inventory.adjust")
             .Produces<StockAdjustmentResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status409Conflict)
             .Produces(StatusCodes.Status404NotFound);
     }
 

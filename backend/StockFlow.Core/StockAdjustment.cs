@@ -7,4 +7,6 @@ public sealed class StockAdjustment : Entity
     public Product Product { get; set; } = null!;
     public decimal QuantityDelta { get; set; }
     public string Reason { get; set; } = "";
+    public Guid? IdempotencyKey { get; set; }
+    public string? RequestHash { get; set; }
 }

@@ -28,6 +28,9 @@ public sealed class InventoryUseCase(IInventoryRepository inventory) : IInventor
         Guid createdById,
         CancellationToken cancellationToken = default)
     {
+        if (request.IdempotencyKey == Guid.Empty)
+            return UseCaseResult<StockAdjustmentResponse>.BadRequest("Kunci idempotensi wajib diisi.");
+
         if (request.QuantityDelta == 0)
         {
             return UseCaseResult<StockAdjustmentResponse>.BadRequest(
@@ -64,6 +67,11 @@ public sealed class InventoryUseCase(IInventoryRepository inventory) : IInventor
                 UseCaseResult<StockAdjustmentResponse>.BadRequest("Produk tidak aktif tidak dapat disesuaikan."),
             StockAdjustmentCreationStatus.NegativeBalance =>
                 UseCaseResult<StockAdjustmentResponse>.BadRequest("Penyesuaian tidak boleh membuat stok menjadi negatif."),
+            StockAdjustmentCreationStatus.AlreadyProcessed when result.Data is not null =>
+                UseCaseResult<StockAdjustmentResponse>.Created(
+                    result.Data, $"/api/stock-adjustments/{result.Data.Id}"),
+            StockAdjustmentCreationStatus.IdempotencyKeyConflict =>
+                UseCaseResult<StockAdjustmentResponse>.Conflict("Kunci idempotensi sudah digunakan untuk isi transaksi yang berbeda."),
             _ => UseCaseResult<StockAdjustmentResponse>.BadRequest("Penyesuaian stok tidak valid.")
         };
     }

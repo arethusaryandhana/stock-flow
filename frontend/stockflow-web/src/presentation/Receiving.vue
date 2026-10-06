@@ -33,6 +33,7 @@ const page = ref(1)
 const pageSize = ref<number>(displayPreferences.defaultPageSize.value)
 const totalCount = ref(0)
 const totalPages = ref(0)
+const pendingIdempotencyKeys = new Map<string, string>()
 
 const canManage = computed(() => auth.can('action.receiving.manage'))
 const selectedOrder = computed(() => orders.value.find((order) => order.id === selectedOrderId.value))
@@ -105,9 +106,14 @@ async function submit() {
 
   saving.value = true
   try {
-    const { data } = await api.post<Receipt>('/goods-receipts', { purchaseOrderId: order.id, items })
+    const payload = { purchaseOrderId: order.id, items }
+    const fingerprint = JSON.stringify(payload)
+    const idempotencyKey = pendingIdempotencyKeys.get(fingerprint) ?? crypto.randomUUID()
+    pendingIdempotencyKeys.set(fingerprint, idempotencyKey)
+    const { data } = await api.post<Receipt>('/goods-receipts', { ...payload, idempotencyKey })
     await load()
     resetForm()
+    pendingIdempotencyKeys.delete(fingerprint)
     toast.success(t('receiving.createdToast', { number: data.number }))
   } catch (requestError) {
     const message = (requestError as Error).message

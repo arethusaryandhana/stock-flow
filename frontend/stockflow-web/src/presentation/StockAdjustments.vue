@@ -21,6 +21,7 @@ const saving = ref(false)
 const error = ref('')
 const formError = ref('')
 const form = ref<AdjustmentForm>({ productId: '', quantityDelta: '', reason: '' })
+const pendingIdempotencyKeys = new Map<string, string>()
 const reasonTemplates = ['New', 'New Item', 'New Stock']
 const historyQuery = ref('')
 const page = ref(1)
@@ -85,10 +86,15 @@ async function submit() {
   if (!quantityDelta.value) { formError.value = t('adjustments.missingChange'); return }
   saving.value = true
   try {
-    const { data } = await api.post<Adjustment>('/stock-adjustments', { productId: form.value.productId, quantityDelta: quantityDelta.value, reason: form.value.reason })
+    const payload = { productId: form.value.productId, quantityDelta: quantityDelta.value, reason: form.value.reason }
+    const fingerprint = JSON.stringify(payload)
+    const idempotencyKey = pendingIdempotencyKeys.get(fingerprint) ?? crypto.randomUUID()
+    pendingIdempotencyKeys.set(fingerprint, idempotencyKey)
+    const { data } = await api.post<Adjustment>('/stock-adjustments', { ...payload, idempotencyKey })
     const product = products.value.find((item) => item.id === data.productId)
     if (product) product.stockOnHand = roundQuantity(product.stockOnHand + data.quantityDelta)
     form.value.quantityDelta = ''; form.value.reason = ''
+    pendingIdempotencyKeys.delete(fingerprint)
     await load()
     toast.success(t('adjustments.createdToast', { number: data.number }))
   } catch (requestError) {

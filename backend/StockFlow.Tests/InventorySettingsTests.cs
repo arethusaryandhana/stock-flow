@@ -132,7 +132,7 @@ public sealed class InventorySettingsTests
         await using (var strictDb = new StockFlowDbContext(options))
         {
             var rejected = await new InventoryRepository(strictDb).CreateAdjustmentAsync(
-                new StockAdjustmentRequest(adjustmentProductId, -3, "Strict policy"), Guid.NewGuid());
+                new StockAdjustmentRequest(adjustmentProductId, -3, "Strict policy", Guid.NewGuid()), Guid.NewGuid());
             Assert.Equal(StockAdjustmentCreationStatus.NegativeBalance, rejected.Status);
         }
 
@@ -145,7 +145,7 @@ public sealed class InventorySettingsTests
         await using (var permissiveDb = new StockFlowDbContext(options))
         {
             var created = await new InventoryRepository(permissiveDb).CreateAdjustmentAsync(
-                new StockAdjustmentRequest(adjustmentProductId, -3, "Permissive policy"), Guid.NewGuid());
+                new StockAdjustmentRequest(adjustmentProductId, -3, "Permissive policy", Guid.NewGuid()), Guid.NewGuid());
             Assert.Equal(StockAdjustmentCreationStatus.Created, created.Status);
         }
 

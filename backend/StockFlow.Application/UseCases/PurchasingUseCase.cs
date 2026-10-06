@@ -149,6 +149,9 @@ public sealed class PurchasingUseCase(
         Guid receivedById,
         CancellationToken cancellationToken = default)
     {
+        if (request.IdempotencyKey == Guid.Empty)
+            return UseCaseResult<GoodsReceiptResponse>.BadRequest("Kunci idempotensi wajib diisi.");
+
         var requestedItems = request.Items ?? [];
         if (requestedItems.Count == 0)
             return UseCaseResult<GoodsReceiptResponse>.BadRequest("Penerimaan harus memiliki minimal satu produk.");
@@ -174,6 +177,11 @@ public sealed class PurchasingUseCase(
                 UseCaseResult<GoodsReceiptResponse>.NotFound("Salah satu produk tidak ditemukan."),
             GoodsReceiptCreationStatus.ProductInactive =>
                 UseCaseResult<GoodsReceiptResponse>.BadRequest("Produk tidak aktif tidak dapat diterima."),
+            GoodsReceiptCreationStatus.AlreadyProcessed when result.Data is not null =>
+                UseCaseResult<GoodsReceiptResponse>.Created(
+                    result.Data, $"/api/goods-receipts/{result.Data.Id}"),
+            GoodsReceiptCreationStatus.IdempotencyKeyConflict =>
+                UseCaseResult<GoodsReceiptResponse>.Conflict("Kunci idempotensi sudah digunakan untuk isi transaksi yang berbeda."),
             _ => UseCaseResult<GoodsReceiptResponse>.BadRequest("Detail penerimaan barang tidak valid.")
         };
     }

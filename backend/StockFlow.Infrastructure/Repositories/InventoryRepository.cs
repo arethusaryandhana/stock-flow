@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using StockFlow.Application.Abstractions.Repositories;
 using StockFlow.Application.Models;
 using StockFlow.Core;
@@ -8,6 +9,7 @@ namespace StockFlow.Infrastructure.Repositories;
 public sealed class InventoryRepository(StockFlowDbContext db) : IInventoryRepository
 {
     private const int MaxMovementPeriodDays = 3650;
+    private const string AdjustmentIdempotencyIndex = "IX_stock_adjustments_created_by_idempotency_key";
 
     public async Task<StockMovementPageResponse> GetMovementsAsync(
         int page,
@@ -123,6 +125,19 @@ public sealed class InventoryRepository(StockFlowDbContext db) : IInventoryRepos
         CancellationToken cancellationToken = default)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var requestHash = HashAdjustmentRequest(request);
+        var existingAdjustment = await db.StockAdjustments
+            .AsNoTracking()
+            .Include(adjustment => adjustment.Product)
+            .SingleOrDefaultAsync(
+                adjustment => adjustment.CreatedById == createdById &&
+                    adjustment.IdempotencyKey == request.IdempotencyKey,
+                cancellationToken);
+        if (existingAdjustment is not null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return ResolveAdjustmentReplay(existingAdjustment, requestHash);
+        }
 
         var product = await db.ProductsSet
             .FromSqlInterpolated($"SELECT * FROM master.products_set WHERE id = {request.ProductId} FOR UPDATE")
@@ -152,6 +167,8 @@ public sealed class InventoryRepository(StockFlowDbContext db) : IInventoryRepos
             Product = product,
             QuantityDelta = request.QuantityDelta,
             Reason = request.Reason.Trim(),
+            IdempotencyKey = request.IdempotencyKey,
+            RequestHash = requestHash,
             CreatedById = createdById,
             CreatedAt = now
         };
@@ -173,20 +190,65 @@ public sealed class InventoryRepository(StockFlowDbContext db) : IInventoryRepos
             CreatedAt = now
         });
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (
+            exception.InnerException is PostgresException postgres &&
+            postgres.ConstraintName == AdjustmentIdempotencyIndex)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            await transaction.DisposeAsync();
+            db.ChangeTracker.Clear();
+            var concurrentAdjustment = await db.StockAdjustments
+                .AsNoTracking()
+                .Include(item => item.Product)
+                .SingleOrDefaultAsync(
+                    item => item.CreatedById == createdById &&
+                        item.IdempotencyKey == request.IdempotencyKey,
+                    cancellationToken);
+            return ResolveAdjustmentReplay(concurrentAdjustment, requestHash);
+        }
+
         await transaction.CommitAsync(cancellationToken);
 
         return new StockAdjustmentCreationResult(
             StockAdjustmentCreationStatus.Created,
-            new StockAdjustmentResponse(
-                adjustment.Id,
-                adjustment.Number,
-                product.Id,
-                product.Sku,
-                product.Name,
-                product.Unit,
-                adjustment.QuantityDelta,
-                adjustment.Reason,
-                adjustment.CreatedAt));
+            ToResponse(adjustment, product));
+    }
+
+    private static StockAdjustmentCreationResult ResolveAdjustmentReplay(
+        StockAdjustment? adjustment,
+        string requestHash)
+    {
+        if (adjustment is null || adjustment.RequestHash != requestHash)
+            return new StockAdjustmentCreationResult(StockAdjustmentCreationStatus.IdempotencyKeyConflict);
+
+        return new StockAdjustmentCreationResult(
+            StockAdjustmentCreationStatus.AlreadyProcessed,
+            ToResponse(adjustment, adjustment.Product));
+    }
+
+    private static StockAdjustmentResponse ToResponse(StockAdjustment adjustment, Product product) =>
+        new(
+            adjustment.Id,
+            adjustment.Number,
+            product.Id,
+            product.Sku,
+            product.Name,
+            product.Unit,
+            adjustment.QuantityDelta,
+            adjustment.Reason,
+            adjustment.CreatedAt);
+
+    private static string HashAdjustmentRequest(StockAdjustmentRequest request)
+    {
+        var canonical = string.Join('|',
+            request.ProductId.ToString("N"),
+            request.QuantityDelta.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            request.Reason.Trim());
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(canonical)));
     }
 }

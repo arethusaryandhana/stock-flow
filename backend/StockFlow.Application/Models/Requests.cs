@@ -36,7 +36,8 @@ public sealed record CategoryRequest(string Name, string? Description);
 public sealed record StockAdjustmentRequest(
     Guid ProductId,
     decimal QuantityDelta,
-    string Reason);
+    string Reason,
+    Guid IdempotencyKey);
 
 public sealed record PurchaseOrderItemRequest(
     Guid ProductId,
@@ -57,7 +58,8 @@ public sealed record GoodsReceiptItemRequest(
 
 public sealed record GoodsReceiptRequest(
     Guid PurchaseOrderId,
-    IReadOnlyList<GoodsReceiptItemRequest> Items);
+    IReadOnlyList<GoodsReceiptItemRequest> Items,
+    Guid IdempotencyKey);
 
 public sealed record SalesOrderItemRequest(
     Guid ProductId,
