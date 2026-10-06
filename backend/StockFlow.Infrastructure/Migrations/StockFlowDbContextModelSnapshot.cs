@@ -802,6 +802,10 @@ namespace StockFlow.Infrastructure.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("job_number");
 
+                    b.Property<Guid?>("LeaseToken")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lease_token");
+
                     b.Property<string>("Parameters")
                         .IsRequired()
                         .HasMaxLength(4000)

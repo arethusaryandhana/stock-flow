@@ -12,6 +12,77 @@ namespace StockFlow.Tests;
 public sealed class ReportExportTests
 {
     [Fact]
+    public async Task ExpiredReportLease_CannotBeRenewedOrCompletedByThePreviousWorker()
+    {
+        var connectionString = GetTestDatabase();
+        if (connectionString is null)
+            return;
+
+        var options = new DbContextOptionsBuilder<StockFlowDbContext>()
+            .UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable(
+                "__EFMigrationsHistory", StockFlowDbContext.Schemas.Identity))
+            .Options;
+        Guid userId;
+        Guid jobId;
+
+        await using (var setup = new StockFlowDbContext(options))
+        {
+            await setup.Database.EnsureDeletedAsync();
+            await setup.Database.MigrateAsync();
+            var role = await setup.Roles.SingleAsync(item => item.Name == "Admin");
+            var user = new User
+            {
+                Email = "report-lease@test.local",
+                FullName = "Lease Owner",
+                PasswordHash = "not-used",
+                Role = role
+            };
+            var job = new ReportExportJob
+            {
+                JobNumber = "RPT-LEASE-001",
+                ReportType = "product-stock",
+                Format = "csv",
+                Status = ReportJobStatus.Queued,
+                RequestedBy = user,
+                RequestedAt = DateTime.UtcNow
+            };
+            setup.AddRange(user, job);
+            await setup.SaveChangesAsync();
+            userId = user.Id;
+            jobId = job.Id;
+        }
+
+        await using var oldWorkerDb = new StockFlowDbContext(options);
+        var oldWorkerRepository = new ReportExportRepository(oldWorkerDb);
+        var oldLease = await oldWorkerRepository.ClaimNextAsync();
+        Assert.NotNull(oldLease?.LeaseToken);
+
+        await oldWorkerDb.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE reporting.report_export_jobs
+            SET updated_at = NOW() - INTERVAL '16 minutes'
+            WHERE id = {jobId}
+            """);
+
+        await using var newWorkerDb = new StockFlowDbContext(options);
+        var newWorkerRepository = new ReportExportRepository(newWorkerDb);
+        var newLease = await newWorkerRepository.ClaimNextAsync();
+        Assert.NotNull(newLease?.LeaseToken);
+        Assert.Equal(jobId, newLease?.Id);
+        Assert.NotEqual(oldLease!.LeaseToken, newLease!.LeaseToken);
+
+        Assert.False(await newWorkerRepository.RenewLeaseAsync(jobId, oldLease.LeaseToken!.Value));
+        Assert.False(await newWorkerRepository.CompleteAsync(oldLease, "stale.csv", 1));
+
+        Assert.True(await newWorkerRepository.CompleteAsync(newLease, "current.csv", 1));
+
+        await using var verification = new StockFlowDbContext(options);
+        var completed = await verification.ReportExportJobs.AsNoTracking().SingleAsync(job => job.Id == jobId);
+        Assert.Equal(ReportJobStatus.Completed, completed.Status);
+        Assert.Equal("current.csv", completed.FilePath);
+        Assert.Equal(userId, completed.RequestedById);
+    }
+
+    [Fact]
     public async Task ConcurrentRequests_AllowOnlyOneActiveReportPerUser()
     {
         var connectionString = GetTestDatabase();

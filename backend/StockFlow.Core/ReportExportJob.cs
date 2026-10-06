@@ -14,6 +14,7 @@ public sealed class ReportExportJob : Entity
     public User RequestedBy { get; set; } = null!;
     public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
     public DateTime? StartedAt { get; set; }
+    public Guid? LeaseToken { get; set; }
     public DateTime? CompletedAt { get; set; }
     public string? ErrorMessage { get; set; }
 }

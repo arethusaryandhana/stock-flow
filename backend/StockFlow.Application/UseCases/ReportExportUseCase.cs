@@ -11,6 +11,8 @@ public sealed class ReportExportUseCase(IReportExportRepository reports) : IRepo
 {
     private const string ProductStockReport = "product-stock";
     private const string CsvFormat = "csv";
+    private const int ProductPageSize = 250;
+    private static readonly TimeSpan LeaseRenewalInterval = TimeSpan.FromMinutes(1);
 
     public Task<ReportExportPageResponse> GetAllAsync(
         Guid requestedById,
@@ -74,7 +76,10 @@ public sealed class ReportExportUseCase(IReportExportRepository reports) : IRepo
             return UseCaseResult<ReportDownloadResponse>.Conflict("Laporan belum siap diunduh.");
 
         var storageRoot = Path.GetFullPath(reportStoragePath);
-        var expectedPath = Path.GetFullPath(Path.Combine(storageRoot, $"{job.JobNumber}.{job.Format}"));
+        var fileName = job.LeaseToken is Guid leaseToken
+            ? $"{job.JobNumber}.{leaseToken:N}.{job.Format}"
+            : $"{job.JobNumber}.{job.Format}";
+        var expectedPath = Path.GetFullPath(Path.Combine(storageRoot, fileName));
         var storedPath = Path.GetFullPath(job.FilePath);
         var comparison = OperatingSystem.IsWindows()
             ? StringComparison.OrdinalIgnoreCase
@@ -102,16 +107,20 @@ public sealed class ReportExportUseCase(IReportExportRepository reports) : IRepo
 
         string? temporaryPath = null;
         string? filePath = null;
+        var leaseToken = job.LeaseToken;
 
         try
         {
+            if (leaseToken is not Guid activeLeaseToken)
+                throw new InvalidOperationException("Report job was claimed without a lease token.");
+
             var storageRoot = Path.GetFullPath(reportStoragePath);
             Directory.CreateDirectory(storageRoot);
 
-            filePath = Path.Combine(storageRoot, $"{job.JobNumber}.csv");
+            filePath = Path.Combine(storageRoot, $"{job.JobNumber}.{activeLeaseToken:N}.csv");
             temporaryPath = $"{filePath}.{Guid.NewGuid():N}.tmp";
-            var rows = await reports.GetProductRowsAsync(cancellationToken);
             var company = await reports.GetCompanyProfileAsync(cancellationToken);
+            var nextLeaseRenewal = DateTime.UtcNow.Add(LeaseRenewalInterval);
 
             await using (var writer = new StreamWriter(
                 temporaryPath,
@@ -124,12 +133,27 @@ public sealed class ReportExportUseCase(IReportExportRepository reports) : IRepo
                     await writer.WriteLineAsync($"# Logo: {EscapeCsv(company.LogoUrl)}");
                 await writer.WriteLineAsync("sku,name,stock_on_hand,reorder_level");
 
-                foreach (var row in rows)
+                for (var page = 0; ; page++)
                 {
-                    await writer.WriteLineAsync(
-                        $"{EscapeCsv(row.Sku)},{EscapeCsv(row.Name)}," +
-                        $"{FormatDecimal(row.StockOnHand)}," +
-                        FormatDecimal(row.ReorderLevel));
+                    var rows = await reports.GetProductRowsAsync(page, ProductPageSize, cancellationToken);
+                    if (rows.Count == 0)
+                        break;
+
+                    foreach (var row in rows)
+                    {
+                        await writer.WriteLineAsync(
+                            $"{EscapeCsv(row.Sku)},{EscapeCsv(row.Name)}," +
+                            $"{FormatDecimal(row.StockOnHand)}," +
+                            FormatDecimal(row.ReorderLevel));
+                    }
+
+                    if (DateTime.UtcNow >= nextLeaseRenewal)
+                    {
+                        if (!await reports.RenewLeaseAsync(job.Id, activeLeaseToken, cancellationToken))
+                            throw new ReportLeaseLostException();
+
+                        nextLeaseRenewal = DateTime.UtcNow.Add(LeaseRenewalInterval);
+                    }
                 }
 
                 await writer.FlushAsync(cancellationToken);
@@ -139,7 +163,13 @@ public sealed class ReportExportUseCase(IReportExportRepository reports) : IRepo
             temporaryPath = null;
 
             var fileSize = new FileInfo(filePath).Length;
-            await reports.CompleteAsync(job, filePath, fileSize, cancellationToken);
+            if (!await reports.CompleteAsync(job, filePath, fileSize, cancellationToken))
+                DeleteIfExists(filePath);
+        }
+        catch (ReportLeaseLostException)
+        {
+            DeleteIfExists(temporaryPath);
+            DeleteIfExists(filePath);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -172,6 +202,8 @@ public sealed class ReportExportUseCase(IReportExportRepository reports) : IRepo
 
         return $"\"{safeValue.Replace("\"", "\"\"")}\"";
     }
+
+    private sealed class ReportLeaseLostException : Exception { }
 
     private static string FormatDecimal(decimal value) =>
         value.ToString("0.##", CultureInfo.InvariantCulture);

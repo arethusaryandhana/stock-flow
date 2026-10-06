@@ -324,17 +324,22 @@ public interface IReportExportRepository
 
     Task<ReportExportJob?> ClaimNextAsync(CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<ReportProductRow>> GetProductRowsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ReportProductRow>> GetProductRowsAsync(
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> RenewLeaseAsync(Guid jobId, Guid leaseToken, CancellationToken cancellationToken = default);
 
     Task<ReportCompanyProfile> GetCompanyProfileAsync(CancellationToken cancellationToken = default);
 
-    Task CompleteAsync(
+    Task<bool> CompleteAsync(
         ReportExportJob job,
         string filePath,
         long fileSize,
         CancellationToken cancellationToken = default);
 
-    Task FailAsync(
+    Task<bool> FailAsync(
         ReportExportJob job,
         string errorMessage,
         CancellationToken cancellationToken = default);

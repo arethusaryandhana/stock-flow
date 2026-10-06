@@ -99,8 +99,8 @@ public sealed class ReportExportRepository(StockFlowDbContext db) : IReportExpor
 
         await db.Database.ExecuteSqlRawAsync(
             "UPDATE reporting.report_export_jobs " +
-            "SET status = 0, progress = 0, started_at = NULL " +
-            "WHERE status = 1 AND started_at < NOW() - INTERVAL '15 minutes'",
+            "SET status = 0, progress = 0, started_at = NULL, lease_token = NULL, updated_at = NOW() " +
+            "WHERE status = 1 AND (updated_at IS NULL OR updated_at < NOW() - INTERVAL '15 minutes')",
             cancellationToken);
 
         var job = await db.ReportExportJobs
@@ -117,6 +117,7 @@ public sealed class ReportExportRepository(StockFlowDbContext db) : IReportExpor
         job.Status = ReportJobStatus.Processing;
         job.Progress = 5;
         job.StartedAt = DateTime.UtcNow;
+        job.LeaseToken = Guid.NewGuid();
         job.ErrorMessage = null;
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -125,11 +126,16 @@ public sealed class ReportExportRepository(StockFlowDbContext db) : IReportExpor
     }
 
     public async Task<IReadOnlyList<ReportProductRow>> GetProductRowsAsync(
+        int page,
+        int pageSize,
         CancellationToken cancellationToken = default)
     {
+        var pagination = Pagination.Normalize(page + 1, pageSize);
         return await db.ProductsSet
             .AsNoTracking()
             .OrderBy(product => product.Sku)
+            .Skip(pagination.Skip)
+            .Take(pagination.PageSize)
             .Select(product => new ReportProductRow(
                 product.Sku,
                 product.Name,
@@ -137,6 +143,18 @@ public sealed class ReportExportRepository(StockFlowDbContext db) : IReportExpor
                 product.ReorderLevel))
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<bool> RenewLeaseAsync(
+        Guid jobId,
+        Guid leaseToken,
+        CancellationToken cancellationToken = default) =>
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE reporting.report_export_jobs
+            SET updated_at = NOW()
+            WHERE id = {jobId}
+              AND status = {(int)ReportJobStatus.Processing}
+              AND lease_token = {leaseToken}
+            """, cancellationToken) == 1;
 
     public async Task<ReportCompanyProfile> GetCompanyProfileAsync(
         CancellationToken cancellationToken = default)
@@ -149,17 +167,31 @@ public sealed class ReportExportRepository(StockFlowDbContext db) : IReportExpor
             profile?.LogoUrl);
     }
 
-    public async Task CompleteAsync(
+    public async Task<bool> CompleteAsync(
         ReportExportJob job,
         string filePath,
         long fileSize,
         CancellationToken cancellationToken = default)
     {
-        job.Status = ReportJobStatus.Completed;
-        job.Progress = 100;
-        job.FilePath = filePath;
-        job.FileSize = fileSize;
-        job.CompletedAt = DateTime.UtcNow;
+        if (job.LeaseToken is not Guid leaseToken)
+            return false;
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var updated = await db.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE reporting.report_export_jobs
+            SET status = {(int)ReportJobStatus.Completed},
+                progress = 100,
+                file_path = {filePath},
+                file_size = {fileSize},
+                completed_at = NOW(),
+                updated_at = NOW()
+            WHERE id = {job.Id}
+              AND status = {(int)ReportJobStatus.Processing}
+              AND lease_token = {leaseToken}
+            """, cancellationToken);
+        if (updated != 1)
+            return false;
+
         var notificationEnabled = await db.UsersSet
             .AsNoTracking()
             .Where(user => user.Id == job.RequestedById)
@@ -180,19 +212,29 @@ public sealed class ReportExportRepository(StockFlowDbContext db) : IReportExpor
         }
 
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return true;
     }
 
-    public async Task FailAsync(
+    public async Task<bool> FailAsync(
         ReportExportJob job,
         string errorMessage,
         CancellationToken cancellationToken = default)
     {
-        job.Status = ReportJobStatus.Failed;
-        job.Progress = 0;
-        job.CompletedAt = DateTime.UtcNow;
-        job.ErrorMessage = errorMessage;
+        if (job.LeaseToken is not Guid leaseToken)
+            return false;
 
-        await db.SaveChangesAsync(cancellationToken);
+        return await db.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE reporting.report_export_jobs
+            SET status = {(int)ReportJobStatus.Failed},
+                progress = 0,
+                completed_at = NOW(),
+                error_message = {errorMessage},
+                updated_at = NOW()
+            WHERE id = {job.Id}
+              AND status = {(int)ReportJobStatus.Processing}
+              AND lease_token = {leaseToken}
+            """, cancellationToken) == 1;
     }
 
     private static int GetStatusCount(
