@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using StockFlow.Application.Abstractions.Repositories;
 using StockFlow.Application.Models;
+using StockFlow.Application.UseCases;
 using StockFlow.Core;
 
 namespace StockFlow.Infrastructure.Repositories;
@@ -162,7 +163,11 @@ public sealed class SalesRepository(StockFlowDbContext db) : ISalesRepository
             foreach (var item in order.Items)
             {
                 var product = productsById[item.ProductId];
-                product.StockOnHand = decimal.Round(product.StockOnHand - item.Quantity, 2);
+                var balanceAfter = decimal.Round(product.StockOnHand - item.Quantity, 2);
+                if (!DecimalPrecisionPolicy.IsValidNumeric18Scale2(balanceAfter))
+                    return new SalesOrderStatusUpdateResult(SalesOrderStatusUpdateStatus.StockOutOfRange);
+
+                product.StockOnHand = balanceAfter;
                 product.UpdatedAt = completedAt;
                 db.StockMovements.Add(new StockMovement
                 {

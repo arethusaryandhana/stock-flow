@@ -75,6 +75,25 @@ public sealed class InventoryUseCaseTests
     }
 
     [Fact]
+    public async Task CreateAdjustment_RejectsQuantityAboveDatabasePrecisionBeforeWriting()
+    {
+        var repository = new StubInventoryRepository();
+        var useCase = new InventoryUseCase(repository);
+
+        var result = await useCase.CreateAdjustmentAsync(
+            new StockAdjustmentRequest(
+                Guid.NewGuid(),
+                DecimalPrecisionPolicy.Numeric18Scale2Maximum + 0.01m,
+                "Stock count",
+                Guid.NewGuid()),
+            Guid.NewGuid(),
+            CancellationToken.None);
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal(0, repository.CreateCalls);
+    }
+
+    [Fact]
     public async Task CreateAdjustment_ReplaysExistingTransaction()
     {
         var adjustmentId = Guid.NewGuid();

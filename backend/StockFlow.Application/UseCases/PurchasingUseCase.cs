@@ -72,14 +72,18 @@ public sealed class PurchasingUseCase(
 
         foreach (var requestedItem in requestedItems)
         {
-            if (requestedItem.Quantity <= 0 || decimal.Round(requestedItem.Quantity, 2) != requestedItem.Quantity)
-                return UseCaseResult<PurchaseOrderResponse>.BadRequest("Jumlah produk harus lebih dari nol dan maksimal 2 angka desimal.");
+            if (requestedItem.Quantity <= 0 ||
+                !DecimalPrecisionPolicy.IsValidNumeric18Scale2(requestedItem.Quantity))
+                return UseCaseResult<PurchaseOrderResponse>.BadRequest(
+                    "Jumlah produk harus lebih dari nol, maksimal 2 angka desimal, dan tidak melebihi 9.999.999.999.999.999,99.");
 
             if (requestedItem.ProductId == Guid.Empty)
                 return UseCaseResult<PurchaseOrderResponse>.BadRequest("Produk wajib dipilih.");
 
-            if (requestedItem.UnitPrice < 0 || decimal.Round(requestedItem.UnitPrice, 2) != requestedItem.UnitPrice)
-                return UseCaseResult<PurchaseOrderResponse>.BadRequest("Harga beli tidak boleh negatif dan maksimal 2 angka desimal.");
+            if (requestedItem.UnitPrice < 0 ||
+                !DecimalPrecisionPolicy.IsValidNumeric18Scale2(requestedItem.UnitPrice))
+                return UseCaseResult<PurchaseOrderResponse>.BadRequest(
+                    "Harga beli harus 0 atau lebih, maksimal 2 angka desimal, dan tidak melebihi 9.999.999.999.999.999,99.");
 
             var product = await products.FindAsync(requestedItem.ProductId, cancellationToken);
             if (product is null)
@@ -156,11 +160,16 @@ public sealed class PurchasingUseCase(
         if (requestedItems.Count == 0)
             return UseCaseResult<GoodsReceiptResponse>.BadRequest("Penerimaan harus memiliki minimal satu produk.");
 
+        if (requestedItems.Count > 100)
+            return UseCaseResult<GoodsReceiptResponse>.BadRequest("Penerimaan maksimal memiliki 100 baris produk.");
+
         if (requestedItems.GroupBy(item => item.ProductId).Any(group => group.Count() > 1))
             return UseCaseResult<GoodsReceiptResponse>.BadRequest("Produk yang sama tidak boleh muncul lebih dari satu kali.");
 
-        if (requestedItems.Any(item => item.Quantity <= 0 || decimal.Round(item.Quantity, 2) != item.Quantity))
-            return UseCaseResult<GoodsReceiptResponse>.BadRequest("Jumlah penerimaan harus lebih dari nol dan maksimal 2 angka desimal.");
+        if (requestedItems.Any(item => item.Quantity <= 0 ||
+                !DecimalPrecisionPolicy.IsValidNumeric18Scale2(item.Quantity)))
+            return UseCaseResult<GoodsReceiptResponse>.BadRequest(
+                "Jumlah penerimaan harus lebih dari nol, maksimal 2 angka desimal, dan tidak melebihi 9.999.999.999.999.999,99.");
 
         var result = await purchasing.CreateGoodsReceiptAsync(request, receivedById, cancellationToken);
         return result.Status switch
@@ -177,6 +186,9 @@ public sealed class PurchasingUseCase(
                 UseCaseResult<GoodsReceiptResponse>.NotFound("Salah satu produk tidak ditemukan."),
             GoodsReceiptCreationStatus.ProductInactive =>
                 UseCaseResult<GoodsReceiptResponse>.BadRequest("Produk tidak aktif tidak dapat diterima."),
+            GoodsReceiptCreationStatus.QuantityOutOfRange =>
+                UseCaseResult<GoodsReceiptResponse>.BadRequest(
+                    "Saldo stok setelah penerimaan melebihi batas penyimpanan 9.999.999.999.999.999,99."),
             GoodsReceiptCreationStatus.AlreadyProcessed when result.Data is not null =>
                 UseCaseResult<GoodsReceiptResponse>.Created(
                     result.Data, $"/api/goods-receipts/{result.Data.Id}"),

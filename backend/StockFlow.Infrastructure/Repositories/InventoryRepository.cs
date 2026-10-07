@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using StockFlow.Application.Abstractions.Repositories;
 using StockFlow.Application.Models;
+using StockFlow.Application.UseCases;
 using StockFlow.Core;
 
 namespace StockFlow.Infrastructure.Repositories;
@@ -155,6 +156,9 @@ public sealed class InventoryRepository(StockFlowDbContext db) : IInventoryRepos
             .Select(settings => settings.AllowNegativeStock)
             .SingleOrDefaultAsync(cancellationToken);
         var balanceAfter = decimal.Round(product.StockOnHand + request.QuantityDelta, 2);
+        if (!DecimalPrecisionPolicy.IsValidNumeric18Scale2(balanceAfter))
+            return new StockAdjustmentCreationResult(StockAdjustmentCreationStatus.QuantityOutOfRange);
+
         if (!allowNegativeStock && balanceAfter < 0)
             return new StockAdjustmentCreationResult(StockAdjustmentCreationStatus.NegativeBalance);
 

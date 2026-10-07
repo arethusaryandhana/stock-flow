@@ -159,6 +159,7 @@ public enum StockAdjustmentCreationStatus
     ProductNotFound,
     ProductInactive,
     NegativeBalance,
+    QuantityOutOfRange,
     AlreadyProcessed,
     IdempotencyKeyConflict
 }
@@ -219,6 +220,7 @@ public enum GoodsReceiptCreationStatus
     QuantityExceedsOutstanding,
     ProductNotFound,
     ProductInactive,
+    QuantityOutOfRange,
     AlreadyProcessed,
     IdempotencyKeyConflict
 }
@@ -260,7 +262,8 @@ public enum SalesOrderStatusUpdateStatus
     InvalidTransition,
     ProductNotFound,
     ProductInactive,
-    InsufficientStock
+    InsufficientStock,
+    StockOutOfRange
 }
 
 public sealed record SalesOrderStatusUpdateResult(

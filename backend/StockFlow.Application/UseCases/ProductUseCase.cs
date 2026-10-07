@@ -46,12 +46,12 @@ public sealed class ProductUseCase(
 
         if (request.PurchasePrice < 0 || request.SellingPrice < 0 ||
             reorderLevel < 0 ||
-            decimal.Round(request.PurchasePrice, 2) != request.PurchasePrice ||
-            decimal.Round(request.SellingPrice, 2) != request.SellingPrice ||
-            decimal.Round(reorderLevel, 2) != reorderLevel)
+            !DecimalPrecisionPolicy.IsValidNumeric18Scale2(request.PurchasePrice) ||
+            !DecimalPrecisionPolicy.IsValidNumeric18Scale2(request.SellingPrice) ||
+            !DecimalPrecisionPolicy.IsValidNumeric18Scale2(reorderLevel))
         {
             return UseCaseResult<ProductResponse>.BadRequest(
-                "Harga tidak boleh negatif; minimum stok harus 0 atau lebih dan maksimal 2 angka desimal.");
+                "Harga dan minimum stok harus 0 atau lebih, maksimal 2 angka desimal, dan tidak melebihi 9.999.999.999.999.999,99.");
         }
 
         if (!await categories.ExistsActiveAsync(request.CategoryId, cancellationToken))
@@ -105,12 +105,12 @@ public sealed class ProductUseCase(
 
         if (request.PurchasePrice < 0 || request.SellingPrice < 0 ||
             reorderLevel is null || reorderLevel < 0 ||
-            decimal.Round(request.PurchasePrice, 2) != request.PurchasePrice ||
-            decimal.Round(request.SellingPrice, 2) != request.SellingPrice ||
-            decimal.Round(reorderLevel.Value, 2) != reorderLevel.Value)
+            !DecimalPrecisionPolicy.IsValidNumeric18Scale2(request.PurchasePrice) ||
+            !DecimalPrecisionPolicy.IsValidNumeric18Scale2(request.SellingPrice) ||
+            !DecimalPrecisionPolicy.IsValidNumeric18Scale2(reorderLevel.Value))
         {
             return UseCaseResult<ProductResponse>.BadRequest(
-                "Harga tidak boleh negatif; minimum stok harus 0 atau lebih dan maksimal 2 angka desimal.");
+                "Harga dan minimum stok harus 0 atau lebih, maksimal 2 angka desimal, dan tidak melebihi 9.999.999.999.999.999,99.");
         }
 
         var product = await products.FindAsync(id, cancellationToken);
@@ -143,10 +143,11 @@ public sealed class ProductUseCase(
         ProductReorderLevelRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (request.ReorderLevel < 0 || decimal.Round(request.ReorderLevel, 2) != request.ReorderLevel)
+        if (request.ReorderLevel < 0 ||
+            !DecimalPrecisionPolicy.IsValidNumeric18Scale2(request.ReorderLevel))
         {
             return UseCaseResult<ProductResponse>.BadRequest(
-                "Batas minimum stok tidak boleh negatif dan maksimal 2 angka desimal.");
+                "Batas minimum stok harus 0 atau lebih, maksimal 2 angka desimal, dan tidak melebihi 9.999.999.999.999.999,99.");
         }
 
         var product = await products.FindAsync(id, cancellationToken);

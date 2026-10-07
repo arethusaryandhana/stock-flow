@@ -37,10 +37,10 @@ public sealed class InventoryUseCase(IInventoryRepository inventory) : IInventor
                 "Jumlah penyesuaian tidak boleh nol.");
         }
 
-        if (decimal.Round(request.QuantityDelta, 2) != request.QuantityDelta)
+        if (!DecimalPrecisionPolicy.IsValidNumeric18Scale2(request.QuantityDelta))
         {
             return UseCaseResult<StockAdjustmentResponse>.BadRequest(
-                "Jumlah penyesuaian maksimal 2 angka desimal.");
+                "Jumlah penyesuaian maksimal 2 angka desimal dan tidak boleh melebihi 9.999.999.999.999.999,99.");
         }
 
         var reason = request.Reason?.Trim() ?? string.Empty;
@@ -67,6 +67,9 @@ public sealed class InventoryUseCase(IInventoryRepository inventory) : IInventor
                 UseCaseResult<StockAdjustmentResponse>.BadRequest("Produk tidak aktif tidak dapat disesuaikan."),
             StockAdjustmentCreationStatus.NegativeBalance =>
                 UseCaseResult<StockAdjustmentResponse>.BadRequest("Penyesuaian tidak boleh membuat stok menjadi negatif."),
+            StockAdjustmentCreationStatus.QuantityOutOfRange =>
+                UseCaseResult<StockAdjustmentResponse>.BadRequest(
+                    "Jumlah atau saldo stok melebihi batas penyimpanan 9.999.999.999.999.999,99."),
             StockAdjustmentCreationStatus.AlreadyProcessed when result.Data is not null =>
                 UseCaseResult<StockAdjustmentResponse>.Created(
                     result.Data, $"/api/stock-adjustments/{result.Data.Id}"),

@@ -73,11 +73,15 @@ public sealed class SalesUseCase(
             if (requestedItem.ProductId == Guid.Empty)
                 return UseCaseResult<SalesOrderResponse>.BadRequest("Produk wajib dipilih.");
 
-            if (requestedItem.Quantity <= 0 || decimal.Round(requestedItem.Quantity, 2) != requestedItem.Quantity)
-                return UseCaseResult<SalesOrderResponse>.BadRequest("Jumlah produk harus lebih dari nol dan maksimal 2 angka desimal.");
+            if (requestedItem.Quantity <= 0 ||
+                !DecimalPrecisionPolicy.IsValidNumeric18Scale2(requestedItem.Quantity))
+                return UseCaseResult<SalesOrderResponse>.BadRequest(
+                    "Jumlah produk harus lebih dari nol, maksimal 2 angka desimal, dan tidak melebihi 9.999.999.999.999.999,99.");
 
-            if (requestedItem.UnitPrice < 0 || decimal.Round(requestedItem.UnitPrice, 2) != requestedItem.UnitPrice)
-                return UseCaseResult<SalesOrderResponse>.BadRequest("Harga jual tidak boleh negatif dan maksimal 2 angka desimal.");
+            if (requestedItem.UnitPrice < 0 ||
+                !DecimalPrecisionPolicy.IsValidNumeric18Scale2(requestedItem.UnitPrice))
+                return UseCaseResult<SalesOrderResponse>.BadRequest(
+                    "Harga jual harus 0 atau lebih, maksimal 2 angka desimal, dan tidak melebihi 9.999.999.999.999.999,99.");
 
             var product = await products.FindAsync(requestedItem.ProductId, cancellationToken);
             if (product is null)
@@ -139,6 +143,9 @@ public sealed class SalesUseCase(
             SalesOrderStatusUpdateStatus.InsufficientStock =>
                 UseCaseResult<SalesOrderResponse>.BadRequest(
                     $"Stok tidak mencukupi untuk: {string.Join(", ", result.InsufficientProducts ?? [])}."),
+            SalesOrderStatusUpdateStatus.StockOutOfRange =>
+                UseCaseResult<SalesOrderResponse>.BadRequest(
+                    "Saldo stok setelah penjualan melebihi batas penyimpanan -9.999.999.999.999.999,99 hingga 9.999.999.999.999.999,99."),
             _ => UseCaseResult<SalesOrderResponse>.BadRequest("Sales order tidak dapat diperbarui.")
         };
     }

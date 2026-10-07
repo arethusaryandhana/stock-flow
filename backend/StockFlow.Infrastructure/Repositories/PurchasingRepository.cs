@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using StockFlow.Application.Abstractions.Repositories;
 using StockFlow.Application.Models;
+using StockFlow.Application.UseCases;
 using StockFlow.Core;
 
 namespace StockFlow.Infrastructure.Repositories;
@@ -236,6 +237,13 @@ public sealed class PurchasingRepository(StockFlowDbContext db) : IPurchasingRep
                 requested.Value > orderItems[requested.Key].Quantity - receivedTotals.GetValueOrDefault(requested.Key)))
         {
             return new GoodsReceiptCreationResult(GoodsReceiptCreationStatus.QuantityExceedsOutstanding);
+        }
+
+        if (requestedQuantities.Any(requested =>
+                !DecimalPrecisionPolicy.IsValidNumeric18Scale2(
+                    productsById[requested.Key].StockOnHand + requested.Value)))
+        {
+            return new GoodsReceiptCreationResult(GoodsReceiptCreationStatus.QuantityOutOfRange);
         }
 
         var receivedAt = DateTime.UtcNow;
