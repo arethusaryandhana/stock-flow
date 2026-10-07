@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StockFlow.Application.Abstractions.UseCases;
 using StockFlow.Application.Models;
+using StockFlow.Application.UseCases;
 
 namespace StockFlow.WebAPI.Endpoints;
 
@@ -15,7 +16,8 @@ public sealed class ProductEndpoints : IEndpoint
 
         group.MapGet("/", GetAllAsync)
             .RequireAuthorization(PermissionPolicies.ProductsRead)
-            .Produces<PagedResponse<ProductResponse>>(StatusCodes.Status200OK);
+            .Produces<PagedResponse<ProductResponse>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest);
 
         group.MapPost("/", CreateAsync)
             .RequireAuthorization("menu.master.products", "action.products.manage")
@@ -52,8 +54,19 @@ public sealed class ProductEndpoints : IEndpoint
         [FromQuery] int pageSize = 10,
         [FromQuery] string? search = null,
         [FromQuery] string? status = null,
-        [FromQuery] Guid? categoryId = null) =>
-        Results.Ok(await useCase.GetAllAsync(page, pageSize, search, status, categoryId, cancellationToken));
+        [FromQuery] Guid? categoryId = null)
+    {
+        if (!ProductSearchPolicy.IsWithinLimit(search))
+        {
+            return Results.BadRequest(new
+            {
+                message = $"Kata pencarian maksimal {ProductSearchPolicy.MaximumLength} karakter."
+            });
+        }
+
+        return Results.Ok(await useCase.GetAllAsync(
+            page, pageSize, search, status, categoryId, cancellationToken));
+    }
 
     private static async Task<IResult> CreateAsync(
         ProductRequest request,
