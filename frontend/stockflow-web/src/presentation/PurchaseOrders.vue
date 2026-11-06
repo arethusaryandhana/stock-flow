@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import ReorderCandidates, { type Candidate } from '../components/ReorderCandidates.vue'
 import { api } from '../infrastructure/api'
 import { serializeCsv } from '../infrastructure/csv'
 import type { PagedResponse } from '../infrastructure/api'
@@ -18,6 +20,31 @@ type PurchaseOrder = { id: string; number: string; supplierId: string; supplierC
 type PurchaseOrderStatusCounts = { draft: number; submitted: number; approved: number; received: number; cancelled: number }
 type PurchaseOrderPageResponse = PagedResponse<PurchaseOrder> & { statusCounts: PurchaseOrderStatusCounts }
 type OrderLine = { productId: string; quantity: string; unitPrice: string }
+
+const route = useRoute()
+const router = useRouter()
+const showReorder = computed(() => route.query.reorder === '1')
+const focusProduct = computed(() => typeof route.query.productId === 'string' ? route.query.productId : undefined)
+const draftProducts = ref<Product[]>([])
+
+function toggleReorder() {
+  const query = { ...route.query }
+  if (showReorder.value) {
+    delete query.reorder
+    delete query.productId
+  } else {
+    query.reorder = '1'
+  }
+  void router.replace({ query })
+}
+
+function startReorder(items: Candidate[]) {
+  draftProducts.value = items.map(item => ({ ...item, isActive: true }))
+  lines.value = items.map(item => ({ productId: item.id, quantity: '', unitPrice: String(item.purchasePrice) }))
+  formError.value = ''
+  newOrder.value = { supplierId: '', expectedDate: '', notes: '' }
+  showForm.value = true
+}
 
 const displayPreferences = useDisplayPreferences()
 const orders = ref<PurchaseOrder[]>([])
@@ -46,7 +73,7 @@ const toast = useToastStore()
 const canManage = computed(() => auth.can('action.purchasing.manage'))
 const canOverridePrice = computed(() => auth.can('action.purchasing.price-override'))
 const activeSuppliers = computed(() => suppliers.value.filter((supplier) => supplier.isActive))
-const activeProducts = computed(() => products.value.filter((product) => product.isActive))
+const activeProducts = computed(() => [...draftProducts.value, ...products.value.filter(product => product.isActive && !draftProducts.value.some(item => item.id === product.id))])
 const totalAmount = computed(() => lines.value.reduce((total, line) => total + parseAmount(line.quantity) * parseAmount(line.unitPrice), 0))
 const date = (value: string) => displayPreferences.formatDate(value)
 const money = (value: number) => displayPreferences.formatNumber(value, { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
@@ -77,7 +104,7 @@ async function load() {
     statusCounts.value = ordersResponse.data.statusCounts
     suppliers.value = suppliersResponse.data.items
     products.value = productsResponse.data.items
-    if (!newOrder.value.supplierId && activeSuppliers.value[0]) newOrder.value.supplierId = activeSuppliers.value[0].id
+
   } catch (requestError) {
     error.value = (requestError as Error).message
   } finally {
@@ -92,6 +119,7 @@ function openForm() {
 }
 
 function closeForm() {
+  draftProducts.value = []
   showForm.value = false
   formError.value = ''
   newOrder.value = { supplierId: activeSuppliers.value[0]?.id ?? '', expectedDate: '', notes: '' }
@@ -114,7 +142,7 @@ function removeLine(index: number) {
 
 function setProductPrice(line: OrderLine) {
   const product = activeProducts.value.find((item) => item.id === line.productId)
-  if (product && !line.unitPrice) line.unitPrice = String(product.purchasePrice)
+  if (product) line.unitPrice = String(product.purchasePrice)
 }
 
 async function createOrder() {
@@ -147,6 +175,7 @@ async function createOrder() {
       notes: newOrder.value.notes.trim() || null,
       items: lines.value.map((line) => ({ productId: line.productId, quantity: parseAmount(line.quantity), unitPrice: parseAmount(line.unitPrice) })),
     })
+    if (draftProducts.value.length && showReorder.value) toggleReorder()
     closeForm()
     await load()
     toast.success(t('operations.createdToast', { number: data.number }))
@@ -203,9 +232,11 @@ onMounted(load)
   <div class="page">
     <div class="page-heading">
       <div><p class="eyebrow">{{ t('operations.eyebrow') }}</p><h1>{{ t('operations.title') }}</h1><p class="subtitle">{{ t('operations.subtitle') }}</p></div>
-      <div class="header-actions"><button class="secondary" type="button" @click="exportCsv">{{ t('operations.export') }}</button><button v-if="canManage" class="primary" type="button" @click="openForm"><span class="button-plus">+</span> {{ t('operations.add') }}</button></div>
+      <div class="header-actions"><button v-if="canManage" class="secondary" type="button" :aria-expanded="showReorder" @click="toggleReorder">{{ t('reorder.title') }}</button><button class="secondary" type="button" @click="exportCsv">{{ t('operations.export') }}</button><button v-if="canManage" class="primary" type="button" @click="openForm"><span class="button-plus">+</span> {{ t('operations.add') }}</button></div>
     </div>
     <p v-if="error" class="alert error-banner">{{ error }}</p>
+
+    <ReorderCandidates v-if="canManage && showReorder" :key="focusProduct" :product-id="focusProduct" @draft="startReorder" />
 
     <div class="summary-grid"><div class="mini-stat"><span class="mini-stat-icon">▤</span><span><small>{{ t('operations.total') }}</small><strong>{{ loading ? '—' : totalCount }}</strong></span></div><div class="mini-stat"><span class="mini-stat-icon amber">◷</span><span><small>{{ t('operations.awaitingApproval') }}</small><strong>{{ loading ? '—' : statusCounts.submitted }}</strong></span></div><div class="mini-stat"><span class="mini-stat-icon in">↓</span><span><small>{{ t('operations.readyToReceive') }}</small><strong>{{ loading ? '—' : statusCounts.approved }}</strong></span></div></div>
 
