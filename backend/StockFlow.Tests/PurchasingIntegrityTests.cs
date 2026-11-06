@@ -50,7 +50,7 @@ public sealed class PurchasingIntegrityTests
                 StockOnHand = 10,
                 PurchasePrice = 1,
                 SellingPrice = 2,
-                ReorderLevel = 0
+                ReorderLevel = 12
             };
             var role = new Role { Name = "TestManager" };
             var user = new User
@@ -135,6 +135,13 @@ public sealed class PurchasingIntegrityTests
             .Where(product => product.Id == productId)
             .Select(product => product.StockOnHand)
             .SingleAsync(CancellationToken.None));
+        var purchasing = new PurchasingRepository(verification);
+        var candidates = await purchasing.GetReorderCandidatesAsync(1, 10, productId, CancellationToken.None);
+        var candidate = Assert.Single(candidates.Items);
+        Assert.Equal(productId, candidate.Id);
+        Assert.Equal(12, candidate.StockOnHand);
+        Assert.Equal(3, candidate.IncomingQuantity);
+
         Assert.Equal(1, await verification.GoodsReceipts.CountAsync(CancellationToken.None));
         Assert.Equal(1, await verification.StockMovements.CountAsync(CancellationToken.None));
     }
