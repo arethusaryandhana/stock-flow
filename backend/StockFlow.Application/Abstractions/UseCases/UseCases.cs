@@ -155,6 +155,9 @@ public interface IInventoryUseCase
 
 public interface IPurchasingUseCase
 {
+    Task<PagedResponse<ReorderCandidateResponse>> GetReorderCandidatesAsync(
+        int page, int pageSize, Guid? productId, CancellationToken cancellationToken);
+
     Task<PurchaseOrderPageResponse> GetPurchaseOrdersAsync(
         int page,
         int pageSize,

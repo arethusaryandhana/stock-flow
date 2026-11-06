@@ -13,6 +13,10 @@ public sealed class PurchasingUseCase(
     IUserAccessReader access,
     ICurrentUserService currentUser) : IPurchasingUseCase
 {
+    public Task<PagedResponse<ReorderCandidateResponse>> GetReorderCandidatesAsync(
+        int page, int pageSize, Guid? productId, CancellationToken cancellationToken) =>
+        purchasing.GetReorderCandidatesAsync(page, pageSize, productId, cancellationToken);
+
     public Task<PurchaseOrderPageResponse> GetPurchaseOrdersAsync(
         int page,
         int pageSize,

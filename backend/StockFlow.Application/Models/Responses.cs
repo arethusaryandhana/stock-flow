@@ -129,6 +129,10 @@ public sealed record PurchaseOrderItemResponse(
     decimal ReceivedQuantity,
     decimal UnitPrice);
 
+public sealed record ReorderCandidateResponse(
+    Guid Id, string Sku, string Name, string Unit, decimal PurchasePrice,
+    decimal StockOnHand, decimal Threshold, decimal IncomingQuantity);
+
 public sealed record PurchaseOrderResponse(
     Guid Id,
     string Number,

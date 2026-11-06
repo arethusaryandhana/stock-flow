@@ -21,6 +21,13 @@ public sealed class PurchasingEndpoints : IEndpoint
             .RequireAuthorization(PermissionPolicies.PurchaseOrdersRead)
             .Produces<PurchaseOrderPageResponse>(StatusCodes.Status200OK);
 
+        purchaseOrders.MapGet("/reorder-candidates", (
+            IPurchasingUseCase useCase, CancellationToken cancellationToken,
+            [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] Guid? productId = null) =>
+            useCase.GetReorderCandidatesAsync(page, pageSize, productId, cancellationToken))
+            .RequireAuthorization(ManagePurchasingPolicies)
+            .Produces<PagedResponse<ReorderCandidateResponse>>();
+
         purchaseOrders.MapGet("/{id:guid}", GetPurchaseOrderAsync)
             .RequireAuthorization(PermissionPolicies.PurchaseOrdersRead)
             .Produces<PurchaseOrderResponse>(StatusCodes.Status200OK)

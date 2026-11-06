@@ -10,6 +10,35 @@ namespace StockFlow.Infrastructure.Repositories;
 public sealed class PurchasingRepository(StockFlowDbContext db) : IPurchasingRepository
 {
     private const string ReceiptIdempotencyIndex = "IX_goods_receipts_received_by_idempotency_key";
+
+    public async Task<PagedResponse<ReorderCandidateResponse>> GetReorderCandidatesAsync(
+        int page, int pageSize, Guid? productId, CancellationToken cancellationToken)
+    {
+        var pagination = Pagination.Normalize(page, pageSize);
+        var globalThreshold = await db.InventorySettingsSet
+            .Where(settings => settings.Id == InventorySettings.DefaultId)
+            .Select(settings => settings.GlobalLowStockThreshold)
+            .SingleOrDefaultAsync(cancellationToken);
+        var candidates = db.ProductsSet.AsNoTracking()
+            .Where(product => product.IsActive &&
+                (product.StockOnHand <= product.ReorderLevel || product.StockOnHand <= globalThreshold));
+        if (productId.HasValue)
+            candidates = candidates.Where(product => product.Id == productId.Value);
+
+        var count = await candidates.CountAsync(cancellationToken);
+        var items = await candidates.OrderBy(product => product.StockOnHand).ThenBy(product => product.Id)
+            .Skip(pagination.Skip).Take(pagination.PageSize)
+            .Select(product => new ReorderCandidateResponse(
+                product.Id, product.Sku, product.Name, product.Unit, product.PurchasePrice, product.StockOnHand,
+                Math.Max(product.ReorderLevel, globalThreshold),
+                db.PurchaseOrderItems.Where(item => item.ProductId == product.Id &&
+                    item.PurchaseOrder.Status == PurchaseOrderStatus.Approved).Sum(item => item.Quantity)
+                - db.GoodsReceiptItems.Where(item => item.ProductId == product.Id &&
+                    item.GoodsReceipt.PurchaseOrder.Status == PurchaseOrderStatus.Approved).Sum(item => item.Quantity)))
+            .ToListAsync(cancellationToken);
+        return new(items, pagination.Page, pagination.PageSize, count);
+    }
+
     public async Task<PurchaseOrderPageResponse> GetPurchaseOrdersAsync(
         int page,
         int pageSize,
