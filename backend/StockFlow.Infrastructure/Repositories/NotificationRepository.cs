@@ -188,6 +188,7 @@ public sealed class NotificationRepository(StockFlowDbContext db) : INotificatio
                 var balance = product.StockOnHand.ToString("0.##", CultureInfo.InvariantCulture);
                 var threshold = product.Threshold.ToString("0.##", CultureInfo.InvariantCulture);
                 var deduplicationKey = $"low-stock:{userId:N}:{product.Id:N}:{dateKey}";
+                var link = $"/operations/purchase-orders?reorder=1&productId={product.Id}";
                 var message = $"{product.Sku} - {product.Name} tersisa {balance} {product.Unit} (minimum {threshold}).";
 
                 await db.Database.ExecuteSqlInterpolatedAsync($"""
@@ -195,7 +196,7 @@ public sealed class NotificationRepository(StockFlowDbContext db) : INotificatio
                         (id, user_id, type, title, message, link, deduplication_key, is_read, created_at)
                     VALUES
                         ({Guid.NewGuid()}, {userId}, {(int)NotificationType.LowStock}, {"Stok menipis"},
-                         {message}, {"/products"}, {deduplicationKey}, {false}, {now})
+                         {message}, {link}, {deduplicationKey}, {false}, {now})
                     ON CONFLICT (deduplication_key) WHERE deduplication_key IS NOT NULL DO NOTHING
                     """, cancellationToken);
             }

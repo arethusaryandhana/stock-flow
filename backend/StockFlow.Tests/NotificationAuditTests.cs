@@ -20,6 +20,7 @@ public sealed class NotificationAuditTests
             return;
 
         var options = CreateOptions(connectionString);
+        var lowProductId = Guid.NewGuid();
         Guid adminId;
         Guid managerId;
         Guid staffId;
@@ -41,6 +42,7 @@ public sealed class NotificationAuditTests
                 staff,
                 new Product
                 {
+                    Id = lowProductId,
                     Sku = "LOW-001",
                     Name = "Low Stock Product",
                     Category = category,
@@ -85,7 +87,7 @@ public sealed class NotificationAuditTests
         Assert.Empty(staffPage.Items);
         Assert.Equal(1, adminPage.UnreadCount);
         Assert.Equal(nameof(NotificationType.LowStock), adminNotification.Type);
-        Assert.Equal("/products", adminNotification.Link);
+        Assert.Equal($"/operations/purchase-orders?reorder=1&productId={lowProductId}", adminNotification.Link);
 
         var denied = await useCase.MarkReadAsync(adminNotification.Id, managerId);
         Assert.Equal(404, denied.StatusCode);

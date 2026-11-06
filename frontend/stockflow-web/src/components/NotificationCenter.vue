@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
 import { api } from '../infrastructure/api'
 import { useI18n } from '../i18n'
@@ -36,6 +37,7 @@ const markingAll = ref(false)
 const error = ref('')
 const root = ref<HTMLElement | null>(null)
 const router = useRouter()
+const auth = useAuthStore()
 const { t } = useI18n()
 let pollTimer: number | undefined
 let mounted = false
@@ -121,6 +123,12 @@ async function openNotification(item: NotificationItem) {
   }
 
   open.value = false
+  if (item.type === 'LowStock') {
+    const canReorder = auth.can('menu.purchase-orders') && auth.can('action.purchasing.manage')
+    if (canReorder) await router.push(item.link?.startsWith('/operations/purchase-orders?') ? item.link : '/operations/purchase-orders?reorder=1')
+    else if (auth.can('menu.products')) await router.push('/products')
+    return
+  }
   if (item.link) await router.push(item.link)
 }
 
